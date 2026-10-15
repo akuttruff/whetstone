@@ -5,7 +5,8 @@ import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
 import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REVIEW_MAX_TOKENS, chatPrompt, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
-import { TRACKS, isCode } from '../src/types.ts'
+import { DIRECTIONS, TRACKS, isCode } from '../src/types.ts'
+import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
 import { primerFor } from '../src/data/primers.ts'
 import type { Direction, Problem, RunResult, TestCase } from '../src/types.ts'
 
@@ -159,14 +160,19 @@ export function createApi(options: ApiOptions = {}) {
       return
     }
 
-    // An easier or harder problem on the same pattern, written by the model
-    // and, for code, checked: its own solution must pass the tests it wrote.
+    // An easier, similar (same level, for repetition) or harder problem on
+    // the same pattern, written by the model and, for code, checked: its own
+    // solution must pass the tests it wrote. The model is told which titles
+    // already exist on the pattern so repeated drills do not converge.
     if (p === '/api/variants' && method === 'POST') {
       const body = (await readBody(req)) as { problem?: unknown; direction?: unknown }
       const parent = problemFromBody(body.problem)
-      const direction: Direction = body.direction === 'harder' ? 'harder' : 'easier'
+      const direction: Direction = DIRECTIONS.find((d) => d === body.direction) ?? 'easier'
       const settings = store.getSettings()
-      const { system, user, schema } = variantPrompt(parent, direction)
+      const avoid = [...BUILTIN_PROBLEMS, ...store.listProblems()]
+        .filter((q) => q.id !== parent.id && q.track === parent.track && q.pattern === parent.pattern)
+        .map((q) => q.title)
+      const { system, user, schema } = variantPrompt(parent, direction, avoid)
       const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: VARIANT_MAX_TOKENS, temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
       let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id))
       let verified: { passed: number; total: number } | null = null

@@ -42,12 +42,20 @@ describe('variants', () => {
     expect(stepDifficulty('easy', 'easier')).toBe('easy')
     expect(stepDifficulty('easy', 'harder')).toBe('medium')
     expect(stepDifficulty('hard', 'harder')).toBe('hard')
+    expect(stepDifficulty('medium', 'similar')).toBe('medium')
   })
   it('asks for the right schema per track', () => {
     expect(variantPrompt(twoSum, 'harder').schema.name).toBe('code_problem')
     expect(variantPrompt(design, 'easier').schema.name).toBe('design_problem')
     expect(variantPrompt(behav, 'easier').schema.name).toBe('prompt_problem')
     expect(variantPrompt(twoSum, 'easier').user).toMatch(/EASIER/)
+  })
+  it('asks for a same-level problem and lists titles to avoid', () => {
+    const { user } = variantPrompt(twoSum, 'similar', ['Pair With Target', 'Pair With Target', ' ', 'Two Product'])
+    expect(user).toMatch(/SIMILAR problem at the SAME difficulty \(easy\)/)
+    expect(user).toContain('- Pair With Target\n- Two Product')
+    expect(user.match(/Pair With Target/g)).toHaveLength(1)
+    expect(variantPrompt(twoSum, 'harder').user).not.toMatch(/already exist/)
   })
   it('turns model JSON into a saved-shape problem under its parent', () => {
     const raw = {
@@ -56,7 +64,7 @@ describe('variants', () => {
       tests: [{ call: 'pairSum()', expectedJson: 'true' }, { call: 'bad', expectedJson: '{not json' }, { call: '', expectedJson: '1' }],
     }
     const p = variantFromModel(raw, twoSum, 'easier', (id) => id === 'pair-sum-exists-easier') as CodeProblem
-    expect(p).toMatchObject({ id: 'pair-sum-exists-easier-2', track: 'coding', topic: twoSum.topic, pattern: twoSum.pattern, difficulty: 'easy', source: 'generated', parentId: 'two-sum' })
+    expect(p).toMatchObject({ id: 'pair-sum-exists-easier-2', track: 'coding', topic: twoSum.topic, pattern: twoSum.pattern, difficulty: 'easy', source: 'generated', parentId: 'two-sum', direction: 'easier' })
     expect(p.tests).toEqual([{ call: 'pairSum()', expected: true }])
   })
   it('refuses a variant without the essentials', () => {

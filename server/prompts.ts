@@ -182,24 +182,39 @@ const PROMPT_SCHEMA: JsonSchemaSpec = {
 }
 
 export function stepDifficulty(d: Difficulty, direction: Direction): Difficulty {
+  if (direction === 'similar') return d
   const i = DIFFICULTIES.indexOf(d)
   return DIFFICULTIES[Math.max(0, Math.min(DIFFICULTIES.length - 1, i + (direction === 'easier' ? -1 : 1)))]!
 }
 
 function directionBrief(direction: Direction, target: Difficulty): string {
-  return direction === 'easier'
-    ? `Make it genuinely EASIER (target difficulty: ${target}): the same topic and the same pattern, but one core idea only, smaller inputs, fewer edge cases, ` +
+  if (direction === 'easier') {
+    return `Make it genuinely EASIER (target difficulty: ${target}): the same topic and the same pattern, but one core idea only, smaller inputs, fewer edge cases, ` +
       'no secondary requirements, and a solution that is short. Someone who got stuck on the original should be able to finish this in 10 to 15 minutes and then see how it connects back.'
-    : `Make it HARDER (target difficulty: ${target}): keep the same pattern as the backbone, then add the twist a senior interviewer would add as a follow-up: ` +
-      'an extra constraint, a tighter complexity bound, a tricky edge case family, streaming or very large input, or combining the pattern with one adjacent idea. ' +
-      'It should take a strong candidate 25 to 35 minutes.'
+  }
+  if (direction === 'similar') {
+    return `Make a SIMILAR problem at the SAME difficulty (${target}) for repetition practice: the same pattern and the same core technique, so the candidate drills the ` +
+      'move they just made until it is automatic. Change the surface completely (a new story, new data shape, new names, a different thing being asked for) but keep the ' +
+      'solution shape, the complexity, the number of edge cases and the expected time to solve about the same as the original. It must not be a trivial rename of the original, ' +
+      'and it must not be a known textbook problem with the same name as any listed below.'
+  }
+  return `Make it HARDER (target difficulty: ${target}): keep the same pattern as the backbone, then add the twist a senior interviewer would add as a follow-up: ` +
+    'an extra constraint, a tighter complexity bound, a tricky edge case family, streaming or very large input, or combining the pattern with one adjacent idea. ' +
+    'It should take a strong candidate 25 to 35 minutes.'
 }
 
-export function variantPrompt(problem: Problem, direction: Direction): { system: string; user: string; schema: JsonSchemaSpec } {
+/** Titles the model must steer clear of: siblings already generated on this pattern, so repeated drills stay fresh. */
+function avoidBrief(avoid: string[]): string {
+  const titles = [...new Set(avoid.map((t) => t.trim()).filter(Boolean))].slice(0, 30)
+  return titles.length > 0 ? `\n\nProblems that already exist on this pattern (do not repeat or lightly reword any of these):\n${titles.map((t) => `- ${t}`).join('\n')}` : ''
+}
+
+export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = []): { system: string; user: string; schema: JsonSchemaSpec } {
   const target = stepDifficulty(problem.difficulty, direction)
   const common =
     'You write interview practice material for senior software engineers. Produce ONE new problem as JSON matching the schema. ' +
     'It must be a different problem from the original (different title and scenario), self-contained, and correct. '
+  const avoidText = avoidBrief(avoid)
   if (isCode(problem)) {
     return {
       schema: CODE_SCHEMA,
@@ -214,7 +229,7 @@ export function variantPrompt(problem: Problem, direction: Direction): { system:
         `${directionBrief(direction, target)}\n\n` +
         `Original problem (${problem.difficulty}; topic: ${problem.topic}; pattern: ${problem.pattern}): ${problem.title}\n\n` +
         `${problem.description.join('\n\n')}\n\nExamples:\n${fmtExamples(problem.examples)}\n\n` +
-        `Original starter:\n${problem.starter}\n\nOriginal solution (for the pattern; do not copy):\n${problem.solution}`,
+        `Original starter:\n${problem.starter}\n\nOriginal solution (for the pattern; do not copy):\n${problem.solution}${avoidText}`,
     }
   }
   if (isDesign(problem)) {
@@ -225,10 +240,10 @@ export function variantPrompt(problem: Problem, direction: Direction): { system:
         'Rules for system design prompts: "prompt" is 1 to 2 paragraphs setting the scenario and scale; 3 to 5 functional and 3 to 4 non-functional requirements; ' +
         '3 to 4 talking-point groups with 2 to 4 bullets each, written as the specific things a strong senior answer says; 2 to 3 follow-up questions. No markdown.',
       user:
-        `${directionBrief(direction, target)} For design, easier means a narrower scope and a single core mechanism; harder means stricter consistency, scale or failure requirements.\n\n` +
+        `${directionBrief(direction, target)} For design, easier means a narrower scope and a single core mechanism; similar means a different product with the same central mechanism and comparable scale; harder means stricter consistency, scale or failure requirements.\n\n` +
         `Original prompt (${problem.difficulty}; topic: ${problem.topic}; pattern: ${problem.pattern}): ${problem.title}\n${problem.prompt.join('\n')}\n\n` +
         `Functional:\n${problem.functional.map((f) => `- ${f}`).join('\n')}\nNon-functional:\n${problem.nonFunctional.map((f) => `- ${f}`).join('\n')}\n\n` +
-        `Talking points:\n${problem.talkingPoints.map((t) => `${t.heading}: ${t.bullets.join('; ')}`).join('\n')}`,
+        `Talking points:\n${problem.talkingPoints.map((t) => `${t.heading}: ${t.bullets.join('; ')}`).join('\n')}${avoidText}`,
     }
   }
   const p = problem as PromptProblem
@@ -239,8 +254,8 @@ export function variantPrompt(problem: Problem, direction: Direction): { system:
       common +
       `Rules for a ${kind}: "question" is 1 to 2 paragraphs; "keyPoints" are 4 to 6 things a strong senior answer covers (specific, not generic); "followUps" are 1 to 3 probing questions. No markdown.`,
     user:
-      `${directionBrief(direction, target)} For a question, easier means narrower and more concrete; harder means deeper, with trade-offs and failure modes, or a scenario to reason through.\n\n` +
-      `Original (${p.difficulty}; topic: ${p.topic}; pattern: ${p.pattern}): ${p.title}\n${p.question.join('\n')}\n\nKey points:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}`,
+      `${directionBrief(direction, target)} For a question, easier means narrower and more concrete; similar means the same concept probed through a different scenario at the same depth; harder means deeper, with trade-offs and failure modes, or a scenario to reason through.\n\n` +
+      `Original (${p.difficulty}; topic: ${p.topic}; pattern: ${p.pattern}): ${p.title}\n${p.question.join('\n')}\n\nKey points:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}${avoidText}`,
   }
 }
 
@@ -490,7 +505,7 @@ export function variantFromModel(raw: unknown, parent: Problem, direction: Direc
   let id = `${slug(p.title) || 'variant'}-${direction}`
   let n = 2
   while (taken(id)) id = `${slug(p.title) || 'variant'}-${direction}-${n++}`
-  return { ...p, id, source: 'generated', parentId: parent.id }
+  return { ...p, id, source: 'generated', parentId: parent.id, direction }
 }
 
 export { isPrompt }

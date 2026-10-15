@@ -340,7 +340,9 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .field.row input { width: 18px; height: 18px; accent-color: var(--blue); margin: 0; }
 .field input[type="range"] { accent-color: var(--blue); }
 
-@media (max-width: 420px) {
-  .variants .btn span { display: none; }
+@media (max-width: 560px) {
+  .pbar { flex-wrap: wrap; }
+  .variants { flex: 1 0 100%; }
+  .variants .btn { flex: 1 1 0; justify-content: center; }
   .pbar-title h1 { font-size: 16px; }
 }

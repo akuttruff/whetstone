@@ -10,6 +10,7 @@ import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
 const realFetch = globalThis.fetch
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whetstone-api-'))
 let base = ''
+let lastVariantPrompt = ''
 let server: http.Server
 
 /** A fake model server: streams a fixed review for chat, lists one model. */
@@ -40,6 +41,7 @@ const fakeFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit):
     return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ steps: [{ title: 'Restate', hint: 'What is asked?', tryThis: 'Say it aloud' }, { title: 'Pattern', hint: 'Think map', tryThis: 'Write one' }, { title: 'Plan', hint: 'Loop once', tryThis: 'Code it' }] }) } }] })
   }
   // A variant request: a tiny knowledge problem.
+  lastVariantPrompt = (body as { messages: { content: string }[] }).messages.at(-1)!.content
   return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ title: 'Smaller question', question: ['why?'], keyPoints: ['a', 'b'], followUps: [] }) } }] })
 })
 
@@ -98,6 +100,16 @@ describe('api', () => {
     expect(problem).toMatchObject({ title: 'Smaller question', track: 'knowledge', parentId: parent.id, source: 'generated' })
     expect(verified).toBeNull()
     expect(await (await realFetch(base + '/api/problems')).json()).toHaveLength(1)
+    // A similar variant keeps the parent's difficulty; an unknown direction falls back to easier.
+    const similar = await (await post('/api/variants', { problem: parent, direction: 'similar' })).json()
+    expect(similar.problem).toMatchObject({ difficulty: parent.difficulty, parentId: parent.id })
+    expect(similar.problem.id).toMatch(/-similar$/)
+    const fallback = await (await post('/api/variants', { problem: parent, direction: 'sideways' })).json()
+    expect(fallback.problem.id).toMatch(/-easier/)
+    // The third request was told about the two siblings that already existed on this pattern.
+    expect(lastVariantPrompt).toContain('already exist on this pattern')
+    expect(lastVariantPrompt).toContain('- Smaller question')
+    for (const v of [similar.problem, fallback.problem]) await realFetch(`${base}/api/problems/${v.id}`, { method: 'DELETE' })
     await realFetch(`${base}/api/problems/${problem.id}`, { method: 'DELETE' })
     expect(await (await realFetch(base + '/api/problems')).json()).toHaveLength(0)
   })

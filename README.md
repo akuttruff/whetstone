@@ -4,7 +4,7 @@ Interview practice for senior software engineers, reviewed by a local model.
 Five tracks (coding, practical TypeScript, system design, knowledge questions,
 behavioral), a primer per topic distilling the techniques before you start, a
 live TypeScript editor with sandboxed tests, streaming model feedback with an
-optional auto mode, a hint ladder when you are stuck, and easier/harder variant
+optional auto mode, a hint ladder when you are stuck, and easier/similar/harder variant
 generation on the same pattern. Mobile-first (iPhone 13 mini), with a split view on desktop.
 
 Same stack as cairn and lm-chat: Vite 8 + React 19 + TypeScript 7, a Vite
@@ -69,8 +69,11 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   show code snippets ("what would the syntax look like?"). On a primer the
   thread id is `primer:<track>:<topic>` and the model tutors from the primer's
   content. The last 12 turns ride along with each question.
-- **Variants** (`POST /api/variants`) ask the model for an easier or harder
-  problem on the same pattern using a JSON schema. For code, the model's own
+- **Variants** (`POST /api/variants`) ask the model for an easier, similar or
+  harder problem on the same pattern using a JSON schema. "Similar" keeps the
+  difficulty and the core technique but changes the scenario, so you can drill
+  one pattern by repetition. The request lists the titles already on that
+  pattern (built-in and generated) so repeated drills stay distinct. For code, the model's own
   solution is run against the tests it wrote; failing tests are dropped and the
   result says how many were verified. Variants are stored in SQLite under
   their parent.

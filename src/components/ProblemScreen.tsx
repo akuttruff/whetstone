@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronsDown, ChevronsUp, Lightbulb, Play, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronsDown, ChevronsUp, Lightbulb, Play, Repeat, RotateCcw, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
 import ProblemBody from './ProblemBody.tsx'
@@ -64,7 +64,8 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
 
   const makeVariant = async (direction: Direction): Promise<void> => {
     setVariantBusy(direction)
-    const id = toast.loading(`Writing ${direction === 'easier' ? 'an easier' : 'a harder'} problem on ${problem.pattern.toLowerCase()}…`)
+    const article = direction === 'easier' ? 'an easier' : direction === 'similar' ? 'another' : 'a harder'
+    const id = toast.loading(`Writing ${article} problem on ${problem.pattern.toLowerCase()}…`)
     try {
       const { problem: p, verified } = await api.variant(problem, direction)
       toast.success(
@@ -175,6 +176,9 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         <div className="variants">
           <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('easier')} title="A simpler problem on the same pattern">
             <ChevronsDown size={14} /> Easier
+          </button>
+          <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('similar')} title="Another problem at this level on the same pattern, for repetition">
+            <Repeat size={14} /> Similar
           </button>
           <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('harder')} title="A tougher problem on the same pattern">
             <ChevronsUp size={14} /> Harder

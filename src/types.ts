@@ -18,7 +18,9 @@ export type Difficulty = 'easy' | 'medium' | 'hard'
 export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
 
 export type Source = 'builtin' | 'generated'
-export type Direction = 'easier' | 'harder'
+/** How a generated variant relates to its parent: a step down, the same level (repetition), or a step up. */
+export type Direction = 'easier' | 'similar' | 'harder'
+export const DIRECTIONS: readonly Direction[] = ['easier', 'similar', 'harder']
 
 interface ProblemBase {
   id: string
@@ -32,6 +34,8 @@ interface ProblemBase {
   source: Source
   /** For generated variants: the problem they were made from. */
   parentId?: string
+  /** For generated variants: how they relate to the parent (easier, similar, harder). */
+  direction?: Direction
   createdAt?: string
 }
 

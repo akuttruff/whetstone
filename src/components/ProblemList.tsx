@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { BookOpen, ChevronRight, Trash2 } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
 import { DIFFICULTY_LABEL, difficultyRank, scoreTone } from '../lib/format.ts'
-import type { Problem, Progress } from '../types.ts'
+import type { Direction, Problem, Progress } from '../types.ts'
 
 interface Props {
   problems: Problem[]
@@ -13,6 +13,11 @@ interface Props {
   onPrimer: (topic: string) => void
   /** The topic whose primer is open, so its header can show it. */
   primerTopic: string | null
+}
+
+/** Variants saved before the direction was stored carry it only in their id. */
+function variantLabel(p: Problem): Direction {
+  return p.direction ?? (/-harder(-\d+)?$/.test(p.id) ? 'harder' : /-similar(-\d+)?$/.test(p.id) ? 'similar' : 'easier')
 }
 
 export default function ProblemList({ problems, selectedId, progress, onSelect, onDelete, onPrimer, primerTopic }: Props) {
@@ -58,7 +63,7 @@ export default function ProblemList({ problems, selectedId, progress, onSelect, 
               <div key={p.id} className={`prow${p.id === selectedId ? ' selected' : ''}${depth ? ' variant' : ''}`}>
                 <button className="prow-main" onClick={() => onSelect(p.id)}>
                   <span className="prow-title">
-                    {p.source === 'generated' && <span className="prow-gen">{p.id.endsWith('harder') || /-harder(-\d+)?$/.test(p.id) ? 'harder' : 'easier'}</span>}
+                    {p.source === 'generated' && <span className="prow-gen">{variantLabel(p)}</span>}
                     {p.title}
                   </span>
                   <span className="prow-meta">
