@@ -1,67 +1,30 @@
-import http from 'node:http';
-import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
+import path from 'node:path'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import api from './server/api.ts'
 
-const LMSTUDIO_HOST = process.env.LMSTUDIO_HOST ?? 'localhost';
-const LMSTUDIO_PORT = Number(process.env.LMSTUDIO_PORT ?? 1234);
-const PROXY_PREFIX = '/api/lmstudio';
+// Any name on the tailnet, not one machine's: `tailscale serve` is what
+// actually limits who can reach this, so a rename shouldn't break it.
+const TAILNET = '.ts.net'
 
-// Dev-only middleware: forwards /api/lmstudio/* to the local LM Studio
-// server so the browser can talk to it without CORS issues.
-function lmstudioProxy(): Plugin {
+export default defineConfig(({ command, isPreview }) => {
+  // `vite preview` is the one real instance (local and, via Tailscale,
+  // remote). `vite dev` runs against a separate scratch database, so trying
+  // something out while developing never touches real drafts and scores.
+  const usingRealData = command === 'build' || isPreview
+  const dir = usingRealData ? undefined : path.resolve(process.cwd(), '.data-dev')
+
   return {
-    name: 'lmstudio-proxy',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (!req.url || !req.url.startsWith(PROXY_PREFIX)) {
-          next();
-          return;
-        }
-        if (req.method === 'OPTIONS') {
-          res.statusCode = 204;
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-          res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-          res.end();
-          return;
-        }
-        const upstream = http.request(
-          {
-            hostname: LMSTUDIO_HOST,
-            port: LMSTUDIO_PORT,
-            path: req.url.slice(PROXY_PREFIX.length) || '/',
-            method: req.method,
-            headers: { ...req.headers, host: `${LMSTUDIO_HOST}:${LMSTUDIO_PORT}` },
-          },
-          (upstreamRes) => {
-            res.statusCode = upstreamRes.statusCode ?? 502;
-            for (const [key, value] of Object.entries(upstreamRes.headers)) {
-              if (value !== undefined) {
-                res.setHeader(key, value as string | number | readonly string[]);
-              }
-            }
-            upstreamRes.pipe(res);
-          },
-        );
-        upstream.on('error', (err) => {
-          if (!res.headersSent) {
-            res.statusCode = 502;
-            res.setHeader('Content-Type', 'application/json');
-          }
-          res.end(
-            JSON.stringify({
-              error: {
-                message: `Cannot reach LM Studio at ${LMSTUDIO_HOST}:${LMSTUDIO_PORT} (${err.message}). Is the local server running?`,
-              },
-            }),
-          );
-        });
-        req.pipe(upstream);
-      });
+    plugins: [react(), api({ dir })],
+    server: {
+      host: true,
+      port: 8300,
+      strictPort: true,
+      allowedHosts: [TAILNET],
+      watch: { ignored: ['**/coverage/**', '**/.data/**', '**/.data-dev/**'] },
     },
-  };
-}
-
-export default defineConfig({
-  plugins: [react(), lmstudioProxy()],
-});
+    // A separate port from `server` above: the persistent, built instance
+    // Tailscale points at, so it can run alongside `npm run dev`.
+    preview: { host: true, port: 8310, strictPort: true, allowedHosts: [TAILNET] },
+  }
+})

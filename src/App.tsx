@@ -1,159 +1,130 @@
-import { useMemo, useState } from 'react';
-import DesignView from './components/DesignView';
-import ProblemView from './components/ProblemView';
-import SettingsModal from './components/SettingsModal';
-import Sidebar from './components/Sidebar';
-import { ALGO_PROBLEMS } from './data/problems';
-import { DESIGN_PROBLEMS } from './data/designs';
-import type { AlgoProblem } from './data/types';
-import { loadGenerated, sanitizeGenerated, saveGenerated } from './lib/customProblems';
-import { chat, extractJson } from './lib/lmstudio';
-import { loadProfile, summarize } from './lib/profile';
-import { easierPrompt, generationPrompt } from './lib/prompts';
-import { loadSettings } from './lib/settings';
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Settings as SettingsIcon } from 'lucide-react'
+import { Toaster, toast } from 'sonner'
+import ProblemList from './components/ProblemList.tsx'
+import ProblemScreen from './components/ProblemScreen.tsx'
+import ProgressCard from './components/ProgressCard.tsx'
+import SettingsSheet from './components/SettingsSheet.tsx'
+import TrackTabs from './components/TrackTabs.tsx'
+import useMediaQuery from './hooks/useMediaQuery.ts'
+import useProblems from './hooks/useProblems.ts'
+import useProgress from './hooks/useProgress.ts'
+import useSettings from './hooks/useSettings.ts'
+import { TRACKS } from './types.ts'
+import type { Problem, Track } from './types.ts'
+import './App.css'
 
-const GENERATE_COUNT = 3;
+const TRACK_KEY = 'whetstone:track'
+const SELECTED_KEY = 'whetstone:selected'
+
+function remembered<T extends string>(key: string, ok: (v: string) => boolean): T | null {
+  try {
+    const v = localStorage.getItem(key)
+    return v && ok(v) ? (v as T) : null
+  } catch {
+    return null
+  }
+}
+function remember(key: string, v: string | null): void {
+  try {
+    if (v === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, v)
+  } catch { /* private mode */ }
+}
 
 export default function App() {
-  const [selectedId, setSelectedId] = useState(ALGO_PROBLEMS[0].id);
-  const [generated, setGenerated] = useState<AlgoProblem[]>(loadGenerated);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [genStatus, setGenStatus] = useState<string | null>(null);
-  const [easierBusy, setEasierBusy] = useState(false);
-  const [easierStatus, setEasierStatus] = useState<string | null>(null);
+  const wide = useMediaQuery('(min-width: 900px)')
+  const { settings, save } = useSettings()
+  const problems = useProblems()
+  const { progress, refresh: refreshProgress } = useProgress()
+  const [track, setTrack] = useState<Track>(() => remembered<Track>(TRACK_KEY, (v) => TRACKS.some((t) => t.id === v)) ?? 'coding')
+  const [selectedId, setSelectedId] = useState<string | null>(() => remembered(SELECTED_KEY, () => true))
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const allAlgo = useMemo(() => [...ALGO_PROBLEMS, ...generated], [generated]);
-  const algo = allAlgo.find((p) => p.id === selectedId);
+  const selected = selectedId ? problems.byId.get(selectedId) ?? null : null
+  const inTrack = useMemo(() => problems.all.filter((p) => p.track === track), [problems.all, track])
+  const counts = useMemo(() => {
+    const c = Object.fromEntries(TRACKS.map((t) => [t.id, 0])) as Record<Track, number>
+    for (const p of problems.all) c[p.track]++
+    return c
+  }, [problems.all])
 
-  const handleSelect = (id: string) => {
-    setSelectedId(id);
-    setEasierStatus(null);
-  };
+  useEffect(() => remember(TRACK_KEY, track), [track])
+  useEffect(() => remember(SELECTED_KEY, selectedId), [selectedId])
 
-  const generatePractice = async () => {
-    const settings = loadSettings();
-    if (!settings.token.trim() || !settings.model.trim()) {
-      setGenStatus('Open settings (gear icon in the sidebar footer) and connect LM Studio first.');
-      return;
+  const select = (id: string | null): void => {
+    setSelectedId(id)
+    if (id) {
+      const p = problems.byId.get(id)
+      if (p && p.track !== track) setTrack(p.track)
     }
-    const { weak, strong } = summarize(loadProfile());
-    if (weak.length === 0 && strong.length === 0) {
-      setGenStatus(
-        'No review data yet. Solve a problem with AI feedback first, then generate targeted practice.',
-      );
-      return;
-    }
-    setGenerating(true);
-    setGenStatus(null);
-    try {
-      const knownTopics = [...new Set(allAlgo.map((p) => p.topic))];
-      const { system, user } = generationPrompt(weak, strong, GENERATE_COUNT, knownTopics);
-      const text = await chat(
-        [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        { temperature: 0.8, settings },
-      );
-      const problems = sanitizeGenerated(extractJson<unknown>(text));
-      if (problems.length === 0) {
-        setGenStatus('The model returned no usable problems — try again.');
-        return;
-      }
-      setGenerated((prev) => {
-        const next = [...prev, ...problems];
-        saveGenerated(next);
-        return next;
-      });
-      setGenStatus(
-        `Added ${problems.length} problem(s) focused on: ${weak.join(', ') || 'your strong topics (stepped up in difficulty)'}.`,
-      );
-      setSelectedId(problems[0].id);
-    } catch (e) {
-      setGenStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setGenerating(false);
-    }
-  };
+  }
 
-  const generateEasier = async (problem: AlgoProblem) => {
-    const settings = loadSettings();
-    if (!settings.token.trim() || !settings.model.trim()) {
-      setEasierStatus('Connect LM Studio first — open settings (gear icon in the sidebar footer).');
-      return;
-    }
-    setEasierBusy(true);
-    setEasierStatus(null);
-    try {
-      const { system, user } = easierPrompt(problem);
-      const text = await chat(
-        [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        { temperature: 0.8, settings },
-      );
-      const parsed = extractJson<unknown>(text);
-      // Local models often return the bare problem object even when asked for a one-element array.
-      const [raw] = sanitizeGenerated(
-        Array.isArray(parsed) ? parsed : typeof parsed === 'object' && parsed !== null ? [parsed] : [],
-      );
-      if (!raw) {
-        console.warn('easier: model reply was not a usable problem', text);
-        const trimmed = text.replace(/\s+/g, ' ').trim();
-        const snippet = trimmed.slice(0, 100);
-        setEasierStatus(
-          `The model's reply wasn't a usable problem — got: "${snippet}${trimmed.length > 100 ? '…' : ''}". Try again.`,
-        );
-        return;
-      }
-      const taken = new Set(allAlgo.map((p) => p.id));
-      let id = raw.id;
-      let n = 2;
-      while (taken.has(id)) id = `${raw.id}-${n++}`;
-      const easier: AlgoProblem = { ...raw, id, topic: problem.topic };
-      setGenerated((prev) => {
-        const next = [...prev, easier];
-        saveGenerated(next);
-        return next;
-      });
-      setSelectedId(easier.id);
-    } catch (e) {
-      setEasierStatus(e instanceof Error ? e.message : String(e));
-    } finally {
-      setEasierBusy(false);
-    }
-  };
+  const onVariant = (p: Problem): void => {
+    problems.add(p)
+    setSelectedId(p.id)
+  }
+
+  const onDelete = async (p: Problem): Promise<void> => {
+    if (!window.confirm(`Delete "${p.title}"?`)) return
+    await problems.remove(p.id)
+    if (selectedId === p.id) setSelectedId(p.parentId ?? null)
+    toast.success('Deleted')
+  }
+
+  const onAutoChange = (auto: boolean): void => {
+    void save({ autoFeedback: auto }).catch((err: Error) => toast.error(err.message))
+  }
+  const onReviewed = useCallback((): void => { void refreshProgress() }, [refreshProgress])
+
+  const list = (
+    <div className="list-screen">
+      <header className="top">
+        <h1 className="brand">Whetstone</h1>
+        <button className="icon-btn" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
+          <SettingsIcon size={20} />
+        </button>
+      </header>
+      <TrackTabs value={track} counts={counts} onChange={(t) => { setTrack(t); if (!wide) setSelectedId(null) }} />
+      <div className="scroll">
+        <p className="blurb">{TRACKS.find((t) => t.id === track)?.blurb}</p>
+        <ProgressCard progress={progress} track={track} />
+        <ProblemList problems={inTrack} selectedId={selectedId} progress={progress} onSelect={select} onDelete={(p) => void onDelete(p)} />
+      </div>
+    </div>
+  )
+
+  const detail = selected ? (
+    <ProblemScreen
+      key={selected.id}
+      problem={selected}
+      settings={settings}
+      wide={wide}
+      onBack={() => setSelectedId(null)}
+      onAutoChange={onAutoChange}
+      onVariant={onVariant}
+      onReviewed={onReviewed}
+    />
+  ) : (
+    <div className="empty-detail">
+      <p>Pick a problem.</p>
+    </div>
+  )
 
   return (
-    <div className="app">
-      <Sidebar
-        selectedId={selectedId}
-        onSelect={handleSelect}
-        generated={generated}
-        generating={generating}
-        genStatus={genStatus}
-        onGenerate={() => void generatePractice()}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      <main className="main">
-        {algo ? (
-          <ProblemView
-            key={algo.id}
-            problem={algo}
-            onEasier={() => void generateEasier(algo)}
-            easierBusy={easierBusy}
-            easierStatus={easierStatus}
-          />
-        ) : (
-          <DesignView
-            key={selectedId}
-            problem={DESIGN_PROBLEMS.find((p) => p.id === selectedId)!}
-          />
-        )}
-      </main>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    <div className={`app${wide ? ' wide' : ''}`}>
+      {wide ? (
+        <>
+          <aside className="side">{list}</aside>
+          <main className="main">{detail}</main>
+        </>
+      ) : selected ? (
+        <main className="main">{detail}</main>
+      ) : (
+        list
+      )}
+      <SettingsSheet open={settingsOpen} settings={settings} onClose={() => setSettingsOpen(false)} onSave={save} />
+      <Toaster position="top-center" theme="dark" richColors closeButton duration={5000} />
     </div>
-  );
+  )
 }

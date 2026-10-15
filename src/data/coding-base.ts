@@ -1,4 +1,4 @@
-import type { AlgoProblem } from './types';
+import type { LegacyAlgoProblem as AlgoProblem } from './legacy.ts'
 
 const LIST_NODE = `export class ListNode {
   val: number;

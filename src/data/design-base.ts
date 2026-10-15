@@ -1,4 +1,4 @@
-import type { DesignProblem } from './types';
+import type { LegacyDesignProblem as DesignProblem } from './legacy.ts'
 
 export const DESIGN_PROBLEMS: DesignProblem[] = [
   {

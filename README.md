@@ -1,113 +1,70 @@
-# Interview Prep
+# Whetstone
 
-A local web app for studying for coding interviews. TypeScript problem set with an
-in-browser code editor, plus system design prompts with structured talking-point
-outlines. Optionally connects to a model hosted locally in LM Studio for real-time
-code feedback and adaptive practice generation.
+Interview practice for senior software engineers, reviewed by a local model.
+Five tracks (coding, practical TypeScript, system design, knowledge questions,
+behavioral), a live TypeScript editor with sandboxed tests, streaming model
+feedback with an optional auto mode, and easier/harder variant generation on
+the same pattern. Mobile-first (iPhone 13 mini), with a split view on desktop.
 
-## Quick start
+Same stack as cairn and lm-chat: Vite 8 + React 19 + TypeScript 7, a Vite
+plugin server (`server/api.ts`) with SQLite (`node:sqlite`), Vitest, oxlint.
+The model is any OpenAI-compatible server; by default oMLX on `:8000` with
+`Qwen3.8-27B-MLX-8bit`.
 
-Requires Node 24 (asdf-managed; the project pins `24.21.0` in `.tool-versions`).
+## Run
 
 ```bash
 npm install
-npm run dev
+npm run dev        # http://localhost:8300, scratch database in .data-dev/
+npm run check      # typecheck + lint + tests
+npm run deploy     # build and restart the persistent instance on :8310
 ```
 
-Open http://localhost:5173
+The persistent instance is the launchd job `com.amie.whetstone` (plist in
+`scripts/`), served over Tailscale at
+`https://amies-mac-studio.tail1585ef.ts.net:8444`. Its data lives in `.data/`.
 
-Build for production:
+Install the launch agent once:
 
 ```bash
-npm run build
+cp scripts/com.amie.whetstone.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
+/Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --https=8444 http://127.0.0.1:8310
 ```
 
-## What's inside
+## How it works
 
-- **Algorithms & Data Structures** — 16 TypeScript problems across 11 topics
-  (hashing, two pointers, stacks, sliding window, sorting, linked lists, binary
-  search, DP, graphs/trees, backtracking, heaps). Each has a full statement,
-  examples, hints, a model solution (spoiler-collapsible), and a starter file.
-- **System Design** — 6 classic prompts (URL shortener, rate limiter, KV store,
-  real-time chat, news feed, web crawler), each with functional/non-functional
-  requirements, structured talking points, and follow-ups to expect.
-- **AI feedback** — when connected to LM Studio, each problem gets a feedback
-  panel: review your code on demand or turn on *auto* to get a review ~5s after
-  you stop typing. Every review scores your attempt (0–10) and tags the weakest
-  area; scores build a per-topic profile.
-- **Generated practice** — "Generate practice" in the sidebar uses your
-  strengths/weaknesses profile to have the model author new problems (3 per
-  click). Weak topics get more problems; strong topics get harder ones.
-  Generated problems are validated and saved locally.
-- **Too hard?** — a button under each problem title asks the model for an
-  easier variant of the same topic (smaller constraints, fewer edge cases,
-  single core idea) and opens it; it's saved in Generated practice.
+- **Content** is plain data in `src/data/*.ts`. Every problem has a `topic`
+  (list grouping), a `pattern` (the skill it exercises; variants keep it), a
+  difficulty, and track-specific fields. Code problems carry `tests`: each is a
+  `call` expression evaluated with the solution's exports in scope and an
+  `expected` JSON value. `server/content.test.ts` runs every reference
+  solution through the real sandbox, so content cannot drift.
+- **Run** (`POST /api/run`) writes the draft to a scratch directory and runs
+  it in a child Node process with Node's native TypeScript support
+  (`--experimental-transform-types`), a per-test and overall timeout, and
+  captured console output. It is a convenience, not a security boundary.
+- **Review** (`POST /api/review`) streams the model's review as server-sent
+  events. The prompt is per track (code with test results, design notes against
+  talking points, STAR for behavioral) and ends with a `VERDICT` line carrying a
+  0-10 score, correctness and a focus phrase. Reviews are saved and aggregated
+  per pattern into the progress shown on the list screen.
+- **Auto review** debounces N seconds after the last edit (Settings), skips
+  unchanged or starter text, and queues one more review if you keep typing
+  during one.
+- **Variants** (`POST /api/variants`) ask the model for an easier or harder
+  problem on the same pattern using a JSON schema. For code, the model's own
+  solution is run against the tests it wrote; failing tests are dropped and the
+  result says how many were verified. Variants are stored in SQLite under
+  their parent.
+- **Drafts** and settings live server-side, so the phone and the desktop share
+  them.
 
-## LM Studio setup
-
-1. In LM Studio, start the local server (Developer tab → Start Server, default
-   port **1234**) with your model loaded.
-2. Copy the **API token** (Developer tab → "API token"). LM Studio requires one
-   for every request.
-3. In this app, click the **⚙ gear** in the sidebar footer, paste the token, and
-   hit **Test connection**. Your loaded models are listed — pick the id of the
-   Qwen model you want (e.g. `qwen3-8b-...`) and **Save**.
-
-Everything runs on this machine — requests go to `localhost:1234` only.
-
-> **Dev-only proxy:** the app reaches LM Studio through a small Vite middleware
-> proxy (`/api/lmstudio/*` → `localhost:1234`) that exists only in `npm run dev`
-> (it sidesteps CORS). A production build won't have the proxy. To point at a
-> different LM Studio instance, set `LMSTUDIO_HOST` / `LMSTUDIO_PORT` env vars
-> when starting the dev server (defaults `localhost` / `1234`).
-
-### How the adaptive loop works
-
-- Each AI review returns a 0–10 score; it's recorded against the problem's topic
-  (`profile:topics`).
-- A topic counts as **weak** at an average score below 6 and **strong** at 8 or
-  above.
-- "Generate practice" prompts the model to prioritize your weak topics and step
-  up the difficulty on strong ones, producing 3 problems in the same shape as
-  the built-in set (statement, examples, hints, starter, model solution).
-  Problems land in the **Generated practice** section and stay across restarts.
-
-## Project structure
+## Layout
 
 ```
-src/
-  data/
-    types.ts      # AlgoProblem & DesignProblem interfaces
-    problems.ts   # algorithm problem content (append here to add problems)
-    designs.ts    # system design prompt content
-  components/
-    Sidebar.tsx   # topic-grouped navigation + generated practice + settings gear
-    ProblemView.tsx  # statement + CodeMirror editor + feedback panel
-    FeedbackPanel.tsx  # AI review (manual + auto) wired to the model
-    SettingsModal.tsx  # LM Studio token / model / auto-feedback settings
-    DesignView.tsx   # design prompt + talking points + notes
-  lib/
-    settings.ts   # localStorage-backed LM Studio settings
-    lmstudio.ts   # fetch client for the /api/lmstudio proxy (chat, models, JSON)
-    profile.ts    # per-topic score tracking (weak/strong summarizer)
-    customProblems.ts  # persistence + validation of generated problems
-    prompts.ts    # the feedback + generation system/user prompts
-  App.tsx
-  main.tsx
-  styles.css
-vite.config.ts    # react plugin + dev-only LM Studio proxy middleware
+server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
+          prompts.ts (review + variant prompts, validation), runner.ts (sandbox)
+src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), types.ts
+scripts/  deploy.sh, com.amie.whetstone.plist
 ```
-
-To add a problem, append an object to the relevant array in `src/data/` matching
-the interface in `types.ts`. Content is plain data — no schema migration needed.
-
-## Notes
-
-- Everything persists to `localStorage` only (nothing leaves your browser):
-  drafts (`draft:<id>`), design notes (`notes:<id>`), LM settings
-  (`lm:settings`), the skills profile (`profile:topics`), and generated problems
-  (`problems:generated`). Clearing site data clears them.
-- The code editor autosaves every keystroke locally; **Download .ts** exports
-  your current draft as a standalone file.
-- Auto-feedback is off by default (toggle in the feedback panel or settings);
-  it skips unchanged starter code and debounces ~5s after the last keystroke.
