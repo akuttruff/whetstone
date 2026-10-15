@@ -63,6 +63,12 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   one thing to try, never the code. Rungs are revealed one at a time and the
   position is saved server-side; "Rewrite for my draft" makes a new ladder
   from where you are now.
+- **Ask about it** (`POST /api/chat/:id`) is a conversation thread, streamed
+  like a review and saved per problem. Under a review the model has the
+  problem, your current code, test results and its latest review, and it may
+  show code snippets ("what would the syntax look like?"). On a primer the
+  thread id is `primer:<track>:<topic>` and the model tutors from the primer's
+  content. The last 12 turns ride along with each question.
 - **Variants** (`POST /api/variants`) ask the model for an easier or harder
   problem on the same pattern using a JSON schema. For code, the model's own
   solution is run against the tests it wrote; failing tests are dropped and the
