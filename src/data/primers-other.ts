@@ -10,7 +10,14 @@ export const PRIMERS_OTHER: Primer[] = [
   // ── Practical ────────────────────────────────────────────────────────
   pr({
     topic: 'Caching',
-    summary: 'Caches are bounded maps with an eviction policy and, often, expiry. In TypeScript a Map\'s insertion order gives you LRU almost for free; LFU needs frequency buckets; TTL needs a clock you can inject.',
+    summary: "A cache is a small store of recent results so you do not have to recompute or refetch them. Because it is bounded, it needs a rule for what to throw away when it fills up (least recently used, least frequently used) and sometimes a time limit per entry. In TypeScript a Map remembers insertion order, which gives you \"least recently used\" almost for free.",
+    terms: [
+      { term: "Cache hit / miss", meaning: "Finding the item in the cache, or not." },
+      { term: "Eviction", meaning: "Removing an entry to make room." },
+      { term: "LRU / LFU", meaning: "Least recently used / least frequently used: two rules for which entry to evict." },
+      { term: "TTL", meaning: "Time to live: how long an entry stays valid." },
+      { term: "O(1)", meaning: "Each operation takes a fixed small amount of work regardless of the cache size." },
+    ], 
     recognize: ['"Implement a cache with capacity", "memoize", "LRU/LFU", "expire after"', 'Any O(1) get/set requirement over a bounded collection'],
     techniques: [
       { name: 'LRU via Map order', when: 'Evict least recently used.', how: ['Map keeps insertion order; on get, delete and re-set to move to the end', 'On set over capacity, delete map.keys().next().value'], complexity: 'O(1) per op', template: `get(key) {\n  if (!this.m.has(key)) return undefined\n  const v = this.m.get(key)!\n  this.m.delete(key); this.m.set(key, v)\n  return v\n}` },
@@ -24,7 +31,15 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   pr({
     topic: 'Async & Concurrency',
-    summary: 'Promises plus timers plus the event loop. The recurring primitives are: a pool of workers over a shared index, debounce/throttle gates, retry with backoff, cancellation via AbortSignal, and queues that respect a concurrency limit. Always ask what happens on failure and on cancel.',
+    summary: "JavaScript runs one thing at a time but can have many operations waiting (network calls, timers). The recurring building blocks are: run at most N things at once, delay or rate-limit calls, retry failures with growing pauses, cancel work that is no longer needed, and queue tasks. For each, always ask what happens on failure and on cancel.",
+    terms: [
+      { term: "Promise", meaning: "A placeholder for a value that will arrive later; await pauses until it does." },
+      { term: "Event loop", meaning: "The mechanism that runs waiting callbacks one at a time when the current code finishes." },
+      { term: "Concurrency limit", meaning: "How many operations may be in progress at once." },
+      { term: "Backoff", meaning: "Waiting longer after each failed retry." },
+      { term: "AbortSignal", meaning: "The standard way to tell an operation to stop." },
+      { term: "Debounce / throttle", meaning: "Wait for quiet before acting / act at most once per interval." },
+    ], 
     recognize: ['"At most N in flight", "rate limit", "retry", "timeout", "cancel", "coalesce calls"', 'Anything involving setTimeout and ordering of callbacks'],
     techniques: [
       { name: 'Worker pool over a shared counter', when: 'Map with concurrency limit.', how: ['Start min(limit, n) workers; each loops taking next index from a shared counter; store results by index; await Promise.all(workers)'], complexity: 'O(n) tasks, limit in flight', template: `let next = 0\nconst worker = async () => {\n  while (next < items.length) { const i = next++; results[i] = await fn(items[i], i) }\n}\nawait Promise.all(Array.from({ length: limit }, worker))` },
@@ -39,7 +54,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   pr({
     topic: 'Patterns & Abstractions',
-    summary: 'Small, well-typed building blocks: emitters, rate limiters, ring buffers, dependency resolvers, routers. The reviewer looks at API design, generics that help the caller, invariants, and tests with injected time.',
+    summary: "Small, well-shaped building blocks: event emitters, rate limiters, fixed-size buffers, dependency orderers, URL matchers. The reviewer is looking at how clean the public interface is, whether the types help the caller, what rules the class guarantees, and whether it can be tested without real time passing.",
+    terms: [
+      { term: "Interface", meaning: "A description of what methods something offers, without saying how they work." },
+      { term: "Invariant", meaning: "A rule the class promises is always true, like \"a seat has at most one booking\"." },
+      { term: "Dependency injection", meaning: "Passing in the things a class needs (a clock, a store) instead of creating them inside, so tests can substitute fakes." },
+      { term: "Strategy", meaning: "A swappable piece of behaviour behind an interface." },
+      { term: "Topological sort", meaning: "Ordering items so each comes after everything it depends on." },
+    ], 
     recognize: ['"Design a class that…", "implement a small library for…"', 'Questions that are more about API shape and edge cases than algorithms'],
     techniques: [
       { name: 'Observer / emitter', when: 'Decoupled notifications.', how: ['Map<event, Set<handler>>; on returns an unsubscribe; once wraps and unsubscribes; copy the set before emitting so removal mid-emit is safe', 'Generic over an events map: on<K extends keyof E>(name: K, h: (p: E[K]) => void)'], complexity: 'O(handlers) per emit' },
@@ -54,7 +76,13 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   pr({
     topic: 'Data Transformation',
-    summary: 'Reshape data correctly and readably: flatten, group, deep-equal, deep-clone, parse. The traps are null vs object, arrays vs objects, key order, cycles, and Unicode.',
+    summary: "Reshaping data correctly and readably: flattening nested objects, grouping, comparing or copying deeply, parsing text formats. The traps are the same every time: null looks like an object, arrays look like objects, key order, cycles, and odd characters.",
+    terms: [
+      { term: "Recursion", meaning: "A function that calls itself on the smaller pieces of its input." },
+      { term: "Deep vs shallow", meaning: "Deep operations go into nested objects; shallow ones only touch the top level." },
+      { term: "Cycle", meaning: "An object that eventually refers back to itself; naive recursion never ends." },
+      { term: "WeakMap", meaning: "A Map keyed by objects that does not keep them alive; handy for remembering which objects you have visited." },
+    ], 
     recognize: ['"Flatten", "group by", "deep equal/clone", "parse this format", "transform this JSON"', 'Utility functions from lodash that interviewers ask you to reimplement'],
     techniques: [
       { name: 'Recursive walk with a path', when: 'Flatten/unflatten, searching nested structures.', how: ['Recurse carrying the prefix; leaves (primitives, null, empty containers) write at the prefix'], complexity: 'O(nodes)' },
@@ -70,7 +98,14 @@ export const PRIMERS_OTHER: Primer[] = [
   // ── Design ───────────────────────────────────────────────────────────
   de({
     topic: 'Core Services',
-    summary: 'The bread-and-butter services (URL shortener, rate limiter, notifications, ID generation, scheduler, gateway, flags) are tests of the standard method: requirements → estimates → API → data model → high-level design → deep dive → trade-offs. Nail the method and the content follows.',
+    summary: "The classic services (URL shortener, rate limiter, notifications, ID generator, scheduler, API gateway, feature flags) test whether you know the standard method: agree on requirements, estimate the numbers, sketch the API and data, draw the high-level design, go deep on the hard part, and talk through trade-offs and failures. Learn the method and the content follows.",
+    terms: [
+      { term: "QPS", meaning: "Queries per second: how many requests arrive each second." },
+      { term: "Back-of-envelope estimate", meaning: "A rough calculation of traffic and storage from a few assumptions." },
+      { term: "Stateless", meaning: "A server that keeps nothing between requests, so any copy can handle any request." },
+      { term: "Idempotent", meaning: "Safe to repeat: doing it twice has the same effect as once." },
+      { term: "Hot key", meaning: "One item that gets a disproportionate share of traffic." },
+    ], 
     recognize: ['A single clear function, high read or write volume, one or two hard parts (ID generation, counting at scale, exactly-once)'],
     techniques: [
       { name: 'The 45-minute method', when: 'Every design interview.', how: ['5 min: functional and non-functional requirements, clarifying questions, scope cut', '5 min: back-of-envelope (QPS, storage, bandwidth; read/write ratio)', '5 min: API and data model', '10 min: high-level diagram with the request path', '15 min: deep dive on the hardest component the interviewer cares about', '5 min: failure modes, scaling, trade-offs, what you would do next'], complexity: '—' },
@@ -84,7 +119,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Storage',
-    summary: 'Where the bytes live and how they are found: partitioning, replication, consistency, caching, and the object-store/metadata-store split for large blobs.',
+    summary: "Where data lives and how it is found: splitting it across machines (partitioning), keeping copies (replication), what \"consistent\" means when there are copies, caches in front, and storing big files separately from their descriptions.",
+    terms: [
+      { term: "Partitioning / sharding", meaning: "Splitting data across machines, each holding a slice." },
+      { term: "Replication", meaning: "Keeping copies of data on several machines." },
+      { term: "Consistency", meaning: "Whether every copy shows the same value at the same time, or only eventually." },
+      { term: "Quorum", meaning: "Requiring a majority of copies to agree on a read or write." },
+      { term: "Object storage", meaning: "A service for large files (like S3), separate from the database that describes them." },
+    ], 
     recognize: ['KV stores, caches, file storage, databases at scale, "billions of rows", "durable", "consistent"'],
     techniques: [
       { name: 'Partitioning', when: 'Data no longer fits one node.', how: ['Hash partitioning for even spread; range for ordered scans; consistent hashing with virtual nodes to add/remove nodes cheaply', 'Choose the key by access pattern; watch hot partitions'], complexity: '—' },
@@ -98,7 +140,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Real-Time',
-    summary: 'Persistent connections, fan-out, ordering, and presence. The core questions: how messages reach the right connection across a fleet, how fan-out is bounded, and what consistency users perceive.',
+    summary: "Systems where updates must reach people within seconds: chat, feeds, live location, shared documents. The hard questions are how a message finds the server that holds the recipient's connection, how to limit the work when one message goes to many people, and what order people see things in.",
+    terms: [
+      { term: "WebSocket / SSE", meaning: "Long-lived connections that let the server push updates to a client." },
+      { term: "Fan-out", meaning: "Delivering one event to many recipients." },
+      { term: "Pub/sub", meaning: "A broker where senders publish to a topic and subscribers receive it, decoupling the two." },
+      { term: "Presence", meaning: "Who is online or where their cursor is; short-lived information." },
+      { term: "OT / CRDT", meaning: "Two families of techniques for merging simultaneous edits to the same document." },
+    ], 
     recognize: ['Chat, feeds, notifications, live location, collaborative editing, "within seconds"'],
     techniques: [
       { name: 'Connection layer', when: 'WebSockets/SSE at scale.', how: ['Stateful gateway servers hold connections; a registry maps user → server; pub/sub (Redis, Kafka) routes messages to the right server', 'Heartbeats, reconnection with resume tokens, backpressure per connection'], complexity: '—' },
@@ -112,7 +161,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Data Pipelines',
-    summary: 'Moving and transforming data reliably: logs/queues, stream vs batch processing, exactly-once effects, schema evolution, and observability of lag and quality.',
+    summary: "Moving and transforming large volumes of data reliably: logs and queues to decouple producers from consumers, stream versus batch processing, making sure things are counted exactly once, handling changing data formats, and knowing how far behind the pipeline is.",
+    terms: [
+      { term: "Log (Kafka)", meaning: "An append-only record of events that many consumers can read at their own pace." },
+      { term: "Stream vs batch", meaning: "Processing events as they arrive versus in large scheduled chunks." },
+      { term: "Exactly-once", meaning: "Each event affects the result once, even though it may be delivered more than once." },
+      { term: "Watermark", meaning: "A marker meaning \"events older than this have (probably) all arrived\"." },
+      { term: "CDC", meaning: "Change data capture: reading a database's own change log to react to updates." },
+    ], 
     recognize: ['Crawlers, aggregation, metrics/logging, CDC, "events per second", "within minutes"'],
     techniques: [
       { name: 'Log-based decoupling', when: 'Producers and consumers at different speeds.', how: ['Partitioned, durable log (Kafka); consumer groups with offsets; replay by rewinding', 'Partition by key for ordering; parallelism bounded by partitions'], complexity: '—' },
@@ -126,7 +182,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Search & Retrieval',
-    summary: 'Finding things fast: inverted indexes for text, tries for prefixes, vector indexes for semantics, and rankers on top. Index building is offline and heavy; querying is online and latency-bound.',
+    summary: "Finding things fast in a big collection: an index that maps words to documents for text search, prefix structures for autocomplete, vector indexes for \"similar meaning\", and a ranking step on top. Building the index is heavy and done ahead of time; answering a query must be fast.",
+    terms: [
+      { term: "Inverted index", meaning: "A map from each word to the documents containing it; how text search is fast." },
+      { term: "Trie", meaning: "A tree of characters where each path spells a word; ideal for prefixes." },
+      { term: "Ranking", meaning: "Ordering results by how good a match they are." },
+      { term: "Embedding / vector search", meaning: "Turning text into a list of numbers so \"similar meaning\" becomes \"nearby points\"." },
+      { term: "Recall", meaning: "The share of relevant items you actually found." },
+    ], 
     recognize: ['Typeahead, search, recommendations, "top results for a query", "relevance"'],
     techniques: [
       { name: 'Inverted index', when: 'Full-text search.', how: ['Term → postings; analysis pipeline; immutable segments merged in the background; sharded by document with scatter-gather'], complexity: '—' },
@@ -140,7 +203,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Correctness & Consistency',
-    summary: 'Money, inventory, multi-region: systems where being wrong is worse than being slow. Idempotency, state machines, outbox, sagas, reconciliation, and explicit consistency guarantees per operation.',
+    summary: "Systems where being wrong is worse than being slow: payments, inventory, bookings, multi-region data. The tools are making repeated requests harmless (idempotency), explicit state machines, writing events alongside data (outbox), multi-step workflows with undo steps (sagas), and regular reconciliation against the truth.",
+    terms: [
+      { term: "Idempotency key", meaning: "A client-chosen id for an action so a repeated request is recognised and not redone." },
+      { term: "State machine", meaning: "A fixed set of states and the allowed moves between them." },
+      { term: "Outbox", meaning: "Writing an event into the database in the same transaction as the change, so the two can never disagree." },
+      { term: "Saga", meaning: "A multi-step process across services where each step has an undo step." },
+      { term: "Reconciliation", meaning: "Regularly comparing your records with the external truth and fixing differences." },
+    ], 
     recognize: ['Payments, orders, inventory, bookings, "never double", "exactly once", "audit"'],
     techniques: [
       { name: 'Idempotency keys', when: 'Any retried write.', how: ['Key per intent stored with the response; same key → same result; pass to downstream processors too'], complexity: '—' },
@@ -155,7 +225,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'AI Systems',
-    summary: 'LLM serving and retrieval systems have familiar shapes (gateways, pipelines, caches) with new constraints: tokens as the unit of cost, slow stateful compute, probabilistic outputs that need evaluation, and new safety surfaces.',
+    summary: "Designing around large language models: they are expensive and slow per request, their cost is measured in tokens, their answers are probabilistic and must be evaluated, and they open new safety concerns. The familiar shapes (gateways, pipelines, caches) still apply with those constraints.",
+    terms: [
+      { term: "Token", meaning: "A chunk of text (roughly a short word) that models read and write; cost and limits are counted in tokens." },
+      { term: "Prefill / decode", meaning: "Reading the prompt (fast, parallel) versus generating the answer one token at a time (slow)." },
+      { term: "KV cache", meaning: "Memory the model keeps per conversation so it does not reread earlier text each step." },
+      { term: "RAG", meaning: "Retrieval-augmented generation: look up relevant documents and put them in the prompt." },
+      { term: "Eval", meaning: "A fixed set of test questions with scoring, to measure quality objectively." },
+    ], 
     recognize: ['Inference gateway, RAG, agents, "prompt", "tokens", "embeddings", "evaluation"'],
     techniques: [
       { name: 'Serving economics', when: 'Any LLM-backed design.', how: ['Prefill (compute-bound) vs decode (memory-bound); continuous batching; KV/prefix caching; plan capacity in tokens/s', 'Route by task difficulty to cheaper models; semantic and exact caches'], complexity: '—' },
@@ -169,7 +246,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   de({
     topic: 'Object-Oriented Design',
-    summary: 'Low-level design: entities, invariants, state machines, and strategies, in code-level detail. The reviewer wants clean interfaces, invariants enforced in one place, and testability via injected dependencies.',
+    summary: "Code-level design of a small system (parking garage, elevator, booking): which classes exist, what rule each one guarantees, how states change, and which policies can be swapped. The reviewer wants clean interfaces, rules enforced in one place, and code that can be tested without real time passing.",
+    terms: [
+      { term: "Entity", meaning: "A thing with identity in the domain: a car, a spot, a booking." },
+      { term: "Invariant", meaning: "A rule that must always hold, enforced in one place." },
+      { term: "State machine", meaning: "The allowed states of an object and the transitions between them." },
+      { term: "Strategy", meaning: "A swappable policy behind an interface." },
+      { term: "Composition over inheritance", meaning: "Building objects out of parts rather than deep class hierarchies." },
+    ], 
     recognize: ['"Design the classes for…" (parking lot, elevator, booking, vending machine, library)', 'Expect to write interfaces and discuss concurrency at the class level'],
     techniques: [
       { name: 'Find the nouns and the invariants', when: 'Start of every LLD.', how: ['List entities and their relationships; for each, the rule that must never break (a spot holds one car; a seat has one active booking)', 'Put each invariant in exactly one place'], complexity: '—' },
@@ -185,7 +269,14 @@ export const PRIMERS_OTHER: Primer[] = [
   // ── Knowledge ────────────────────────────────────────────────────────
   kn({
     topic: 'TypeScript & JavaScript',
-    summary: 'The runtime model (event loop, closures, this, memory), the type system (structural typing, generics, narrowing), and the tooling (ESM, build, test). Senior answers connect semantics to bugs they have seen.',
+    summary: "How the language runs (one thread, an event loop, closures, memory), how its types work (by shape, not by name), and the tooling around it (modules, builds, tests). Strong answers connect each concept to a real bug it causes or prevents.",
+    terms: [
+      { term: "Event loop", meaning: "The runtime's scheduler: it runs one task, then any queued promise callbacks, then the next task." },
+      { term: "Closure", meaning: "A function that remembers the variables around where it was created." },
+      { term: "Structural typing", meaning: "Types match by shape (the properties present), not by name." },
+      { term: "ESM / CJS", meaning: "The two module systems: import/export versus require/module.exports." },
+      { term: "Heap snapshot", meaning: "A dump of everything in memory, used to find leaks." },
+    ], 
     recognize: ['Questions that start with "explain how … works" about the language, runtime or React'],
     techniques: [
       { name: 'Event loop model', when: 'Ordering, starvation, responsiveness.', how: ['Call stack; macrotask queue; microtask queue drained after each task; rendering between tasks in browsers; Node phases'], complexity: '—' },
@@ -200,7 +291,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Web & HTTP',
-    summary: 'How requests travel and how browsers protect users: HTTP semantics and caching, transport versions, DNS/TLS, same-origin and CORS, cookies and tokens, OAuth/OIDC, and the OWASP risks with their fixes.',
+    summary: "How a request travels from a browser to a server and back, how caching works along the way, and how browsers keep users safe: same-origin rules, cookies and tokens, login flows, and the common attack types with their fixes.",
+    terms: [
+      { term: "Origin", meaning: "Scheme + host + port; the unit of trust in browsers." },
+      { term: "CORS", meaning: "The rules by which a server lets pages from other origins read its responses." },
+      { term: "CSRF / XSS", meaning: "Tricking a user's browser into sending a request / injecting script into a page." },
+      { term: "JWT", meaning: "A signed token carrying claims about a user." },
+      { term: "CDN", meaning: "Servers near users that cache content." },
+    ], 
     recognize: ['Caching headers, auth flows, CORS errors, "what happens when", security review questions'],
     techniques: [
       { name: 'Caching decision table', when: 'Setting headers.', how: ['Immutable hashed assets: public, max-age 1y, immutable; per-user API: private/no-store + ETag; public pages: s-maxage + purge + stale-while-revalidate'], complexity: '—' },
@@ -214,7 +312,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Databases',
-    summary: 'Indexes and plans, transactions and isolation, modelling choices, replication, migrations and operations. Know Postgres well and know when something else fits.',
+    summary: "How databases find rows fast (indexes), how they keep concurrent changes correct (transactions and isolation), how to model data, how to add copies and split data when one machine is not enough, and how to change a live schema without downtime.",
+    terms: [
+      { term: "Index", meaning: "A sorted side structure that lets the database find rows without scanning the table." },
+      { term: "Transaction", meaning: "A group of changes that all happen or none do." },
+      { term: "Isolation level", meaning: "How much concurrent transactions can see of each other." },
+      { term: "Replica", meaning: "A read-only copy kept up to date from the primary." },
+      { term: "Migration", meaning: "A change to the database schema applied to a live system." },
+    ], 
     recognize: ['Slow queries, anomalies, "which database", migrations, replicas, pooling'],
     techniques: [
       { name: 'Index reasoning', when: 'Query performance.', how: ['Leftmost prefix rule; equality → range → sort/cover order; covering indexes; EXPLAIN ANALYZE reading'], complexity: '—' },
@@ -228,7 +333,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Distributed Systems',
-    summary: 'What breaks when there is more than one machine: partial failure, ordering, consensus, consistency, and the patterns that make systems resilient (timeouts, retries, idempotency, backpressure).',
+    summary: "What breaks once there is more than one machine: parts fail independently, messages arrive late or twice, clocks disagree, and nobody has the whole picture. The patterns (timeouts, retries that are safe to repeat, agreement protocols, backpressure) exist to cope with that.",
+    terms: [
+      { term: "Partition", meaning: "A network split where machines cannot reach each other." },
+      { term: "Consensus", meaning: "Several machines agreeing on one value despite failures (Raft, Paxos)." },
+      { term: "Linearisable", meaning: "Behaves as if there were one copy updated instantly." },
+      { term: "Backpressure", meaning: "Slowing a producer down when a consumer cannot keep up." },
+      { term: "Lease / fencing token", meaning: "Time-limited ownership, with a counter so a stale owner is rejected." },
+    ], 
     recognize: ['CAP, consensus, exactly-once, clocks, cascading failures, sagas, rate limiting'],
     techniques: [
       { name: 'Consistency vocabulary', when: 'Any "is it consistent" question.', how: ['Linearisable, sequential, causal, eventual; CAP under partition; PACELC otherwise; quorums'], complexity: '—' },
@@ -242,7 +354,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Infrastructure & Cloud',
-    summary: 'Containers and orchestration, delivery pipelines, infrastructure as code, networking, observability and SLOs, cost, and zero-trust security. Senior engineers can run what they build.',
+    summary: "Running what you build: containers and orchestration, pipelines that ship code safely, infrastructure described in code, cloud networking, monitoring with service-level objectives, cost, and security without a trusted internal network.",
+    terms: [
+      { term: "Container", meaning: "A packaged process with its own filesystem and settings." },
+      { term: "Kubernetes", meaning: "The system that schedules containers across machines and keeps them running." },
+      { term: "SLO", meaning: "A target for a measured quality, like 99.9% of requests under 300 ms." },
+      { term: "IaC", meaning: "Infrastructure as code: describing servers and networks in files that are reviewed and applied." },
+      { term: "Canary", meaning: "Sending a small share of traffic to a new version first." },
+    ], 
     recognize: ['Kubernetes, CI/CD, Terraform, VPCs, on-call, SLOs, bills'],
     techniques: [
       { name: 'Kubernetes essentials', when: 'Deploy and run.', how: ['Pods/deployments/services; readiness vs liveness; requests/limits; rolling updates with graceful shutdown'], complexity: '—' },
@@ -256,7 +375,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Architecture',
-    summary: 'Boundaries, integration styles and engineering practice: monolith vs services, events and outbox, DDD essentials, hexagonal/12-factor, API design and evolution, documentation, debt and estimation.',
+    summary: "How to carve a system into parts and connect them: one codebase versus many services, synchronous calls versus events, boundaries drawn around business concepts, and the practices around it (API evolution, documentation, technical debt, estimation).",
+    terms: [
+      { term: "Bounded context", meaning: "A part of the system with its own consistent vocabulary and model." },
+      { term: "Monolith / microservices", meaning: "One deployable application versus many small ones." },
+      { term: "Outbox", meaning: "Recording events in the same database transaction as the change." },
+      { term: "ADR", meaning: "Architecture decision record: a short note on a decision and why." },
+      { term: "Technical debt", meaning: "Shortcuts that make future changes slower or riskier." },
+    ], 
     recognize: ['"Should we split…", "how do you structure…", "how do you decide…"'],
     techniques: [
       { name: 'Boundary finding', when: 'Splitting or organising code.', how: ['Bounded contexts and data ownership; modular monolith first; extract on demonstrated need'], complexity: '—' },
@@ -269,7 +395,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Testing & Quality',
-    summary: 'A test strategy that is fast, trustworthy and proportionate: many unit tests of logic, integration tests with real dependencies, few end-to-end tests, contract tests between services, load tests before launch, and flakiness treated as a bug.',
+    summary: "A test setup that stays fast and trustworthy: many small tests of logic, some tests against real dependencies, a few end-to-end tests of critical paths, contracts between services, load tests before launch, and flaky tests treated as bugs.",
+    terms: [
+      { term: "Unit / integration / end-to-end", meaning: "Testing one piece in isolation / several real pieces together / the whole system as a user would." },
+      { term: "Fake vs mock", meaning: "A simple working stand-in versus a recorder that checks how it was called." },
+      { term: "Contract test", meaning: "A check that a service still provides what its consumers expect." },
+      { term: "Flaky test", meaning: "A test that passes or fails without the code changing." },
+      { term: "Load test", meaning: "Sending realistic traffic to see where the system breaks." },
+    ], 
     recognize: ['"How do you test…", flaky tests, coverage, load testing, contract testing'],
     techniques: [
       { name: 'Test pyramid, honestly', when: 'Deciding what to write.', how: ['Unit for logic at the boundary you own; integration with containers; E2E for critical flows; avoid mocking what you do not own'], complexity: '—' },
@@ -283,7 +416,15 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'AI & LLM Engineering',
-    summary: 'How models work well enough to engineer around them: tokens, context, prefill/decode cost; RAG vs fine-tuning vs long context; agents and tools; evaluation; cost and latency control; privacy and safety.',
+    summary: "Enough about how language models work to engineer around them: tokens and context, why some calls are slow, when to add retrieval versus fine-tuning, how agents call tools, how to evaluate quality, how to control cost, and how to handle private data safely.",
+    terms: [
+      { term: "Token", meaning: "A chunk of text the model reads or writes; cost and limits are in tokens." },
+      { term: "Context window", meaning: "How much text the model can consider at once." },
+      { term: "RAG", meaning: "Looking up relevant documents and putting them into the prompt." },
+      { term: "Fine-tuning", meaning: "Further training a model on your examples to change its behaviour." },
+      { term: "Hallucination", meaning: "A confident answer that is made up." },
+      { term: "Agent", meaning: "A model loop that can call tools and take actions." },
+    ], 
     recognize: ['Anything with "LLM", "prompt", "embedding", "agent", "RAG", "eval", "hallucination"'],
     techniques: [
       { name: 'Model mechanics for engineers', when: 'Cost and latency questions.', how: ['Tokens; attention cost; KV cache; prefill compute-bound vs decode bandwidth-bound; TTFT vs tokens/s; batching and quantisation'], complexity: '—' },
@@ -298,7 +439,14 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   kn({
     topic: 'Performance',
-    summary: 'Measure, find the bottleneck, fix the biggest share, verify, guard. Frontend: Core Web Vitals and the critical rendering path. Backend: traces, N+1, indexes, pools, event-loop blocking. Caching as a tool, not a reflex.',
+    summary: "A repeatable method: set a target, measure, find the single biggest bottleneck, fix it, measure again, and add a guard so it does not regress. Then the usual levers for web pages and for backend services, and when caching helps versus hides a problem.",
+    terms: [
+      { term: "p50 / p95 / p99", meaning: "The time under which 50%, 95%, 99% of requests finish; tails matter more than averages." },
+      { term: "Bottleneck", meaning: "The one part that limits the whole." },
+      { term: "Profile", meaning: "A measurement of where time is spent." },
+      { term: "Core Web Vitals", meaning: "Google's page-experience metrics: loading, interactivity, visual stability." },
+      { term: "N+1 query", meaning: "Fetching a list, then one query per item; a classic slowdown." },
+    ], 
     recognize: ['"Slow page", "p99 doubled", "what would you cache", "how do you profile"'],
     techniques: [
       { name: 'Method', when: 'Any performance task.', how: ['Target → measure (field + lab) → profile → fix the top item → verify with the same measurement → add a regression guard'], complexity: '—' },
@@ -313,7 +461,12 @@ export const PRIMERS_OTHER: Primer[] = [
   // ── Behavioral ───────────────────────────────────────────────────────
   be({
     topic: 'Ownership',
-    summary: 'Stories where you took responsibility beyond your lane: ambiguous problems, failures, missed deadlines, prioritisation, ethics, customer escalations. Interviewers listen for "I", for honesty about what went wrong, and for the system you changed afterwards.',
+    summary: "Stories where you took responsibility beyond your assigned task: vague problems, failures, missed deadlines, too much work, ethical calls, upset customers. Interviewers listen for \"I\" rather than \"we\", honesty about what went wrong, and what you changed afterwards so it would not happen again.",
+    terms: [
+      { term: "STAR", meaning: "Situation, Task, Action, Result: the structure for a story." },
+      { term: "Scope", meaning: "What is in and out of a piece of work." },
+      { term: "Root cause vs contributing factors", meaning: "The single trigger versus everything that let it happen." },
+    ], 
     recognize: ['"Tell me about a time you…" with ambiguity, failure, overload, or a hard call'],
     techniques: [
       { name: 'STAR with a sharp Action', when: 'Every story.', how: ['Situation in two sentences; Task = your specific responsibility; Action = what you did, in the first person, with decisions and trade-offs; Result with numbers and what changed'], complexity: '—' },
@@ -326,7 +479,12 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   be({
     topic: 'Collaboration',
-    summary: 'Disagreement, conflict, feedback, remote teamwork, cross-functional partners. Signals: directness with kindness, curiosity about the other side\'s constraints, and relationships that came out stronger.',
+    summary: "Disagreements, conflicts, feedback, remote teamwork and working with product or design. The signals are being direct and kind, being curious about the other side's constraints, and relationships that came out stronger.",
+    terms: [
+      { term: "Disagree and commit", meaning: "Argue your case, then fully support the decision once made." },
+      { term: "Escalation", meaning: "Taking a problem to someone with more authority, after trying directly." },
+      { term: "Cross-functional", meaning: "Working with people from other disciplines." },
+    ], 
     recognize: ['Disagreed, conflict, feedback, pushed back, worked with product/design/data'],
     techniques: [
       { name: 'Disagree and commit', when: 'Technical or product disagreements.', how: ['Made the case with evidence; listened; found the real constraint; committed once decided; documented risks'], complexity: '—' },
@@ -339,7 +497,12 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   be({
     topic: 'Leadership',
-    summary: 'Influence without authority, growing others, changing how a team works, handling a struggling teammate. Interviewers look for starting from real pain, building buy-in, and measured results that outlasted you.',
+    summary: "Changing how a team works without being the boss, helping people grow, dealing with a struggling teammate. Interviewers look for starting from a real pain, getting buy-in rather than forcing it, and results that lasted after you stopped pushing.",
+    terms: [
+      { term: "Influence without authority", meaning: "Changing what people do when you cannot tell them to." },
+      { term: "Buy-in", meaning: "Genuine agreement from the people affected." },
+      { term: "Mechanism", meaning: "A concrete practice (pairing, a checklist) rather than an intention." },
+    ], 
     recognize: ['Mentored, changed a practice, led a migration, dealt with a low performer, made the team better'],
     techniques: [
       { name: 'Influence playbook', when: 'Changing practices or architecture.', how: ['Pain with data → small proof → allies → easy adoption path → measure → share credit'], complexity: '—' },
@@ -351,7 +514,12 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   be({
     topic: 'Technical Judgement',
-    summary: 'Trade-offs under pressure, scaling decisions, legacy systems, decisions with incomplete data, saying no, adopting AI tools. Signals: explicit framing of options and reversibility, measurements before and after, and honesty about what you got wrong.',
+    summary: "Trade-offs under pressure, decisions with incomplete information, scaling or inheriting systems, saying no, using new tools. The signals are laying out the options honestly, preferring choices you can undo, measuring before and after, and admitting what you got wrong.",
+    terms: [
+      { term: "Reversible decision", meaning: "One you can undo cheaply; make these quickly." },
+      { term: "Technical debt", meaning: "Shortcuts that cost later." },
+      { term: "Strangler pattern", meaning: "Replacing a legacy system piece by piece behind the same interface." },
+    ], 
     recognize: ['Trade-off, re-architecture, legacy, decision under uncertainty, said no, AI tools'],
     techniques: [
       { name: 'Trade-off framing', when: 'Speed vs quality.', how: ['Options with costs; who is affected; reversible vs irreversible; debt tracked and paid or consciously left'], complexity: '—' },
@@ -364,7 +532,12 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   be({
     topic: 'Operational Excellence',
-    summary: 'Incidents and on-call: calm triage, mitigate before diagnose, clear communication, blameless postmortems with action items that shipped, and the detection or guardrail that exists now.',
+    summary: "Incidents and on-call: staying calm, stopping the damage before finding the cause, keeping people informed, and a blameless review afterwards with fixes that actually shipped.",
+    terms: [
+      { term: "Mitigation", meaning: "Stopping the damage (rollback, switch off a feature) before understanding the cause." },
+      { term: "Postmortem", meaning: "The written review of an incident." },
+      { term: "Blameless", meaning: "Focusing on systems and decisions, not on who to punish." },
+    ], 
     recognize: ['Incident, outage, on-call, postmortem, production problem'],
     techniques: [
       { name: 'Incident narrative', when: 'Any incident story.', how: ['Detection → impact assessment → mitigation (rollback/flag/failover) → diagnosis → fix → postmortem → prevention', 'Roles and communication cadence'], complexity: '—' },
@@ -375,7 +548,11 @@ export const PRIMERS_OTHER: Primer[] = [
   }),
   be({
     topic: 'Motivation',
-    summary: 'Why this role, what you are proud of, strengths and growth areas. Honest, forward-looking, specific to this company, and consistent with what references would say.',
+    summary: "Why this role, what you are proud of, your strengths and the things you are working on. Honest, forward-looking, specific to this company, and consistent with what your references would say.",
+    terms: [
+      { term: "Narrative", meaning: "The story that connects your past roles to this one." },
+      { term: "Non-negotiables", meaning: "The few things you need from a role." },
+    ], 
     recognize: ['Why are you leaving/looking, proudest work, strengths/weaknesses, what your manager would say'],
     techniques: [
       { name: 'Narrative arc', when: 'Why here, why now.', how: ['What you have done → what you learned you want → why this team\'s problems fit; no disparaging the current employer; researched specifics'], complexity: '—' },

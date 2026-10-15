@@ -56,6 +56,7 @@ describe('primers', () => {
     for (const p of PRIMERS) {
       expect(p.techniques.length, `${p.topic} techniques`).toBeGreaterThanOrEqual(2)
       expect(p.recognize.length, `${p.topic} recognize`).toBeGreaterThanOrEqual(1)
+      expect(p.terms.length, `${p.topic} terms`).toBeGreaterThanOrEqual(2)
       expect(p.pitfalls.length, `${p.topic} pitfalls`).toBeGreaterThanOrEqual(2)
       expect(p.checklist.length, `${p.topic} checklist`).toBeGreaterThanOrEqual(2)
     }

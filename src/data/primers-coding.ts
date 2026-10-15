@@ -5,40 +5,48 @@ const c = (p: Omit<Primer, 'track'>): Primer => ({ ...p, track: 'coding' })
 export const PRIMERS_CODING: Primer[] = [
   c({
     topic: 'Arrays & Hashing',
-    summary: 'Most "find a pair / count / group / dedupe" questions are one pass with a Map or Set trading O(n) memory for O(1) lookups. The skill is choosing what to key the map by.',
+    summary: "Questions like \"find two numbers that add up to…\", \"does any value repeat?\", \"group these together\" or \"how many stretches add up to…\" almost always come down to one idea: walk through the list once and remember what you have already seen in a lookup table (a Map or Set). Checking whether something is in the table is instant no matter how big the table gets, which is what turns a slow double loop into a single fast pass. The skill is deciding what to remember and what to look it up by.",
+    terms: [
+      { term: "Map / Set (hash table)", meaning: "A lookup table. A Set remembers which values you have seen; a Map remembers a value for each key. Checking or adding an item takes the same tiny amount of time whether it holds 10 items or 10 million. That is what people mean by \"O(1) lookup\"." },
+      { term: "O(n) time", meaning: "The work grows in step with the input size: twice the items, twice the time. One pass over a list is O(n)." },
+      { term: "O(n²) time", meaning: "Nested loops over the same list: twice the items, four times the time. Fine for 100 items, hopeless for a million." },
+      { term: "O(n) space", meaning: "The extra memory grows with the input, for example a Set that may end up holding every item." },
+      { term: "Prefix sum", meaning: "The running total up to each position. The sum of any stretch is the difference of two running totals." },
+      { term: "Canonical form", meaning: "A standard way of writing something so that two things that \"count as the same\" become literally equal, like sorting the letters of a word." },
+    ], 
     recognize: ['"Find two elements that…", "does X appear…", "group by…", "count of subarrays whose…"', 'Unsorted input where sorting would cost O(n log n) and the target is O(n)', 'Anything that needs "have I seen this before" or "how many of these so far"'],
     techniques: [
       {
-        name: 'Seen-set / complement lookup', when: 'Pairs that satisfy a relation (sum to k, differ by d) or duplicate detection.',
+        name: 'Remember what you have seen (set or map)', when: 'Finding a pair that fits a rule (adds up to k, differs by d), or spotting a repeat.',
         how: ['Walk once; for each element compute the partner you would need (target - x)', 'Check the map for it; if present you are done, else record the current element', 'Record after checking so an element does not pair with itself'],
         complexity: 'O(n) time, O(n) space',
         template: `const seen = new Map<number, number>() // value -> index\nfor (let i = 0; i < nums.length; i++) {\n  const need = target - nums[i]\n  if (seen.has(need)) return [seen.get(need)!, i]\n  seen.set(nums[i], i)\n}`,
       },
       {
-        name: 'Frequency counting', when: 'Anagrams, top-k frequent, "majority", "first unique".',
+        name: 'Count how often each thing appears', when: 'Anagrams, the k most common items, "the majority element", "the first character that appears once".',
         how: ['Map<item, count> in one pass', 'Then answer from the counts: compare two maps, bucket by count (bucket sort gives O(n) top-k), or scan for count === 1'],
         complexity: 'O(n) time, O(k) space for k distinct items',
         template: `const counts = new Map<string, number>()\nfor (const x of items) counts.set(x, (counts.get(x) ?? 0) + 1)\n// top-k without a heap: buckets by count\nconst buckets: string[][] = Array.from({ length: items.length + 1 }, () => [])\nfor (const [x, n] of counts) buckets[n].push(x)`,
       },
       {
-        name: 'Canonical key grouping', when: '"Group the ones that are the same under some transformation" (anagrams, rotations, equivalent fractions).',
+        name: 'Group by a standard form', when: '"Group the ones that count as the same" (anagrams, rotations, equivalent fractions): pick a standard way to write each item so matching ones become identical.',
         how: ['Define a canonical form that is equal exactly when the items belong together (sorted chars, 26-count signature, reduced fraction)', 'Map<key, item[]>'],
         complexity: 'O(n·k) with a linear key, O(n·k log k) with sorting',
         template: `const groups = new Map<string, string[]>()\nfor (const s of strs) {\n  const key = [...s].sort().join('') // or a count signature\n  ;(groups.get(key) ?? groups.set(key, []).get(key)!).push(s)\n}`,
       },
       {
-        name: 'Prefix sums with a map', when: 'Count or find subarrays with a given sum, especially with negatives (a window cannot shrink reliably).',
+        name: 'Running totals plus a map', when: 'Count or find stretches that add up to a target, especially when numbers can be negative (a sliding window does not work then).',
         how: ['sum(i..j) = prefix[j] - prefix[i-1]; keep a running prefix', 'Map<prefixValue, count>; at each step add count of (prefix - k) seen', 'Seed the map with {0: 1} for subarrays starting at index 0'],
         complexity: 'O(n) time and space',
         template: `const seen = new Map<number, number>([[0, 1]])\nlet prefix = 0, count = 0\nfor (const x of nums) {\n  prefix += x\n  count += seen.get(prefix - k) ?? 0\n  seen.set(prefix, (seen.get(prefix) ?? 0) + 1)\n}`,
       },
       {
-        name: 'Prefix and suffix passes', when: '"For each index, something about everything to its left and right" (product except self, trapping water variants, pivot index).',
+        name: 'One pass from the left, one from the right', when: '"For each position, something about everything to its left and everything to its right" (product of all other numbers, pivot index).',
         how: ['One pass left to right accumulating; one pass right to left accumulating', 'Combine; often the second pass can be folded into a running variable for O(1) extra space'],
         complexity: 'O(n) time',
       },
       {
-        name: 'Set-based sequence walking', when: 'Longest consecutive run of values, "can we reach", membership-heavy logic.',
+        name: 'Walk a sequence through a set', when: 'Longest run of consecutive values, "can we get from here to there", anything that keeps asking "is this value present?".',
         how: ['Put everything in a Set', 'Only start work from natural starting points (n where n-1 is absent) so each element is touched O(1) times'],
         complexity: 'O(n)',
       },
@@ -48,7 +56,13 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Two Pointers',
-    summary: 'When input is sorted or the answer depends on a pair/partition, two indices moving with a rule replace nested loops. The rule is the whole solution: decide what moving each pointer guarantees.',
+    summary: "When the list is sorted, or the answer is about a pair of positions, you can often replace two nested loops with two markers (pointers) that walk through the list following a simple rule. The rule is the whole solution: for each move you should be able to say why it can never skip past the right answer.",
+    terms: [
+      { term: "Pointer", meaning: "Just an index into the array, a position you are looking at. \"Two pointers\" means two positions moving by a rule." },
+      { term: "In place", meaning: "Changing the array you were given instead of building a new one, to use no extra memory." },
+      { term: "O(n)", meaning: "One pass: the time grows in step with the input size." },
+      { term: "Exchange argument", meaning: "The reasoning that moving a pointer the way you do can never skip the best answer." },
+    ], 
     recognize: ['Sorted array, or you are allowed to sort', '"Pair/triple summing to…", "container", "palindrome", "remove in place", "merge"', 'Reads like "scan from both ends" or "a slow and a fast cursor"'],
     techniques: [
       {
@@ -84,7 +98,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Sliding Window',
-    summary: 'Contiguous subarray/substring questions with a "longest / shortest / count satisfying a condition" shape. Maintain a window that is always valid (or just became invalid), expand the right edge, shrink the left; every element enters and leaves once.',
+    summary: "For questions about a contiguous stretch of a list or string (\"longest substring without repeats\", \"shortest piece containing…\", \"best run of k items\"), keep a \"window\" between two markers and slide it along: grow the right edge, and shrink from the left when the window stops satisfying the rule. Every element enters and leaves once, so the whole thing takes one pass.",
+    terms: [
+      { term: "Window", meaning: "The stretch of the array between a left and a right index." },
+      { term: "Invariant", meaning: "A rule that is true every time you finish a loop step, for example \"the window never has a repeated letter\". Your code keeps it true." },
+      { term: "Monotonic condition", meaning: "A rule that only gets harder (or only easier) as the window grows. Sliding windows rely on this; if adding an item can flip the rule either way, use prefix sums instead." },
+      { term: "Deque", meaning: "A list you can add to and remove from at both ends." },
+      { term: "O(n)", meaning: "One pass; each element is handled a fixed number of times." },
+    ], 
     recognize: ['"Contiguous", "substring", "subarray", "window of size k"', '"Longest with at most k…", "shortest containing…", "maximum sum of k consecutive"', 'Condition is monotonic: making the window bigger can only make it worse (or better) in one direction'],
     techniques: [
       {
@@ -122,7 +143,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Stack & Queue',
-    summary: 'A stack answers "what is the most recent unresolved thing": matching brackets, evaluating expressions, and the whole family of "next greater/smaller element" questions via a monotonic stack. Queues drive BFS and anything first-in-first-out.',
+    summary: "A stack is a pile where you only touch the top (last in, first out); a queue is a line where the first in is the first out. Stacks answer \"what is the most recent thing I have not dealt with yet\": matching brackets, evaluating expressions, and the \"next bigger element\" family. Queues drive breadth-first search, where you handle things in the order they were discovered.",
+    terms: [
+      { term: "Stack", meaning: "Last in, first out: push on top, pop off the top. In JavaScript an array with push and pop." },
+      { term: "Queue", meaning: "First in, first out: join at the back, leave from the front." },
+      { term: "Monotonic stack", meaning: "A stack you keep sorted (always increasing or always decreasing) by popping anything that would break the order before pushing." },
+      { term: "Amortised O(n)", meaning: "A single step can be slow, but over the whole run the total work is still proportional to the input, because each element is pushed and popped at most once." },
+      { term: "BFS", meaning: "Breadth-first search: explore everything one step away, then two steps, and so on, using a queue." },
+    ], 
     recognize: ['Nested or matched structures (brackets, tags, directory paths)', '"Next greater element", "days until warmer", "largest rectangle", "stock span"', 'Postfix/RPN evaluation, undo/redo, iterator design, O(1) min tracking'],
     techniques: [
       {
@@ -157,7 +185,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Sorting & Sweeping',
-    summary: 'Sort by one coordinate and sweep; most interval problems fall out. Know when sorting by start vs by end is the right greedy, and when a sweep over event points (starts and ends separately) answers "how many at once".',
+    summary: "Many problems about ranges (meetings, bookings, intervals) become easy once you sort by one end and then walk through in order, keeping a little state as you go. The two decisions are which end to sort by, and what to remember while sweeping.",
+    terms: [
+      { term: "Interval", meaning: "A range with a start and an end, like a meeting from 9 to 10." },
+      { term: "Sweep", meaning: "Walk through sorted items in order, keeping a little state (the current merged range, how many are open)." },
+      { term: "O(n log n)", meaning: "The cost of sorting n items: a bit more than one pass but far less than nested loops. For a million items, about 20 million steps." },
+      { term: "Greedy", meaning: "Making the choice that looks best now and never revisiting it." },
+      { term: "Comparator", meaning: "The function you give sort to say which of two items comes first." },
+    ], 
     recognize: ['Intervals, meetings, bookings, ranges', '"Merge", "insert", "minimum removals", "minimum rooms", "can attend all"', 'Pairs where order matters only by one key'],
     techniques: [
       {
@@ -192,7 +227,13 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Linked Lists',
-    summary: 'Pointer surgery with a dummy head and a careful order of reassignment. Draw the boxes. Most problems are reversal, two-cursor tricks, or merging.',
+    summary: "A linked list is a chain of boxes where each box points to the next. Problems are about rewiring those pointers without losing the rest of the chain. Draw the boxes, change one arrow at a time, and use a dummy first box so the start of the list is not a special case.",
+    terms: [
+      { term: "Node", meaning: "One box holding a value and a pointer to the next box." },
+      { term: "Pointer / next", meaning: "The reference from one node to the following one." },
+      { term: "Dummy head", meaning: "A throwaway node placed before the real first node so inserting or removing at the front needs no special handling." },
+      { term: "O(1) space", meaning: "A fixed amount of extra memory no matter how long the list is: a few variables, no copy of the list." },
+    ], 
     recognize: ['"Reverse", "merge", "remove nth from end", "reorder", "cycle", "intersection"', 'Explicit ListNode with next pointers; often O(1) extra space is demanded'],
     techniques: [
       {
@@ -227,7 +268,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Binary Search',
-    summary: 'Any monotonic predicate over an index range can be searched in O(log n): sorted arrays, rotated arrays, and "the smallest value that works" (binary search on the answer). Get the loop invariant right and the off-by-ones disappear.',
+    summary: "If the input is sorted, or if you can describe a yes/no question that flips from \"no\" to \"yes\" at exactly one point along a range, you can find that point by repeatedly checking the middle and throwing away half. That is why it takes about log2(n) steps: a million items need about 20 checks. The trap is off-by-one errors, which a consistent template avoids.",
+    terms: [
+      { term: "Sorted", meaning: "In order, so every item is at least as big as the one before it." },
+      { term: "O(log n)", meaning: "Each step halves the candidates, so a million items need about 20 steps, a billion about 30." },
+      { term: "Predicate", meaning: "A yes/no question about a position, like \"can we finish in time at this speed?\"." },
+      { term: "Monotonic predicate", meaning: "A yes/no question whose answer flips once along the range (all \"no\" then all \"yes\"). That single flip point is what binary search finds." },
+      { term: "Invariant", meaning: "A statement kept true every loop, here \"the answer is still inside [lo, hi]\"." },
+    ], 
     recognize: ['Sorted (or rotated sorted) input; "O(log n)" stated', '"Minimum k such that…", "maximum capacity that still…", feasibility checks that are monotonic', '2D matrix with sorted rows and columns'],
     techniques: [
       {
@@ -263,7 +311,15 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Dynamic Programming',
-    summary: 'Overlapping subproblems with optimal substructure. Define the state in words, write the recurrence, pick an order, and only then optimise space. Most interview DP is 1D over positions, 2D over two sequences or a grid, or knapsack over items × capacity.',
+    summary: "Dynamic programming is for problems where the answer to a big case is built from answers to smaller cases, and the same small cases come up again and again. You write down what a \"small case\" means, how to combine them, and then fill the answers in order (or cache them) so nothing is computed twice. Most interview DP is a one-dimensional table over positions, a two-dimensional table over two strings or a grid, or a table over items and a capacity.",
+    terms: [
+      { term: "Subproblem", meaning: "A smaller version of the same question, like \"the best answer using only the first i items\"." },
+      { term: "State", meaning: "The few numbers that identify a subproblem, such as a position or a remaining capacity." },
+      { term: "Recurrence", meaning: "The formula that builds a bigger answer from smaller ones." },
+      { term: "Memoisation", meaning: "Caching the answer to each subproblem so it is computed once." },
+      { term: "Bottom-up", meaning: "Filling a table from the smallest cases to the largest instead of recursing." },
+      { term: "O(states × transitions)", meaning: "Total work is the number of distinct subproblems times the work to combine each one." },
+    ], 
     recognize: ['"Number of ways", "minimum cost", "longest/shortest … subsequence", "can it be done"', 'Choices at each step with the future depending only on a small summary of the past', 'Brute-force recursion that recomputes the same inputs'],
     techniques: [
       {
@@ -311,7 +367,16 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Graphs & Trees',
-    summary: 'Traversal (DFS/BFS) is the base; everything else is a traversal with extra bookkeeping: distances, visited sets, topological order, union-find for connectivity, Dijkstra for weighted shortest paths. For trees, decide whether information flows down (parameters) or up (return values).',
+    summary: "A graph is a set of things connected by links; a tree is a graph with no loops and a single root. Nearly every question is a walk over the structure (depth-first or breadth-first) with some bookkeeping: distances, a visited set, an ordering that respects dependencies, or grouping into connected clusters. For trees, decide whether information needs to flow down from parents (pass it as a parameter) or up from children (return it).",
+    terms: [
+      { term: "Node and edge", meaning: "A thing and a link between two things." },
+      { term: "Adjacency list", meaning: "For each node, the list of nodes it links to; the usual way to store a graph." },
+      { term: "DFS", meaning: "Depth-first search: follow one path as far as it goes, then back up and try the next." },
+      { term: "BFS", meaning: "Breadth-first search: explore all neighbours first, then their neighbours; finds shortest paths when every link costs the same." },
+      { term: "Visited set", meaning: "The record of nodes already handled, so you never loop forever." },
+      { term: "Topological order", meaning: "An ordering where every item comes after the things it depends on." },
+      { term: "O(V + E)", meaning: "Work proportional to the number of nodes plus the number of links." },
+    ], 
     recognize: ['Nodes and edges, grids as implicit graphs, prerequisites, "connected", "reachable", "shortest path"', 'Binary tree with left/right; BST ordering', '"Minimum steps" (BFS), "all paths/components" (DFS), "order with dependencies" (topological sort)'],
     techniques: [
       {
@@ -370,7 +435,13 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Backtracking',
-    summary: 'Enumerate candidates by building a partial solution one choice at a time, recursing, and undoing. The art is pruning early and avoiding duplicate branches via ordering.',
+    summary: "When you need every arrangement, subset or combination, build the answer one choice at a time, go deeper, and when a branch is finished or impossible, undo the last choice and try the next one. The output can be huge, so the goals are correctness, avoiding duplicate branches, and cutting off dead ends early.",
+    terms: [
+      { term: "Partial solution", meaning: "The choices made so far, usually kept in a list called path." },
+      { term: "Branch", meaning: "One possible next choice; the set of all branches forms a tree of possibilities." },
+      { term: "Pruning", meaning: "Giving up on a branch as soon as it cannot lead to a valid answer." },
+      { term: "Output-sensitive", meaning: "The running time depends on how many answers exist, which may be exponential." },
+    ], 
     recognize: ['"All subsets / permutations / combinations / partitions"', '"Place N things so that…", puzzles (sudoku, N-queens), word search', 'Output size is exponential, so the goal is correctness and pruning, not polynomial time'],
     techniques: [
       {
@@ -405,7 +476,13 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Heaps & Priority Queues',
-    summary: 'Whenever you repeatedly need the smallest or largest of a changing collection: top-k, k-way merge, scheduling, running medians. TypeScript has no built-in heap, so be able to write a 25-line binary heap or use a bounded alternative (bucket sort, quickselect).',
+    summary: "A heap is a structure that always hands you the smallest (or largest) item quickly, even as you keep adding items. Use it whenever a problem repeatedly asks for \"the best so far\": top k, merging several sorted lists, scheduling, running medians. TypeScript has no built-in heap, so be able to write a small one, and know the cheaper alternatives when k is small.",
+    terms: [
+      { term: "Heap", meaning: "An array arranged so the smallest (or largest) item is always at the front; adding or removing keeps that true in a few swaps." },
+      { term: "Priority queue", meaning: "A queue where the \"most important\" item comes out first; a heap is the usual implementation." },
+      { term: "Top k", meaning: "The k best items out of many." },
+      { term: "O(n log k)", meaning: "For each of n items, a heap operation on a heap of size k. Much cheaper than sorting everything when k is small." },
+    ], 
     recognize: ['"k largest / k closest / k most frequent", "merge k sorted", "schedule tasks with cooldown", "median of a stream"', 'A stream of items where you only ever remove extremes'],
     techniques: [
       {
@@ -440,7 +517,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Bit Manipulation',
-    summary: 'A handful of identities (XOR cancels pairs, n & (n-1) clears the lowest set bit, shifts multiply/divide) solve "find the odd one out", counting bits, and compact state. In JavaScript bitwise ops are 32-bit signed; use >>> 0 for unsigned results.',
+    summary: "Numbers are stored as patterns of bits (0s and 1s), and a few bit operations have handy properties: XOR cancels out pairs, \"n AND (n minus 1)\" removes the lowest 1 bit, shifting left or right doubles or halves. These solve \"which number appears only once\" and \"count the 1 bits\" style questions with almost no memory. In JavaScript the bit operators work on 32-bit values, which has some gotchas.",
+    terms: [
+      { term: "Bit", meaning: "A single 0 or 1; numbers are strings of bits." },
+      { term: "XOR (^)", meaning: "Combines two bits to 1 when they differ. A number XOR itself is 0, so XOR-ing a whole list cancels anything that appears twice." },
+      { term: "AND (&), OR (|)", meaning: "Bitwise \"both\" and \"either\"." },
+      { term: "Shift (<<, >>)", meaning: "Move bits left (multiply by 2) or right (divide by 2)." },
+      { term: "Bitmask", meaning: "Using each bit of a number as a yes/no flag for one item." },
+    ], 
     recognize: ['"Appears once while others appear twice/three times", "count 1 bits", "reverse bits", "power of two"', 'Constraints hinting at O(1) space or masks over ≤ 32 items (subset enumeration)'],
     techniques: [
       {
@@ -474,7 +558,12 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Greedy',
-    summary: 'Make the locally best choice and never revisit it. Valid only when an exchange argument shows a local choice cannot hurt the global optimum; otherwise it is DP. Interviewers want the argument, not just the code.',
+    summary: "A greedy algorithm makes the choice that looks best right now and never goes back. It only works when you can argue that a locally best choice never hurts the final answer; interviewers want that argument as much as the code. When the argument does not hold, the problem is usually dynamic programming instead.",
+    terms: [
+      { term: "Greedy choice", meaning: "The option that looks best right now." },
+      { term: "Exchange argument", meaning: "The proof that swapping any other choice for the greedy one never makes the final answer worse." },
+      { term: "Local vs global optimum", meaning: "The best next step versus the best overall result; greedy works only when the first always leads to the second." },
+    ], 
     recognize: ['"Minimum number of…", "can you reach…", "maximum you can…" with a scanning feel', 'Choosing by an obvious order (earliest finish, largest first, furthest reach)', 'Small inputs would also be solved by DP: ask which is intended'],
     techniques: [
       {
@@ -508,7 +597,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Strings',
-    summary: 'Strings are arrays with a few extra tools: character counts, expand-around-centre for palindromes, run-length scanning, and prefix functions when matching gets serious. Watch Unicode and immutability in JavaScript.',
+    summary: "Strings are arrays of characters with a few extra tools: counting letters, growing outward from the middle to find palindromes, scanning runs of repeated characters, and parsing. In JavaScript strings cannot be changed in place, and some characters (emoji) take two slots, which is worth mentioning.",
+    terms: [
+      { term: "Substring", meaning: "A contiguous piece of a string." },
+      { term: "Subsequence", meaning: "Characters in order but not necessarily adjacent." },
+      { term: "Palindrome", meaning: "Reads the same forwards and backwards." },
+      { term: "Code unit", meaning: "One slot of a JavaScript string; most characters take one, some (emoji) take two." },
+      { term: "O(n²)", meaning: "Work that grows with the square of the length; fine for a few thousand characters." },
+    ], 
     recognize: ['Palindromes, anagrams, compression, parsing, pattern matching', 'Questions about "substring" (contiguous) vs "subsequence" (not contiguous)'],
     techniques: [
       {
@@ -543,7 +639,13 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Matrix',
-    summary: 'Grids reward careful index bookkeeping: boundaries that shrink, transposes and reversals for rotations, and using the matrix itself as scratch space when O(1) extra memory is demanded.',
+    summary: "Grid problems are mostly careful index bookkeeping: boundaries that shrink as you spiral inward, flipping rows and columns to rotate, and using the grid itself as scratch space when you are not allowed extra memory. If the question is about reaching cells from other cells, it is really a graph problem.",
+    terms: [
+      { term: "Row and column indices", meaning: "matrix[r][c]: r picks the row (down), c picks the column (across)." },
+      { term: "In place", meaning: "Changing the given grid instead of building a new one." },
+      { term: "Transpose", meaning: "Flip across the diagonal so rows become columns." },
+      { term: "Boundary", meaning: "The current outer edge of the part of the grid you have not processed." },
+    ], 
     recognize: ['n×n or m×n input; rotate, spiral, zeroes, search in sorted matrix, game of life', 'Problems that are really graph traversals on a grid belong to Graphs & Trees'],
     techniques: [
       {
@@ -577,7 +679,14 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Math & Geometry',
-    summary: 'Fast exponentiation, gcd, modular arithmetic, and a few geometry primitives cover most math questions. Precision and overflow are the traps.',
+    summary: "A small toolbox covers most math questions: fast exponentiation, greatest common divisor, modular arithmetic (keeping numbers small by taking remainders), prime sieves, and a couple of geometry formulas. The traps are precision (decimals are not exact) and numbers getting too big for JavaScript to represent exactly.",
+    terms: [
+      { term: "Modular arithmetic", meaning: "Working with remainders, like clock time: 13 mod 12 is 1. Used to keep answers small." },
+      { term: "GCD", meaning: "Greatest common divisor: the biggest number that divides both." },
+      { term: "Exponentiation by squaring", meaning: "Computing a power in about log2(n) multiplications by squaring repeatedly." },
+      { term: "Floating point", meaning: "How computers store decimals; small rounding errors mean 0.1 + 0.2 is not exactly 0.3." },
+      { term: "BigInt", meaning: "JavaScript integers of any size, for when normal numbers would lose precision above about 9 quadrillion." },
+    ], 
     recognize: ['Powers, factorials, primes, gcd/lcm, "count the ways modulo 1e9+7"', 'Points, lines, areas, rotations'],
     techniques: [
       {

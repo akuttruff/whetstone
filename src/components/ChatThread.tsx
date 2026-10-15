@@ -64,7 +64,7 @@ export default function ChatThread({ messages, pending, streaming, error, enable
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
           placeholder={enabled || messages.length > 0 ? placeholder : disabledPlaceholder ?? placeholder}
-          rows={1}
+          rows={2}
           disabled={!enabled && messages.length === 0}
         />
         {streaming ? (

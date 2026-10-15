@@ -149,6 +149,8 @@ export interface Primer {
   track: Track
   topic: string
   summary: string
+  /** Jargon the primer relies on, explained in plain words. */
+  terms: { term: string; meaning: string }[]
   /** Phrases and shapes in a statement that point at this topic. */
   recognize: string[]
   techniques: Technique[]

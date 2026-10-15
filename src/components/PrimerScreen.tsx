@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen } from 'lucide-react'
 import ChatThread from './ChatThread.tsx'
 import CodeEditor from './CodeEditor.tsx'
 import useChat, { primerThreadId } from '../hooks/useChat.ts'
+import { COMPLEXITY_GLOSSARY } from '../data/primers.ts'
 import type { Primer } from '../types.ts'
 
 interface Props {
@@ -37,6 +38,33 @@ export default function PrimerScreen({ primer, count, wide, onBack, onStart }: P
       </div>
       <div className="pane pane-problem primer">
         <p className="primer-summary">{primer.summary}</p>
+
+        {primer.terms.length > 0 && (
+          <>
+            <h3>Words used here</h3>
+            <dl className="terms">
+              {primer.terms.map((t, i) => (
+                <div key={i} className="term">
+                  <dt>{t.term}</dt>
+                  <dd>{t.meaning}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+        {(primer.track === 'coding' || primer.track === 'practical') && (
+          <details className="spoiler">
+            <summary>Reading the complexity notes (O(1), O(n), …)</summary>
+            <dl className="terms">
+              {COMPLEXITY_GLOSSARY.map((t, i) => (
+                <div key={i} className="term">
+                  <dt>{t.term}</dt>
+                  <dd>{t.meaning}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        )}
 
         <h3>How to recognise it</h3>
         <ul>{primer.recognize.map((r, i) => <li key={i}>{r}</li>)}</ul>
