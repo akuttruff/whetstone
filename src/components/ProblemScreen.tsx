@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronsDown, ChevronsUp, Lightbulb, Play, Repeat, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Lightbulb, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
+import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
 import ProblemBody from './ProblemBody.tsx'
@@ -37,6 +38,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const [run, setRun] = useState<RunResult | null>(null)
   const [running, setRunning] = useState(false)
   const [variantBusy, setVariantBusy] = useState<Direction | null>(null)
+  const [generateOpen, setGenerateOpen] = useState(false)
   const review = useReview(problem, draft.text, blank, run, settings.autoFeedback && draft.loaded, settings.autoDelayS)
   const guide = useGuide(problem, draft.text, run)
   const chat = useChat(problem.id, { problem, answer: draft.text, run })
@@ -62,16 +64,17 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
     }
   }
 
-  const makeVariant = async (direction: Direction): Promise<void> => {
+  const makeVariant = async (direction: Direction, request: string): Promise<void> => {
     setVariantBusy(direction)
     const article = direction === 'easier' ? 'an easier' : direction === 'similar' ? 'another' : 'a harder'
     const id = toast.loading(`Writing ${article} problem on ${problem.pattern.toLowerCase()}…`)
     try {
-      const { problem: p, verified } = await api.variant(problem, direction)
+      const { problem: p, verified } = await api.variant(problem, direction, request)
       toast.success(
         verified ? `${p.title}: ${verified.passed} of ${verified.total} generated tests verified against its solution` : `${p.title} is ready`,
         { id },
       )
+      setGenerateOpen(false)
       onVariant(p)
     } catch (err) {
       toast.error((err as Error).message, { id })
@@ -174,17 +177,12 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
           </div>
         </div>
         <div className="variants">
-          <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('easier')} title="A simpler problem on the same pattern">
-            <ChevronsDown size={14} /> Easier
-          </button>
-          <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('similar')} title="Another problem at this level on the same pattern, for repetition">
-            <Repeat size={14} /> Similar
-          </button>
-          <button className="btn small" disabled={variantBusy !== null} onClick={() => void makeVariant('harder')} title="A tougher problem on the same pattern">
-            <ChevronsUp size={14} /> Harder
+          <button className="btn small" disabled={variantBusy !== null} onClick={() => setGenerateOpen(true)} title="Generate a new problem on this pattern: easier, similar or harder, with your own steer">
+            <WandSparkles size={14} /> <span>New problem</span>
           </button>
         </div>
       </div>
+      <GenerateSheet open={generateOpen} problem={problem} busy={variantBusy} onClose={() => setGenerateOpen(false)} onGenerate={(d, r) => void makeVariant(d, r)} />
 
       <div className="ptabs" role="tablist">
         {!wide && <button role="tab" aria-selected={tab === 'problem'} className={tab === 'problem' ? 'active' : ''} onClick={() => setTab('problem')}>Problem</button>}

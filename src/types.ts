@@ -36,6 +36,8 @@ interface ProblemBase {
   parentId?: string
   /** For generated variants: how they relate to the parent (easier, similar, harder). */
   direction?: Direction
+  /** For generated variants: what the candidate asked for when generating it, if anything. */
+  request?: string
   createdAt?: string
 }
 

@@ -10,11 +10,16 @@ import type { Problem } from '../types.ts'
 export default function ProblemBody({ problem, onPrimer }: { problem: Problem; onPrimer?: (topic: string) => void }) {
   const [solutionOpen, setSolutionOpen] = useState(false)
   const primer = primerFor(problem.track, problem.topic)
-  const primerLink = primer && onPrimer ? (
-    <button className="primer-link" onClick={() => onPrimer(problem.topic)}>
-      <BookOpen size={14} /> Read the {problem.topic} primer first
-    </button>
-  ) : null
+  const primerLink = (
+    <>
+      {primer && onPrimer && (
+        <button className="primer-link" onClick={() => onPrimer(problem.topic)}>
+          <BookOpen size={14} /> Read the {problem.topic} primer first
+        </button>
+      )}
+      {problem.request && <p className="request-note">Generated from your request: “{problem.request}”</p>}
+    </>
+  )
   if (isCode(problem)) {
     return (
       <div className="pbody md">

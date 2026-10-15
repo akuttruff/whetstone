@@ -87,10 +87,10 @@ export const api = {
 
   run: (code: string, tests: unknown[]) => request<RunResult>('/api/run', { method: 'POST', body: JSON.stringify({ code, tests }) }),
 
-  variant: (problem: Problem, direction: Direction) =>
+  variant: (problem: Problem, direction: Direction, steer = '') =>
     request<{ problem: Problem; verified: { passed: number; total: number } | null }>('/api/variants', {
       method: 'POST',
-      body: JSON.stringify({ problem, direction }),
+      body: JSON.stringify({ problem, direction, request: steer }),
     }),
 
   /** Stream a review; resolves once the server has sent done or error, or the signal aborts. */

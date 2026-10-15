@@ -57,6 +57,18 @@ describe('variants', () => {
     expect(user.match(/Pair With Target/g)).toHaveLength(1)
     expect(variantPrompt(twoSum, 'harder').user).not.toMatch(/already exist/)
   })
+  it('passes the candidate request through and stores it on the result', () => {
+    const { user } = variantPrompt(twoSum, 'similar', [], '  focus on counting  ')
+    expect(user).toContain('The candidate also asked for this: "focus on counting"')
+    expect(variantPrompt(twoSum, 'similar', [], '   ').user).not.toMatch(/candidate also asked/)
+    const raw = {
+      title: 'Count Pairs', description: ['Count them.'], examples: [{ input: '[1,1]', output: '1' }], hints: ['map'],
+      starter: 'export function countPairs(): number { return 0 }', solution: 'export function countPairs(): number { return 1 }',
+      tests: [{ call: 'countPairs()', expectedJson: '1' }],
+    }
+    expect(variantFromModel(raw, twoSum, 'similar', () => false, ' focus on counting ')).toMatchObject({ direction: 'similar', request: 'focus on counting' })
+    expect(variantFromModel(raw, twoSum, 'similar', () => false, '')).not.toHaveProperty('request')
+  })
   it('turns model JSON into a saved-shape problem under its parent', () => {
     const raw = {
       title: 'Pair Sum Exists', description: ['Is there a pair?'], examples: [{ input: '[1,2]', output: 'true' }], hints: ['set'],

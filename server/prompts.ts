@@ -209,12 +209,23 @@ function avoidBrief(avoid: string[]): string {
   return titles.length > 0 ? `\n\nProblems that already exist on this pattern (do not repeat or lightly reword any of these):\n${titles.map((t) => `- ${t}`).join('\n')}` : ''
 }
 
-export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = []): { system: string; user: string; schema: JsonSchemaSpec } {
+/** The longest steer a candidate can attach to a generation request. */
+export const REQUEST_MAX_CHARS = 600
+
+/** The candidate's own steer, if any, framed so it shapes the problem without breaking the pattern or the level. */
+function requestBrief(request: string | undefined): string {
+  const r = (request ?? '').trim()
+  if (!r) return ''
+  return `\n\nThe candidate also asked for this: "${r}"\nFollow it as closely as you can while keeping the same pattern and the target difficulty. ` +
+    'If it asks for a different pattern, keep this pattern and honour the spirit of the request in the scenario instead.'
+}
+
+export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = [], request?: string): { system: string; user: string; schema: JsonSchemaSpec } {
   const target = stepDifficulty(problem.difficulty, direction)
   const common =
     'You write interview practice material for senior software engineers. Produce ONE new problem as JSON matching the schema. ' +
     'It must be a different problem from the original (different title and scenario), self-contained, and correct. '
-  const avoidText = avoidBrief(avoid)
+  const avoidText = requestBrief(request) + avoidBrief(avoid)
   if (isCode(problem)) {
     return {
       schema: CODE_SCHEMA,
@@ -496,7 +507,7 @@ export function validateProblem(input: unknown, fallback: Pick<Problem, 'track' 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
 
 /** The model's JSON for a variant, made into a saved-shape problem under its parent. */
-export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean): Problem {
+export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean, request?: string): Problem {
   const difficulty = stepDifficulty(parent.difficulty, direction)
   const p = validateProblem(
     { ...(raw as object), track: parent.track, topic: parent.topic, pattern: parent.pattern, difficulty, source: 'generated', parentId: parent.id },
@@ -505,7 +516,8 @@ export function variantFromModel(raw: unknown, parent: Problem, direction: Direc
   let id = `${slug(p.title) || 'variant'}-${direction}`
   let n = 2
   while (taken(id)) id = `${slug(p.title) || 'variant'}-${direction}-${n++}`
-  return { ...p, id, source: 'generated', parentId: parent.id, direction }
+  const r = (request ?? '').trim()
+  return { ...p, id, source: 'generated', parentId: parent.id, direction, ...(r ? { request: r } : {}) }
 }
 
 export { isPrompt }

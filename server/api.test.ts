@@ -104,8 +104,12 @@ describe('api', () => {
     const similar = await (await post('/api/variants', { problem: parent, direction: 'similar' })).json()
     expect(similar.problem).toMatchObject({ difficulty: parent.difficulty, parentId: parent.id })
     expect(similar.problem.id).toMatch(/-similar$/)
-    const fallback = await (await post('/api/variants', { problem: parent, direction: 'sideways' })).json()
+    const fallback = await (await post('/api/variants', { problem: parent, direction: 'sideways', request: 'make it about caching' })).json()
     expect(fallback.problem.id).toMatch(/-easier/)
+    expect(fallback.problem.request).toBe('make it about caching')
+    expect(lastVariantPrompt).toContain('The candidate also asked for this: "make it about caching"')
+    expect((await post('/api/variants', { problem: parent, direction: 'similar', request: 'x'.repeat(601) })).status).toBe(400)
+    expect((await post('/api/variants', { problem: parent, direction: 'similar', request: 7 })).status).toBe(400)
     // The third request was told about the two siblings that already existed on this pattern.
     expect(lastVariantPrompt).toContain('already exist on this pattern')
     expect(lastVariantPrompt).toContain('- Smaller question')

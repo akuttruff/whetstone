@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REVIEW_MAX_TOKENS, chatPrompt, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
 import { DIRECTIONS, TRACKS, isCode } from '../src/types.ts'
 import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
@@ -165,16 +165,19 @@ export function createApi(options: ApiOptions = {}) {
     // solution must pass the tests it wrote. The model is told which titles
     // already exist on the pattern so repeated drills do not converge.
     if (p === '/api/variants' && method === 'POST') {
-      const body = (await readBody(req)) as { problem?: unknown; direction?: unknown }
+      const body = (await readBody(req)) as { problem?: unknown; direction?: unknown; request?: unknown }
       const parent = problemFromBody(body.problem)
       const direction: Direction = DIRECTIONS.find((d) => d === body.direction) ?? 'easier'
+      if (body.request !== undefined && typeof body.request !== 'string') throw new ValidationError('request must be a string')
+      const request = (body.request ?? '').trim()
+      if (request.length > REQUEST_MAX_CHARS) throw new ValidationError(`request is too long (max ${REQUEST_MAX_CHARS} characters)`)
       const settings = store.getSettings()
       const avoid = [...BUILTIN_PROBLEMS, ...store.listProblems()]
         .filter((q) => q.id !== parent.id && q.track === parent.track && q.pattern === parent.pattern)
         .map((q) => q.title)
-      const { system, user, schema } = variantPrompt(parent, direction, avoid)
+      const { system, user, schema } = variantPrompt(parent, direction, avoid, request)
       const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: VARIANT_MAX_TOKENS, temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
-      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id))
+      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request)
       let verified: { passed: number; total: number } | null = null
       if (isCode(problem) && problem.tests.length > 0) {
         const run = await runTests(problem.solution, problem.tests, { dir: runDir })

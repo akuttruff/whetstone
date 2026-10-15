@@ -331,18 +331,29 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .sheet-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px 16px; }
 .field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--dim); }
 .field > span { font-weight: 600; color: var(--ink); }
-.field input[type="text"], .field input[type="password"], .field input:not([type]) {
+.field input[type="text"], .field input[type="password"], .field input:not([type]), .field textarea {
   background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; font-size: 15px; outline: none;
 }
-.field input:focus { border-color: var(--blue-dim); }
+.field input:focus, .field textarea:focus { border-color: var(--blue-dim); }
+.field textarea { resize: none; line-height: 1.4; font-size: 15px; }
 .field small { color: var(--faint); }
 .field.row { flex-direction: row; align-items: center; gap: 10px; }
 .field.row input { width: 18px; height: 18px; accent-color: var(--blue); margin: 0; }
 .field input[type="range"] { accent-color: var(--blue); }
 
-@media (max-width: 560px) {
-  .pbar { flex-wrap: wrap; }
-  .variants { flex: 1 0 100%; }
-  .variants .btn { flex: 1 1 0; justify-content: center; }
+@media (max-width: 420px) {
   .pbar-title h1 { font-size: 16px; }
 }
+
+/* ====== generate sheet ====== */
+.gen-from { font-size: 13px; color: var(--dim); margin: 0; }
+.gen-from b { color: var(--ink); font-weight: 600; }
+.gen-levels { display: grid; gap: 8px; }
+.gen-level {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--raised); color: var(--ink); cursor: pointer;
+}
+.gen-level:disabled { opacity: 0.55; cursor: default; }
+.gen-level .gen-level-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.gen-level small { color: var(--dim); }
+.request-note { font-size: 13px; color: var(--dim); font-style: italic; margin: 0 0 10px; }
