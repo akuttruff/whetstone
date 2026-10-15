@@ -97,3 +97,23 @@ describe('guides', () => {
     expect(() => guideFromModel({})).toThrow(ValidationError)
   })
 })
+
+import { chatPrompt, primerChatPrompt } from './prompts.ts'
+import { primerFor } from '../src/data/primers.ts'
+
+describe('chat prompts', () => {
+  it('carries the code, tests and latest review, and allows snippets', () => {
+    const s = chatPrompt(twoSum, 'my code', null, 'the review text')
+    expect(s).toContain('my code')
+    expect(s).toContain('the review text')
+    expect(s).toMatch(/code snippet/)
+    expect(chatPrompt(design, 'notes', null, null)).toContain('(no review yet)')
+  })
+  it('turns a primer into a tutor prompt with its techniques', () => {
+    const primer = primerFor('coding', 'Arrays & Hashing')!
+    const s = primerChatPrompt(primer)
+    expect(s).toContain('Arrays & Hashing')
+    expect(s).toContain(primer.techniques[0]!.name)
+    expect(s).toContain(primer.pitfalls[0]!)
+  })
+})

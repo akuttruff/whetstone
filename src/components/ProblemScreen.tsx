@@ -3,10 +3,12 @@ import { ArrowLeft, ChevronsDown, ChevronsUp, Lightbulb, Play, RotateCcw, Sparkl
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
 import ProblemBody from './ProblemBody.tsx'
+import ChatThread from './ChatThread.tsx'
 import GuidePanel from './GuidePanel.tsx'
 import ReviewPanel from './ReviewPanel.tsx'
 import RunPanel from './RunPanel.tsx'
 import useDraft from '../hooks/useDraft.ts'
+import useChat from '../hooks/useChat.ts'
 import useGuide from '../hooks/useGuide.ts'
 import useReview from '../hooks/useReview.ts'
 import { api } from '../lib/api.ts'
@@ -37,6 +39,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const [variantBusy, setVariantBusy] = useState<Direction | null>(null)
   const review = useReview(problem, draft.text, blank, run, settings.autoFeedback && draft.loaded, settings.autoDelayS)
   const guide = useGuide(problem, draft.text, run)
+  const chat = useChat(problem.id, { problem, answer: draft.text, run })
 
   useEffect(() => {
     setTab(wide ? 'work' : 'problem')
@@ -124,7 +127,22 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
     </div>
   )
 
-  const reviewPanel = <ReviewPanel {...review} onStart={review.start} onCancel={review.cancel} canReview={canReview} />
+  const reviewPanel = (
+    <>
+      <ReviewPanel {...review} onStart={review.start} onCancel={review.cancel} canReview={canReview} />
+      <ChatThread
+        {...chat}
+        enabled={review.review !== null}
+        title="Ask about it"
+        placeholder="Ask how to implement a suggestion, what the syntax looks like, why…"
+        disabledPlaceholder="Get a review first, then ask follow-ups here."
+        suggestions={['How would I implement that suggestion?', 'What would the syntax look like?', 'Why is that better than what I wrote?', 'What edge case am I missing?']}
+        onAsk={chat.ask}
+        onStop={chat.stop}
+        onClear={() => void chat.clear()}
+      />
+    </>
+  )
   const guidePanel = (
     <GuidePanel
       problem={problem}

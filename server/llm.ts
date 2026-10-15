@@ -11,6 +11,8 @@ export class LlmError extends Error {}
 export interface ChatInput {
   system: string
   user: string
+  /** Earlier turns, placed between the system prompt and `user`. */
+  history?: { role: 'user' | 'assistant'; content: string }[]
   maxTokens: number
   temperature: number
   signal?: AbortSignal
@@ -56,6 +58,7 @@ function baseBody(settings: Settings, input: ChatInput): Record<string, unknown>
     model: settings.model,
     messages: [
       { role: 'system', content: input.system },
+      ...(input.history ?? []),
       { role: 'user', content: input.user },
     ],
     max_tokens: input.maxTokens,

@@ -15,6 +15,7 @@ function stubServer(): void {
     if (u.startsWith('/api/drafts/')) return Response.json({ draft: { text: '', updatedAt: '' } })
     if (u.startsWith('/api/reviews')) return Response.json([])
     if (u.startsWith('/api/guides/')) return Response.json({ guide: null })
+    if (u.startsWith('/api/chat/')) return Response.json([])
     return Response.json({ error: 'unexpected ' + u }, { status: 500 })
   }))
 }

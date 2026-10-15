@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ArrowLeft, BookOpen } from 'lucide-react'
+import ChatThread from './ChatThread.tsx'
 import CodeEditor from './CodeEditor.tsx'
+import useChat, { primerThreadId } from '../hooks/useChat.ts'
 import type { Primer } from '../types.ts'
 
 interface Props {
@@ -15,6 +17,9 @@ interface Props {
 /** Everything someone needs before attempting a topic: how to recognise it, each technique with its template, the traps, and what to say out loud. */
 export default function PrimerScreen({ primer, count, wide, onBack, onStart }: Props) {
   const [openTemplates, setOpenTemplates] = useState<Set<number>>(() => new Set())
+  const chat = useChat(primerThreadId(primer.track, primer.topic), { primer: { track: primer.track, topic: primer.topic } })
+  const first = primer.techniques[0]?.name ?? 'the first technique'
+  const second = primer.techniques[1]?.name
   const toggle = (i: number): void => setOpenTemplates((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })
   return (
     <div className="pscreen">
@@ -60,6 +65,22 @@ export default function PrimerScreen({ primer, count, wide, onBack, onStart }: P
 
         <h3>Say it out loud</h3>
         <ul>{primer.checklist.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+        <ChatThread
+          {...chat}
+          enabled
+          title="Ask about this topic"
+          placeholder="Ask for an example, a walkthrough on a small input, or when to use which technique…"
+          suggestions={[
+            `Walk me through ${first} on a small example`,
+            second ? `When would I use ${first} vs ${second}?` : `What is the most common mistake with ${first}?`,
+            'Give me a problem statement that uses this and let me guess the technique',
+            'Explain the complexity argument in plain words',
+          ]}
+          onAsk={chat.ask}
+          onStop={chat.stop}
+          onClear={() => void chat.clear()}
+        />
       </div>
     </div>
   )

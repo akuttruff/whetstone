@@ -3,7 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { DEFAULT_SETTINGS, DIFFICULTIES, TRACKS } from '../src/types.ts'
-import type { Guide, GuideStep, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
+import type { ChatMessage, Guide, GuideStep, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
 
 /**
  * Everything the app remembers lives here, on the machine running the
@@ -44,6 +44,10 @@ export class Store {
       CREATE TABLE IF NOT EXISTS problems (
         id TEXT PRIMARY KEY, json TEXT NOT NULL, parent_id TEXT, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS chats (
+        id TEXT PRIMARY KEY, problem_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS chats_problem ON chats (problem_id, created_at);
       CREATE TABLE IF NOT EXISTS guides (
         problem_id TEXT PRIMARY KEY, steps TEXT NOT NULL, revealed INTEGER NOT NULL DEFAULT 0,
         model TEXT NOT NULL, created_at TEXT NOT NULL
@@ -213,6 +217,29 @@ export class Store {
     this.db.prepare('DELETE FROM problems WHERE id = ?').run(id)
     this.deleteDraft(id)
     this.deleteGuide(id)
+    this.clearChat(id)
+  }
+
+  // ── follow-up conversation under a review ────────────────────────────
+
+  listChat(problemId: string, limit = 60): ChatMessage[] {
+    const rows = this.db
+      .prepare('SELECT * FROM chats WHERE problem_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?')
+      .all(problemId, limit) as { id: string; problem_id: string; role: 'user' | 'assistant'; content: string; created_at: string }[]
+    return rows.reverse().map((r) => ({ id: r.id, problemId: r.problem_id, role: r.role, content: r.content, createdAt: r.created_at }))
+  }
+
+  addChat(problemId: string, role: 'user' | 'assistant', content: string): ChatMessage {
+    if (!problemId) throw new ValidationError('problem id is required')
+    const text = content.trim().slice(0, 20_000)
+    if (!text) throw new ValidationError('message is empty')
+    const m: ChatMessage = { id: randomUUID(), problemId, role, content: text, createdAt: now() }
+    this.db.prepare('INSERT INTO chats (id, problem_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)').run(m.id, m.problemId, m.role, m.content, m.createdAt)
+    return m
+  }
+
+  clearChat(problemId: string): void {
+    this.db.prepare('DELETE FROM chats WHERE problem_id = ?').run(problemId)
   }
 
   // ── hint ladders ─────────────────────────────────────────────────────

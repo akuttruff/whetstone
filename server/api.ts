@@ -3,9 +3,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { GUIDE_MAX_TOKENS, REVIEW_MAX_TOKENS, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REVIEW_MAX_TOKENS, chatPrompt, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
-import { isCode } from '../src/types.ts'
+import { TRACKS, isCode } from '../src/types.ts'
+import { primerFor } from '../src/data/primers.ts'
 import type { Direction, Problem, RunResult, TestCase } from '../src/types.ts'
 
 type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void
@@ -176,6 +177,59 @@ export function createApi(options: ApiOptions = {}) {
         else problem = { ...problem, tests: problem.tests.filter((_, i) => run.results[i]?.pass) }
       }
       return json(res, 201, { problem: store.addProblem(problem), verified })
+    }
+
+    // The follow-up conversation under a problem's review. POST streams the
+    // answer as server-sent events, like /api/review, then saves both turns.
+    if ((m = /^\/api\/chat\/([^/]+)$/.exec(p))) {
+      const id = decodeURIComponent(m[1]!)
+      if (method === 'GET') return json(res, 200, store.listChat(id))
+      if (method === 'DELETE') {
+        store.clearChat(id)
+        return json(res, 200, { ok: true })
+      }
+      if (method === 'POST') {
+        const body = (await readBody(req)) as { problem?: unknown; primer?: { track?: unknown; topic?: unknown }; answer?: unknown; run?: unknown; message?: unknown }
+        const message = typeof body.message === 'string' ? body.message.trim().slice(0, 8000) : ''
+        if (!message) throw new ValidationError('message is empty')
+        // The context is either a problem (thread id = problem id) or a primer (thread id = primer:<track>:<topic>).
+        let system: string
+        if (body.primer) {
+          const track = TRACKS.find((t) => t.id === body.primer?.track)?.id
+          const topic = typeof body.primer.topic === 'string' ? body.primer.topic : ''
+          const primer = track ? primerFor(track, topic) : undefined
+          if (!primer) throw new ValidationError('no such primer')
+          if (id !== `primer:${track}:${topic}`) throw new ValidationError('primer id mismatch')
+          system = primerChatPrompt(primer)
+        } else {
+          const problem = problemFromBody(body.problem)
+          if (problem.id !== id) throw new ValidationError('problem id mismatch')
+          const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
+          const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
+          system = chatPrompt(problem, answer, run, store.listReviews(id, 1)[0]?.text ?? null)
+        }
+        const history = store.listChat(id, CHAT_HISTORY).map((c) => ({ role: c.role, content: c.content }))
+        const userTurn = store.addChat(id, 'user', message)
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
+        const send = (event: unknown): void => { res.write(`data: ${JSON.stringify(event)}\n\n`) }
+        send({ type: 'user', message: userTurn })
+        const ac = new AbortController()
+        req.on('close', () => ac.abort())
+        try {
+          const { text } = await chatStream(
+            store.getSettings(),
+            { system, history, user: message, maxTokens: CHAT_MAX_TOKENS, temperature: 0.4, signal: ac.signal },
+            (delta) => send({ type: 'delta', text: delta }),
+            fetchImpl,
+          )
+          const reply = store.addChat(id, 'assistant', text || '(no reply)')
+          send({ type: 'done', message: reply })
+        } catch (err) {
+          if (!ac.signal.aborted) send({ type: 'error', message: (err as Error).message })
+        }
+        res.end()
+        return
+      }
     }
 
     // A hint ladder for a problem: GET what exists, POST to (re)write one for

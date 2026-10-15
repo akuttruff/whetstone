@@ -1,4 +1,4 @@
-import type { Direction, Guide, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings } from '../types.ts'
+import type { ChatMessage, Direction, Guide, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings, Track } from '../types.ts'
 
 export class ApiError extends Error {
   readonly status: number
@@ -31,6 +31,37 @@ export interface ReviewEvent {
   text?: string
   review?: Review
   message?: string
+}
+
+export interface ChatEvent {
+  type: 'user' | 'delta' | 'done' | 'error'
+  text?: string
+  message?: ChatMessage | string
+}
+
+/** Read a server-sent event stream, calling `onEvent` per `data:` frame. */
+async function readSse<T>(res: Response, onEvent: (e: T) => void): Promise<void> {
+  if (!res.ok || !res.body) {
+    let message = `HTTP ${res.status}`
+    try { message = ((await res.json()) as { error?: string }).error ?? message } catch { /* no body */ }
+    throw new ApiError(message, res.status)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let at: number
+    while ((at = buffer.indexOf('\n\n')) >= 0) {
+      const frame = buffer.slice(0, at)
+      buffer = buffer.slice(at + 2)
+      const line = frame.split('\n').find((l) => l.startsWith('data:'))
+      if (!line) continue
+      try { onEvent(JSON.parse(line.slice(5)) as T) } catch { /* partial */ }
+    }
+  }
 }
 
 export const api = {
@@ -69,26 +100,19 @@ export const api = {
     signal: AbortSignal,
   ): Promise<void> {
     const res = await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
-    if (!res.ok || !res.body) {
-      let message = `HTTP ${res.status}`
-      try { message = ((await res.json()) as { error?: string }).error ?? message } catch { /* no body */ }
-      throw new ApiError(message, res.status)
-    }
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    for (;;) {
-      const { value, done } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      let at: number
-      while ((at = buffer.indexOf('\n\n')) >= 0) {
-        const frame = buffer.slice(0, at)
-        buffer = buffer.slice(at + 2)
-        const line = frame.split('\n').find((l) => l.startsWith('data:'))
-        if (!line) continue
-        try { onEvent(JSON.parse(line.slice(5)) as ReviewEvent) } catch { /* partial */ }
-      }
-    }
+    await readSse(res, onEvent)
+  },
+
+  chat: (id: string) => request<ChatMessage[]>(`/api/chat/${enc(id)}`),
+  clearChat: (id: string) => request<{ ok: true }>(`/api/chat/${enc(id)}`, { method: 'DELETE' }),
+  /** Ask a question in a thread (under a review, or on a primer); streams the reply. */
+  async ask(
+    id: string,
+    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } }) & { message: string },
+    onEvent: (e: ChatEvent) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const res = await fetch(`/api/chat/${enc(id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
+    await readSse(res, onEvent)
   },
 }

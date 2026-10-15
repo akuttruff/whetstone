@@ -27,7 +27,14 @@ const fakeFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit):
   const u = String(url)
   if (u.endsWith('/models')) return Response.json({ data: [{ id: 'fake' }] })
   const body = JSON.parse(String(init?.body)) as { stream?: boolean; response_format?: unknown }
-  if (body.stream) return sse(['<think>hmm</think>Nice ', 'try.\n', 'VERDICT: {"score": 7, "correct": false, "focus": "edge cases"}'])
+  if (body.stream) {
+    const messages = (body as { messages: { role: string; content: string }[] }).messages
+    const system = messages[0]!.content
+    if (system.includes('follow-up questions') || system.includes('tutoring a candidate on the interview topic')) {
+      return sse(['Use `for (const x of nums)`', ' like this.'])
+    }
+    return sse(['<think>hmm</think>Nice ', 'try.\n', 'VERDICT: {"score": 7, "correct": false, "focus": "edge cases"}'])
+  }
   const schemaName = (body.response_format as { json_schema?: { name?: string } } | undefined)?.json_schema?.name
   if (schemaName === 'hint_ladder') {
     return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ steps: [{ title: 'Restate', hint: 'What is asked?', tryThis: 'Say it aloud' }, { title: 'Pattern', hint: 'Think map', tryThis: 'Write one' }, { title: 'Plan', hint: 'Loop once', tryThis: 'Code it' }] }) } }] })
@@ -107,6 +114,35 @@ describe('api', () => {
     expect((await put.json()).guide.revealed).toBe(2)
     expect((await (await realFetch(base + '/api/guides/two-sum')).json()).guide.revealed).toBe(2)
     expect((await post('/api/guides/other-id', { problem, answer: '' })).status).toBe(400)
+  })
+
+  it('streams a follow-up under the review and saves both turns', async () => {
+    const problem = BUILTIN_PROBLEMS.find((p) => p.id === 'two-sum')!
+    const res = await post('/api/chat/two-sum', { problem, answer: 'code', run: null, message: 'what syntax?' })
+    expect(res.headers.get('content-type')).toBe('text/event-stream')
+    const events = (await res.text()).split('\n\n').filter(Boolean).map((f) => JSON.parse(f.slice(5)))
+    expect(events[0]).toMatchObject({ type: 'user', message: { role: 'user', content: 'what syntax?' } })
+    const done = events.find((e) => e.type === 'done')
+    expect(done.message).toMatchObject({ role: 'assistant', content: 'Use `for (const x of nums)` like this.' })
+    const thread = await (await realFetch(base + '/api/chat/two-sum')).json()
+    expect(thread.map((m: { role: string }) => m.role)).toEqual(['user', 'assistant'])
+    // the next turn carries the history to the model
+    fakeFetch.mockClear()
+    await (await post('/api/chat/two-sum', { problem, answer: 'code', run: null, message: 'and why?' })).text()
+    const sent = JSON.parse(String((fakeFetch.mock.calls[0] as unknown[])[1] && (fakeFetch.mock.calls[0] as [unknown, RequestInit])[1].body)) as { messages: { role: string; content: string }[] }
+    expect(sent.messages.map((m) => m.role)).toEqual(['system', 'user', 'assistant', 'user'])
+    await realFetch(base + '/api/chat/two-sum', { method: 'DELETE' })
+    expect(await (await realFetch(base + '/api/chat/two-sum')).json()).toEqual([])
+  })
+
+  it('runs a primer thread with the primer as context', async () => {
+    const id = encodeURIComponent('primer:coding:Arrays & Hashing')
+    const res = await post(`/api/chat/${id}`, { primer: { track: 'coding', topic: 'Arrays & Hashing' }, message: 'example?' })
+    expect(res.status).toBe(200)
+    const events = (await res.text()).split('\n\n').filter(Boolean).map((f) => JSON.parse(f.slice(5)))
+    expect(events.find((e) => e.type === 'done')).toBeTruthy()
+    expect((await post(`/api/chat/${id}`, { primer: { track: 'coding', topic: 'Nope' }, message: 'x' })).status).toBe(400)
+    expect((await post('/api/chat/wrong-id', { primer: { track: 'coding', topic: 'Arrays & Hashing' }, message: 'x' })).status).toBe(400)
   })
 
   it('validates', async () => {

@@ -174,6 +174,15 @@ export interface Guide {
   createdAt: string
 }
 
+/** One turn in the follow-up conversation under a problem's review. */
+export interface ChatMessage {
+  id: string
+  problemId: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
 export interface Settings {
   /** OpenAI-compatible base, e.g. http://127.0.0.1:8000/v1 (oMLX) or http://127.0.0.1:1234/v1 (LM Studio). */
   baseUrl: string

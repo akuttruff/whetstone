@@ -1,5 +1,5 @@
 import { DIFFICULTIES, TRACKS, isCode, isDesign, isPrompt } from '../src/types.ts'
-import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
+import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Primer, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
 import type { JsonSchemaSpec } from './llm.ts'
 import { ValidationError } from './store.ts'
 
@@ -242,6 +242,51 @@ export function variantPrompt(problem: Problem, direction: Direction): { system:
       `${directionBrief(direction, target)} For a question, easier means narrower and more concrete; harder means deeper, with trade-offs and failure modes, or a scenario to reason through.\n\n` +
       `Original (${p.difficulty}; topic: ${p.topic}; pattern: ${p.pattern}): ${p.title}\n${p.question.join('\n')}\n\nKey points:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}`,
   }
+}
+
+// ── follow-up conversation ─────────────────────────────────────────────
+
+export const CHAT_MAX_TOKENS = 1000
+/** How many earlier turns ride along with each question. */
+export const CHAT_HISTORY = 12
+
+/**
+ * The reviewer, continuing the conversation. Unlike the review itself this
+ * may show code: the point of a follow-up is usually "how would I write that".
+ */
+export function chatPrompt(problem: Problem, answer: string, run: RunResult | null | undefined, lastReview: string | null): string {
+  const base =
+    'You are the senior engineer who just reviewed this candidate\'s interview attempt, now answering their follow-up questions. ' +
+    'Answer the question directly and concretely, in markdown, under 250 words. When they ask how to implement a suggestion or what the syntax looks like, show a short focused code snippet (TypeScript, fenced) for exactly that part; ' +
+    'give a complete solution only if they ask for it outright. Refer to their actual code and the review. If they ask something unrelated to the problem, answer briefly and steer back. '
+  if (isCode(problem)) {
+    return (
+      base +
+      `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples)}\n\n` +
+      `${fmtRun(run)}\n\nCandidate's current code:\n\`\`\`typescript\n${answer}\n\`\`\`\n\n` +
+      `Your latest review:\n${lastReview ?? '(no review yet)'}`
+    )
+  }
+  if (isDesign(problem)) {
+    return base + `\n\nPrompt: ${problem.title}\n${problem.prompt.join('\n')}\n\nFunctional:\n${problem.functional.map((f) => `- ${f}`).join('\n')}\nNon-functional:\n${problem.nonFunctional.map((f) => `- ${f}`).join('\n')}\n\nCandidate's notes:\n${answer || '(none)'}\n\nYour latest review:\n${lastReview ?? '(no review yet)'}`
+  }
+  const p = problem as PromptProblem
+  return base + `\n\nQuestion: ${p.question.join('\n')}\n\nKey points of a strong answer:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}\n\nCandidate's answer:\n${answer || '(none)'}\n\nYour latest review:\n${lastReview ?? '(no review yet)'}`
+}
+
+/** The tutor for a topic primer: explains, gives examples and code freely, relates everything back to the primer's techniques. */
+export function primerChatPrompt(primer: Primer): string {
+  const techniques = primer.techniques
+    .map((t) => `${t.name}\n  When: ${t.when}\n  How: ${t.how.join(' / ')}${t.complexity ? `\n  Complexity: ${t.complexity}` : ''}${t.template ? `\n  Template:\n${t.template}` : ''}`)
+    .join('\n\n')
+  return (
+    `You are a senior engineer tutoring a candidate on the interview topic "${primer.topic}" (${primer.track} track). ` +
+    'They are reading the primer below and asking questions about it. Answer directly and concretely in markdown, under 300 words. ' +
+    'Give examples freely, including short TypeScript snippets when they help; walk through a technique step by step on a small input when asked; compare techniques when asked which to use. ' +
+    'Relate answers back to the primer\'s techniques and pitfalls by name. If they ask something outside this topic, answer briefly and steer back.\n\n' +
+    `Primer summary: ${primer.summary}\n\nRecognise it by:\n${primer.recognize.map((r) => `- ${r}`).join('\n')}\n\nTechniques:\n${techniques}\n\n` +
+    `Pitfalls:\n${primer.pitfalls.map((x) => `- ${x}`).join('\n')}\n\nInterview checklist:\n${primer.checklist.map((x) => `- ${x}`).join('\n')}`
+  )
 }
 
 // ── hint ladders ───────────────────────────────────────────────────────

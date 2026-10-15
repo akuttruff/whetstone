@@ -90,3 +90,19 @@ describe('guides', () => {
     expect(s.getGuide('p')).toBeNull()
   })
 })
+
+describe('chat threads', () => {
+  it('keeps turns in order per thread and clears with the problem', () => {
+    const s = mem()
+    s.addChat('p', 'user', 'how?')
+    s.addChat('p', 'assistant', 'like this')
+    s.addChat('primer:coding:X', 'user', 'other thread')
+    expect(s.listChat('p').map((m) => [m.role, m.content])).toEqual([['user', 'how?'], ['assistant', 'like this']])
+    expect(s.listChat('p', 1).map((m) => m.content)).toEqual(['like this'])
+    expect(() => s.addChat('p', 'user', '   ')).toThrow(ValidationError)
+    s.addProblem({ id: 'p', track: 'knowledge', title: 'Q', topic: 'T', pattern: 'P', difficulty: 'easy', source: 'generated', question: ['q'], keyPoints: [], followUps: [] })
+    s.deleteProblem('p')
+    expect(s.listChat('p')).toEqual([])
+    expect(s.listChat('primer:coding:X')).toHaveLength(1)
+  })
+})
