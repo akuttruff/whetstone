@@ -1,4 +1,4 @@
-import type { Direction, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings } from '../types.ts'
+import type { Direction, Guide, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings } from '../types.ts'
 
 export class ApiError extends Error {
   readonly status: number
@@ -47,6 +47,12 @@ export const api = {
 
   reviews: (id: string) => request<Review[]>(`/api/reviews?problem=${enc(id)}`),
   progress: () => request<Progress>('/api/progress'),
+
+  guide: (id: string) => request<{ guide: Guide | null }>(`/api/guides/${enc(id)}`),
+  writeGuide: (problem: Problem, answer: string, run: RunResult | null) =>
+    request<{ guide: Guide }>(`/api/guides/${enc(problem.id)}`, { method: 'POST', body: JSON.stringify({ problem, answer, run }) }),
+  revealGuide: (id: string, revealed: number) =>
+    request<{ guide: Guide }>(`/api/guides/${enc(id)}`, { method: 'PUT', body: JSON.stringify({ revealed }) }),
 
   run: (code: string, tests: unknown[]) => request<RunResult>('/api/run', { method: 'POST', body: JSON.stringify({ code, tests }) }),
 

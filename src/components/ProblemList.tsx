@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { ChevronRight, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronRight, Trash2 } from 'lucide-react'
+import { primerFor } from '../data/primers.ts'
 import { DIFFICULTY_LABEL, difficultyRank, scoreTone } from '../lib/format.ts'
 import type { Problem, Progress } from '../types.ts'
 
@@ -9,9 +10,12 @@ interface Props {
   progress: Progress
   onSelect: (id: string) => void
   onDelete: (p: Problem) => void
+  onPrimer: (topic: string) => void
+  /** The topic whose primer is open, so its header can show it. */
+  primerTopic: string | null
 }
 
-export default function ProblemList({ problems, selectedId, progress, onSelect, onDelete }: Props) {
+export default function ProblemList({ problems, selectedId, progress, onSelect, onDelete, onPrimer, primerTopic }: Props) {
   const groups = useMemo(() => {
     const byTopic = new Map<string, Problem[]>()
     for (const p of problems) {
@@ -38,7 +42,14 @@ export default function ProblemList({ problems, selectedId, progress, onSelect, 
     <div className="plist">
       {groups.map((g) => (
         <section key={g.topic} className="plist-group">
-          <h2 className="plist-topic">{g.topic}</h2>
+          <div className="plist-topic-row">
+            <h2 className="plist-topic">{g.topic}</h2>
+            {primerFor(g.items[0]!.track, g.topic) && (
+              <button className={`primer-btn${primerTopic === g.topic ? ' active' : ''}`} onClick={() => onPrimer(g.topic)} title={`What you need to know for ${g.topic}`}>
+                <BookOpen size={13} /> Primer
+              </button>
+            )}
+          </div>
           {g.items.map((p) => {
             const score = progress.latest[p.id]
             const tone = scoreTone(score)

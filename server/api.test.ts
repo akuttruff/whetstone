@@ -28,6 +28,10 @@ const fakeFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit):
   if (u.endsWith('/models')) return Response.json({ data: [{ id: 'fake' }] })
   const body = JSON.parse(String(init?.body)) as { stream?: boolean; response_format?: unknown }
   if (body.stream) return sse(['<think>hmm</think>Nice ', 'try.\n', 'VERDICT: {"score": 7, "correct": false, "focus": "edge cases"}'])
+  const schemaName = (body.response_format as { json_schema?: { name?: string } } | undefined)?.json_schema?.name
+  if (schemaName === 'hint_ladder') {
+    return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ steps: [{ title: 'Restate', hint: 'What is asked?', tryThis: 'Say it aloud' }, { title: 'Pattern', hint: 'Think map', tryThis: 'Write one' }, { title: 'Plan', hint: 'Loop once', tryThis: 'Code it' }] }) } }] })
+  }
   // A variant request: a tiny knowledge problem.
   return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ title: 'Smaller question', question: ['why?'], keyPoints: ['a', 'b'], followUps: [] }) } }] })
 })
@@ -89,6 +93,20 @@ describe('api', () => {
     expect(await (await realFetch(base + '/api/problems')).json()).toHaveLength(1)
     await realFetch(`${base}/api/problems/${problem.id}`, { method: 'DELETE' })
     expect(await (await realFetch(base + '/api/problems')).json()).toHaveLength(0)
+  })
+
+  it('writes, reads and reveals a hint ladder', async () => {
+    const problem = BUILTIN_PROBLEMS.find((p) => p.id === 'two-sum')!
+    expect((await (await realFetch(base + '/api/guides/two-sum')).json()).guide).toBeNull()
+    const res = await post('/api/guides/two-sum', { problem, answer: 'partial', run: null })
+    expect(res.status).toBe(201)
+    const { guide } = await res.json()
+    expect(guide).toMatchObject({ problemId: 'two-sum', revealed: 0, model: 'fake' })
+    expect(guide.steps).toHaveLength(3)
+    const put = await realFetch(base + '/api/guides/two-sum', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revealed: 2 }) })
+    expect((await put.json()).guide.revealed).toBe(2)
+    expect((await (await realFetch(base + '/api/guides/two-sum')).json()).guide.revealed).toBe(2)
+    expect((await post('/api/guides/other-id', { problem, answer: '' })).status).toBe(400)
   })
 
   it('validates', async () => {

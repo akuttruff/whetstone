@@ -2,9 +2,10 @@
 
 Interview practice for senior software engineers, reviewed by a local model.
 Five tracks (coding, practical TypeScript, system design, knowledge questions,
-behavioral), a live TypeScript editor with sandboxed tests, streaming model
-feedback with an optional auto mode, and easier/harder variant generation on
-the same pattern. Mobile-first (iPhone 13 mini), with a split view on desktop.
+behavioral), a primer per topic distilling the techniques before you start, a
+live TypeScript editor with sandboxed tests, streaming model feedback with an
+optional auto mode, a hint ladder when you are stuck, and easier/harder variant
+generation on the same pattern. Mobile-first (iPhone 13 mini), with a split view on desktop.
 
 Same stack as cairn and lm-chat: Vite 8 + React 19 + TypeScript 7, a Vite
 plugin server (`server/api.ts`) with SQLite (`node:sqlite`), Vitest, oxlint.
@@ -52,6 +53,16 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
 - **Auto review** debounces N seconds after the last edit (Settings), skips
   unchanged or starter text, and queues one more review if you keep typing
   during one.
+- **Primers** (`src/data/primers-*.ts`) are one per topic in every track: how
+  to recognise the problem type, each technique with when/how/complexity and a
+  TypeScript template, pitfalls, and what to say out loud. They open from the
+  topic header on the list and from a link at the top of every problem. A test
+  checks that every topic has one.
+- **Guide** (`POST /api/guides/:id`) writes a hint ladder for the current
+  draft: five to seven rungs from the gentlest nudge to a full plan, each with
+  one thing to try, never the code. Rungs are revealed one at a time and the
+  position is saved server-side; "Rewrite for my draft" makes a new ladder
+  from where you are now.
 - **Variants** (`POST /api/variants`) ask the model for an easier or harder
   problem on the same pattern using a JSON schema. For code, the model's own
   solution is run against the tests it wrote; failing tests are dropped and the

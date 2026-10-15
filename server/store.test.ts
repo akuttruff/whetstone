@@ -74,3 +74,19 @@ describe('generated problems', () => {
     expect(() => mem().addProblem({ ...problem, track: 'nope' as never })).toThrow(ValidationError)
   })
 })
+
+describe('guides', () => {
+  it('saves, reveals within range, and goes away with its problem', () => {
+    const s = mem()
+    expect(s.getGuide('p')).toBeNull()
+    const g = s.saveGuide('p', [{ title: 'a', hint: 'h', tryThis: 't' }, { title: 'b', hint: 'h2', tryThis: '' }], 'm')
+    expect(g.revealed).toBe(0)
+    expect(s.setGuideRevealed('p', 2).revealed).toBe(2)
+    expect(() => s.setGuideRevealed('p', 3)).toThrow(ValidationError)
+    expect(() => s.setGuideRevealed('nope', 1)).toThrow(ValidationError)
+    // a rewrite starts hidden again
+    expect(s.saveGuide('p', [{ title: 'c', hint: 'h', tryThis: '' }, { title: 'd', hint: 'h', tryThis: '' }, { title: 'e', hint: 'h', tryThis: '' }], 'm').revealed).toBe(0)
+    s.deleteGuide('p')
+    expect(s.getGuide('p')).toBeNull()
+  })
+})

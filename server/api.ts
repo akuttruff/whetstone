@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { REVIEW_MAX_TOKENS, VARIANT_MAX_TOKENS, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { GUIDE_MAX_TOKENS, REVIEW_MAX_TOKENS, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
 import { isCode } from '../src/types.ts'
 import type { Direction, Problem, RunResult, TestCase } from '../src/types.ts'
@@ -176,6 +176,27 @@ export function createApi(options: ApiOptions = {}) {
         else problem = { ...problem, tests: problem.tests.filter((_, i) => run.results[i]?.pass) }
       }
       return json(res, 201, { problem: store.addProblem(problem), verified })
+    }
+
+    // A hint ladder for a problem: GET what exists, POST to (re)write one for
+    // the current attempt, PUT revealed to remember how far it has been read.
+    if ((m = /^\/api\/guides\/([^/]+)$/.exec(p))) {
+      const id = decodeURIComponent(m[1]!)
+      if (method === 'GET') return json(res, 200, { guide: store.getGuide(id) })
+      if (method === 'POST') {
+        const body = (await readBody(req)) as { problem?: unknown; answer?: unknown; run?: unknown }
+        const problem = problemFromBody(body.problem)
+        if (problem.id !== id) throw new ValidationError('problem id mismatch')
+        const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
+        const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
+        const { system, user, schema } = guidePrompt(problem, answer, run)
+        const { data, model } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: GUIDE_MAX_TOKENS, temperature: 0.5, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
+        return json(res, 201, { guide: store.saveGuide(id, guideFromModel(data), model) })
+      }
+      if (method === 'PUT') {
+        const { revealed } = (await readBody(req)) as { revealed?: unknown }
+        return json(res, 200, { guide: store.setGuideRevealed(id, revealed) })
+      }
     }
 
     return json(res, 404, { error: 'no such endpoint' })

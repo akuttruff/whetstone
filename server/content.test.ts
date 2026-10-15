@@ -41,3 +41,23 @@ describe('built-in content', () => {
     expect(failures).toEqual([])
   }, 300_000)
 })
+
+import { PRIMERS, primerFor } from '../src/data/primers.ts'
+
+describe('primers', () => {
+  it('cover every topic in every track, and nothing else', () => {
+    const topics = new Set(BUILTIN_PROBLEMS.map((p) => `${p.track}::${p.topic}`))
+    const missing = [...topics].filter((t) => { const [track, topic] = t.split('::'); return !primerFor(track as never, topic!) })
+    expect(missing).toEqual([])
+    const orphans = PRIMERS.filter((p) => !topics.has(`${p.track}::${p.topic}`)).map((p) => `${p.track}::${p.topic}`)
+    expect(orphans).toEqual([])
+  })
+  it('are substantive', () => {
+    for (const p of PRIMERS) {
+      expect(p.techniques.length, `${p.topic} techniques`).toBeGreaterThanOrEqual(2)
+      expect(p.recognize.length, `${p.topic} recognize`).toBeGreaterThanOrEqual(1)
+      expect(p.pitfalls.length, `${p.topic} pitfalls`).toBeGreaterThanOrEqual(2)
+      expect(p.checklist.length, `${p.topic} checklist`).toBeGreaterThanOrEqual(2)
+    }
+  })
+})

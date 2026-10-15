@@ -131,6 +131,49 @@ export interface Review {
   createdAt: string
 }
 
+/** One technique in a topic primer. */
+export interface Technique {
+  name: string
+  /** The signal that says "use this". */
+  when: string
+  /** The steps, in order. */
+  how: string[]
+  complexity?: string
+  /** A TypeScript skeleton to memorise. */
+  template?: string
+  pitfalls?: string[]
+}
+
+/** Everything someone needs before attempting a topic's problems. */
+export interface Primer {
+  track: Track
+  topic: string
+  summary: string
+  /** Phrases and shapes in a statement that point at this topic. */
+  recognize: string[]
+  techniques: Technique[]
+  pitfalls: string[]
+  /** What to say out loud in the interview. */
+  checklist: string[]
+}
+
+/** One rung of a hint ladder: a nudge plus a small thing to try before the next. */
+export interface GuideStep {
+  title: string
+  hint: string
+  tryThis: string
+}
+
+/** A hint ladder for one problem, written for where the attempt currently is. */
+export interface Guide {
+  problemId: string
+  steps: GuideStep[]
+  /** How many steps have been revealed so far (shared across devices). */
+  revealed: number
+  model: string
+  createdAt: string
+}
+
 export interface Settings {
   /** OpenAI-compatible base, e.g. http://127.0.0.1:8000/v1 (oMLX) or http://127.0.0.1:1234/v1 (LM Studio). */
   baseUrl: string

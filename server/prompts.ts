@@ -1,5 +1,5 @@
 import { DIFFICULTIES, TRACKS, isCode, isDesign, isPrompt } from '../src/types.ts'
-import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
+import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
 import type { JsonSchemaSpec } from './llm.ts'
 import { ValidationError } from './store.ts'
 
@@ -242,6 +242,99 @@ export function variantPrompt(problem: Problem, direction: Direction): { system:
       `${directionBrief(direction, target)} For a question, easier means narrower and more concrete; harder means deeper, with trade-offs and failure modes, or a scenario to reason through.\n\n` +
       `Original (${p.difficulty}; topic: ${p.topic}; pattern: ${p.pattern}): ${p.title}\n${p.question.join('\n')}\n\nKey points:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}`,
   }
+}
+
+// ── hint ladders ───────────────────────────────────────────────────────
+
+export const GUIDE_MAX_TOKENS = 2500
+
+const GUIDE_SCHEMA: JsonSchemaSpec = {
+  name: 'hint_ladder',
+  schema: {
+    type: 'object',
+    properties: {
+      steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { title: { type: 'string' }, hint: { type: 'string' }, tryThis: { type: 'string' } },
+          required: ['title', 'hint', 'tryThis'],
+        },
+      },
+    },
+    required: ['steps'],
+  },
+}
+
+/**
+ * A ladder of hints from the gentlest nudge to a full plan, written for the
+ * attempt as it stands, so someone who is stuck can get there themselves
+ * before looking at the answer.
+ */
+export function guidePrompt(problem: Problem, answer: string, run?: RunResult | null): { system: string; user: string; schema: JsonSchemaSpec } {
+  const common =
+    'You are a patient senior engineer tutoring a candidate who is stuck on an interview problem and does not want to give up. ' +
+    'Write a ladder of 5 to 7 hints as JSON. Each step has a short "title", a "hint" (2 to 4 sentences, plain text, no markdown) and "tryThis": one small concrete thing to attempt before reading the next step. ' +
+    'Step 1 is the gentlest nudge: restate what the problem is really asking and point at the key observation without stating it. Each later step gives away a little more. ' +
+    'The second-to-last step is a complete plan in prose or pseudocode. The last step walks the plan through one of the examples and covers edge cases and complexity. ' +
+    'Never include a complete solution in TypeScript. Tailor the ladder to the attempt: say what is already right, and make the early steps about the first thing that is wrong or missing. ' +
+    'If the attempt is empty or unchanged from the starter, start from zero. '
+  if (isCode(problem)) {
+    return {
+      schema: GUIDE_SCHEMA,
+      system: common + 'For code, name the pattern by its third step and the data structure by its fourth.',
+      user:
+        `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${problem.description.join('\n\n')}\n\n` +
+        `Examples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
+        (problem.constraints?.length ? `Constraints:\n${problem.constraints.map((c) => `- ${c}`).join('\n')}\n\n` : '') +
+        `Author's hints, for your reference (do not just repeat them):\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
+        `Reference solution, for your reference only (never show it):\n${problem.solution}\n\n` +
+        `${fmtRun(run)}\n\n` +
+        `Current attempt:\n\`\`\`typescript\n${answer}\n\`\`\``,
+    }
+  }
+  if (isDesign(problem)) {
+    return {
+      schema: GUIDE_SCHEMA,
+      system:
+        common +
+        'For system design, the ladder follows the shape of a strong interview answer: clarify requirements and scale, sketch the high-level design, choose the data model and APIs, deep-dive the hardest component, then trade-offs and failure modes. Each hint asks a guiding question and then answers just enough of it.',
+      user:
+        `Prompt: ${problem.title}\n${problem.prompt.join('\n')}\n\n` +
+        `Functional:\n${problem.functional.map((f) => `- ${f}`).join('\n')}\nNon-functional:\n${problem.nonFunctional.map((f) => `- ${f}`).join('\n')}\n\n` +
+        `Reference talking points (for you; do not dump them):\n${problem.talkingPoints.map((t) => `${t.heading}: ${t.bullets.join('; ')}`).join('\n')}\n\n` +
+        `Candidate's notes so far:\n${answer || '(nothing yet)'}`,
+    }
+  }
+  const p = problem as PromptProblem
+  return {
+    schema: GUIDE_SCHEMA,
+    system:
+      common +
+      (p.track === 'behavioral'
+        ? 'For a behavioural question, the ladder helps them find and shape a real story: pick the situation, name their own task, list the specific actions, quantify the result, add the reflection, then tighten it to two minutes.'
+        : 'For a knowledge question, the ladder builds the answer up: the core definition, the mechanism, the trade-offs, a concrete example, then the follow-up an interviewer would ask.'),
+    user:
+      `Question: ${p.question.join('\n')}\n\nKey points of a strong answer (for you; do not dump them):\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}\n\n` +
+      `Candidate's answer so far:\n${answer || '(nothing yet)'}`,
+  }
+}
+
+/** The model's ladder, cleaned: 3 to 8 non-empty steps. */
+export function guideFromModel(raw: unknown): GuideStep[] {
+  const steps = (raw as { steps?: unknown })?.steps
+  if (!Array.isArray(steps)) throw new ValidationError('the model returned no steps')
+  const out: GuideStep[] = []
+  for (const s of steps) {
+    if (!s || typeof s !== 'object') continue
+    const o = s as Record<string, unknown>
+    const hint = str(o.hint, 2000)
+    if (!hint) continue
+    out.push({ title: str(o.title, 120) || `Step ${out.length + 1}`, hint, tryThis: str(o.tryThis, 1000) })
+    if (out.length >= 8) break
+  }
+  if (out.length < 3) throw new ValidationError('the model returned too few usable steps; try again')
+  return out
 }
 
 // ── validation of problems coming from the model or the client ──────────

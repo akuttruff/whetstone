@@ -3,7 +3,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { DEFAULT_SETTINGS, DIFFICULTIES, TRACKS } from '../src/types.ts'
-import type { PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
+import type { Guide, GuideStep, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
 
 /**
  * Everything the app remembers lives here, on the machine running the
@@ -43,6 +43,10 @@ export class Store {
       CREATE INDEX IF NOT EXISTS reviews_problem ON reviews (problem_id, created_at);
       CREATE TABLE IF NOT EXISTS problems (
         id TEXT PRIMARY KEY, json TEXT NOT NULL, parent_id TEXT, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS guides (
+        problem_id TEXT PRIMARY KEY, steps TEXT NOT NULL, revealed INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL, created_at TEXT NOT NULL
       );
     `)
   }
@@ -208,6 +212,45 @@ export class Store {
   deleteProblem(id: string): void {
     this.db.prepare('DELETE FROM problems WHERE id = ?').run(id)
     this.deleteDraft(id)
+    this.deleteGuide(id)
+  }
+
+  // ── hint ladders ─────────────────────────────────────────────────────
+
+  getGuide(problemId: string): Guide | null {
+    const row = this.db.prepare('SELECT * FROM guides WHERE problem_id = ?').get(problemId) as
+      | { problem_id: string; steps: string; revealed: number; model: string; created_at: string }
+      | undefined
+    if (!row) return null
+    try {
+      return { problemId: row.problem_id, steps: JSON.parse(row.steps) as GuideStep[], revealed: row.revealed, model: row.model, createdAt: row.created_at }
+    } catch {
+      return null
+    }
+  }
+
+  /** Replace the ladder for a problem; a fresh one starts with nothing revealed. */
+  saveGuide(problemId: string, steps: GuideStep[], model: string): Guide {
+    if (!problemId) throw new ValidationError('problem id is required')
+    if (steps.length === 0) throw new ValidationError('a guide needs at least one step')
+    const at = now()
+    this.db
+      .prepare('INSERT OR REPLACE INTO guides (problem_id, steps, revealed, model, created_at) VALUES (?, ?, 0, ?, ?)')
+      .run(problemId, JSON.stringify(steps), model, at)
+    return { problemId, steps, revealed: 0, model, createdAt: at }
+  }
+
+  setGuideRevealed(problemId: string, revealed: unknown): Guide {
+    const guide = this.getGuide(problemId)
+    if (!guide) throw new ValidationError('no guide for this problem')
+    const n = Number(revealed)
+    if (!Number.isInteger(n) || n < 0 || n > guide.steps.length) throw new ValidationError('revealed is out of range')
+    this.db.prepare('UPDATE guides SET revealed = ? WHERE problem_id = ?').run(n, problemId)
+    return { ...guide, revealed: n }
+  }
+
+  deleteGuide(problemId: string): void {
+    this.db.prepare('DELETE FROM guides WHERE problem_id = ?').run(problemId)
   }
 }
 

@@ -14,6 +14,7 @@ function stubServer(): void {
     if (u.startsWith('/api/drafts/') && method === 'GET') return Response.json({ draft: null })
     if (u.startsWith('/api/drafts/')) return Response.json({ draft: { text: '', updatedAt: '' } })
     if (u.startsWith('/api/reviews')) return Response.json([])
+    if (u.startsWith('/api/guides/')) return Response.json({ guide: null })
     return Response.json({ error: 'unexpected ' + u }, { status: 500 })
   }))
 }
@@ -35,5 +36,19 @@ describe('App', () => {
     expect(screen.getByRole('tab', { name: 'Notes' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Notes' }))
     expect(await screen.findByPlaceholderText(/Requirements/)).toBeInTheDocument()
+  })
+
+  it('opens a topic primer from the list and from a problem, and starts practising from it', async () => {
+    stubServer()
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Whetstone' })
+    await user.click(screen.getAllByRole('button', { name: /Primer/ })[0]!)
+    expect(await screen.findByRole('heading', { name: /Arrays & Hashing/ })).toBeInTheDocument()
+    expect(screen.getByText('How to recognise it')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Start practising' }))
+    expect(await screen.findByRole('heading', { name: 'Two Sum' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Read the Arrays & Hashing primer first/ }))
+    expect(await screen.findByText('Say it out loud')).toBeInTheDocument()
   })
 })

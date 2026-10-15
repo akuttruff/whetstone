@@ -77,3 +77,23 @@ describe('validateProblem', () => {
     expect(() => validateProblem({ title: 'T', track: 'design' } as Partial<Problem>, { track: 'design', topic: 'x', pattern: 'x', difficulty: 'medium' })).toThrow(/prompt/)
   })
 })
+
+import { guideFromModel, guidePrompt } from './prompts.ts'
+
+describe('guides', () => {
+  it('builds a per-track ladder prompt that includes the attempt but hides the solution from the learner', () => {
+    const { system, user, schema } = guidePrompt(twoSum, 'let x = 1', null)
+    expect(schema.name).toBe('hint_ladder')
+    expect(system).toMatch(/Never include a complete solution/)
+    expect(user).toContain('let x = 1')
+    expect(user).toContain('Reference solution, for your reference only')
+    expect(guidePrompt(design, '').system).toMatch(/system design/)
+    expect(guidePrompt(behav, '').system).toMatch(/behavioural/)
+  })
+  it('cleans the model output and insists on a real ladder', () => {
+    const steps = guideFromModel({ steps: [{ title: 'A', hint: 'one', tryThis: 'x' }, { hint: 'two' }, { title: 'C', hint: 'three', tryThis: 'z' }, { title: 'empty', hint: '' }] })
+    expect(steps).toEqual([{ title: 'A', hint: 'one', tryThis: 'x' }, { title: 'Step 2', hint: 'two', tryThis: '' }, { title: 'C', hint: 'three', tryThis: 'z' }])
+    expect(() => guideFromModel({ steps: [{ hint: 'only one' }] })).toThrow(ValidationError)
+    expect(() => guideFromModel({})).toThrow(ValidationError)
+  })
+})

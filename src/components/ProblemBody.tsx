@@ -1,15 +1,24 @@
 import { useState } from 'react'
 import Markdown from 'react-markdown'
 import CodeEditor from './CodeEditor.tsx'
+import { BookOpen } from 'lucide-react'
+import { primerFor } from '../data/primers.ts'
 import { isCode, isDesign } from '../types.ts'
 import type { Problem } from '../types.ts'
 
 /** The statement, prompt or question, with its spoilers behind disclosure. */
-export default function ProblemBody({ problem }: { problem: Problem }) {
+export default function ProblemBody({ problem, onPrimer }: { problem: Problem; onPrimer?: (topic: string) => void }) {
   const [solutionOpen, setSolutionOpen] = useState(false)
+  const primer = primerFor(problem.track, problem.topic)
+  const primerLink = primer && onPrimer ? (
+    <button className="primer-link" onClick={() => onPrimer(problem.topic)}>
+      <BookOpen size={14} /> Read the {problem.topic} primer first
+    </button>
+  ) : null
   if (isCode(problem)) {
     return (
       <div className="pbody md">
+        {primerLink}
         {problem.description.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
         <h3>Examples</h3>
         {problem.examples.map((ex, i) => (
@@ -42,6 +51,7 @@ export default function ProblemBody({ problem }: { problem: Problem }) {
   if (isDesign(problem)) {
     return (
       <div className="pbody md">
+        {primerLink}
         {problem.prompt.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
         <h3>Functional requirements</h3>
         <ul>{problem.functional.map((f, i) => <li key={i}>{f}</li>)}</ul>
@@ -65,6 +75,7 @@ export default function ProblemBody({ problem }: { problem: Problem }) {
   }
   return (
     <div className="pbody md">
+      {primerLink}
       {problem.question.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
       {problem.track === 'behavioral' && <p className="note">Answer in STAR form: situation, task, what you did, result. Two minutes, specific, in the first person.</p>}
       <details className="spoiler">

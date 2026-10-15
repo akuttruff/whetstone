@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ChevronsDown, ChevronsUp, Play, RotateCcw, Sparkles } from 'lucide-react'
+import { ArrowLeft, ChevronsDown, ChevronsUp, Lightbulb, Play, RotateCcw, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
 import ProblemBody from './ProblemBody.tsx'
+import GuidePanel from './GuidePanel.tsx'
 import ReviewPanel from './ReviewPanel.tsx'
 import RunPanel from './RunPanel.tsx'
 import useDraft from '../hooks/useDraft.ts'
+import useGuide from '../hooks/useGuide.ts'
 import useReview from '../hooks/useReview.ts'
 import { api } from '../lib/api.ts'
 import { DIFFICULTY_LABEL, blankFor } from '../lib/format.ts'
 import { isCode } from '../types.ts'
 import type { Direction, Problem, PublicSettings, RunResult } from '../types.ts'
 
-type Tab = 'problem' | 'work' | 'review'
+type Tab = 'problem' | 'work' | 'review' | 'guide'
 
 interface Props {
   problem: Problem
@@ -22,9 +24,10 @@ interface Props {
   onAutoChange: (auto: boolean) => void
   onVariant: (p: Problem) => void
   onReviewed: () => void
+  onPrimer: (topic: string) => void
 }
 
-export default function ProblemScreen({ problem, settings, wide, onBack, onAutoChange, onVariant, onReviewed }: Props) {
+export default function ProblemScreen({ problem, settings, wide, onBack, onAutoChange, onVariant, onReviewed, onPrimer }: Props) {
   const code = isCode(problem)
   const blank = blankFor(problem)
   const draft = useDraft(problem.id, blank)
@@ -33,6 +36,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const [running, setRunning] = useState(false)
   const [variantBusy, setVariantBusy] = useState<Direction | null>(null)
   const review = useReview(problem, draft.text, blank, run, settings.autoFeedback && draft.loaded, settings.autoDelayS)
+  const guide = useGuide(problem, draft.text, run)
 
   useEffect(() => {
     setTab(wide ? 'work' : 'problem')
@@ -109,6 +113,9 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
           <span>Auto</span>
         </label>
         <span className="spacer" />
+        <button className="icon-btn small" aria-label="Hints" title="Stuck? Get a hint ladder" onClick={() => setTab('guide')}>
+          <Lightbulb size={16} />
+        </button>
         <button className="icon-btn small" aria-label="Reset draft" onClick={reset}>
           <RotateCcw size={15} />
         </button>
@@ -118,6 +125,18 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   )
 
   const reviewPanel = <ReviewPanel {...review} onStart={review.start} onCancel={review.cancel} canReview={canReview} />
+  const guidePanel = (
+    <GuidePanel
+      problem={problem}
+      guide={guide.guide}
+      loaded={guide.loaded}
+      writing={guide.writing}
+      error={guide.error}
+      onWrite={() => void guide.write()}
+      onReveal={guide.reveal}
+      onShowProblem={() => setTab(wide ? 'work' : 'problem')}
+    />
+  )
 
   return (
     <div className="pscreen">
@@ -151,16 +170,20 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         <button role="tab" aria-selected={tab === 'review'} className={tab === 'review' ? 'active' : ''} onClick={() => setTab('review')}>
           Review{review.streaming ? <span className="pulse" /> : review.review?.score !== undefined && review.review?.score !== null ? <span className="tab-score">{review.review.score}</span> : null}
         </button>
+        <button role="tab" aria-selected={tab === 'guide'} className={tab === 'guide' ? 'active' : ''} onClick={() => setTab('guide')}>
+          Guide{guide.writing ? <span className="pulse" /> : guide.guide ? <span className="tab-score">{guide.guide.revealed}/{guide.guide.steps.length}</span> : null}
+        </button>
       </div>
 
       <div className={`pbody-grid${wide ? ' wide' : ''}`}>
         {(wide || tab === 'problem') && (
           <div className="pane pane-problem">
-            <ProblemBody problem={problem} />
+            <ProblemBody problem={problem} onPrimer={onPrimer} />
           </div>
         )}
         {tab === 'work' && <div className="pane pane-work">{workspace}</div>}
         {tab === 'review' && <div className="pane pane-review">{reviewPanel}</div>}
+        {tab === 'guide' && <div className="pane pane-review">{guidePanel}</div>}
       </div>
     </div>
   )
