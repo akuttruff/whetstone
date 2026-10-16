@@ -105,10 +105,10 @@ export const api = {
 
   chat: (id: string) => request<ChatMessage[]>(`/api/chat/${enc(id)}`),
   clearChat: (id: string) => request<{ ok: true }>(`/api/chat/${enc(id)}`, { method: 'DELETE' }),
-  /** Ask a question in a thread (under a review, or on a primer); streams the reply. */
+  /** Ask a question in a thread (under a review, about the problem, or on a primer); streams the reply. */
   async ask(
     id: string,
-    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } }) & { message: string },
+    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } } | { clarify: true; problem: Problem }) & { message: string },
     onEvent: (e: ChatEvent) => void,
     signal: AbortSignal,
   ): Promise<void> {

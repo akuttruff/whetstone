@@ -9,15 +9,24 @@ import GuidePanel from './GuidePanel.tsx'
 import ReviewPanel from './ReviewPanel.tsx'
 import RunPanel from './RunPanel.tsx'
 import useDraft from '../hooks/useDraft.ts'
-import useChat from '../hooks/useChat.ts'
+import useChat, { clarifyThreadId } from '../hooks/useChat.ts'
 import useGuide from '../hooks/useGuide.ts'
 import useReview from '../hooks/useReview.ts'
 import { api } from '../lib/api.ts'
 import { DIFFICULTY_LABEL, blankFor } from '../lib/format.ts'
 import { isCode } from '../types.ts'
-import type { Direction, Problem, PublicSettings, RunResult } from '../types.ts'
+import type { Direction, Problem, PublicSettings, RunResult, Track } from '../types.ts'
 
 type Tab = 'problem' | 'work' | 'review' | 'guide'
+
+/** Openers for the clarifying thread, the questions a candidate asks before touching the keyboard. */
+const CLARIFY_SUGGESTIONS: Record<Track, string[]> = {
+  coding: ['Can the input be empty?', 'Can there be duplicates?', 'What should I return if there is no valid answer?', 'How large can the input get?'],
+  practical: ['Is this single-threaded, or can calls overlap?', 'What should happen on invalid input?', 'Does the order of results matter?', 'Can I assume the callbacks never throw?'],
+  design: ['How many users, and how many requests per second?', 'Is it read-heavy or write-heavy?', 'Do we need strong consistency, or is eventual fine?', 'What latency is acceptable?'],
+  knowledge: ['How deep an answer are you looking for?', 'Should I cover trade-offs or just the mechanism?', 'Is there a particular language or runtime in mind?'],
+  behavioral: ['Can the example come from a side project?', 'How long an answer are you after?', 'Are you looking for a people story or a technical one?'],
+}
 
 interface Props {
   problem: Problem
@@ -42,6 +51,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const review = useReview(problem, draft.text, blank, run, settings.autoFeedback && draft.loaded, settings.autoDelayS)
   const guide = useGuide(problem, draft.text, run)
   const chat = useChat(problem.id, { problem, answer: draft.text, run })
+  const clarify = useChat(clarifyThreadId(problem.id), { clarify: true, problem })
 
   useEffect(() => {
     setTab(wide ? 'work' : 'problem')
@@ -199,6 +209,16 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         {(wide || tab === 'problem') && (
           <div className="pane pane-problem">
             <ProblemBody problem={problem} onPrimer={onPrimer} />
+            <ChatThread
+              {...clarify}
+              enabled
+              title="Ask the interviewer"
+              placeholder="Clarify the problem: inputs, edge cases, scale, what counts…"
+              suggestions={CLARIFY_SUGGESTIONS[problem.track]}
+              onAsk={clarify.ask}
+              onStop={clarify.stop}
+              onClear={() => void clarify.clear()}
+            />
           </div>
         )}
         {tab === 'work' && <div className="pane pane-work">{workspace}</div>}

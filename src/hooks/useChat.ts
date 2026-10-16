@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api.ts'
 import type { ChatMessage, Problem, RunResult, Track } from '../types.ts'
 
-export type ChatContext = { problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } }
+export type ChatContext =
+  | { problem: Problem; answer: string; run: RunResult | null }
+  | { primer: { track: Track; topic: string } }
+  | { clarify: true; problem: Problem }
 
 export interface ChatState {
   messages: ChatMessage[]
@@ -15,11 +18,14 @@ export interface ChatState {
 const EMPTY: ChatState = { messages: [], pending: '', streaming: false, error: null }
 
 export const primerThreadId = (track: Track, topic: string): string => `primer:${track}:${topic}`
+/** Clarifying questions about a problem, kept apart from its review thread. Mirrors server/prompts.ts. */
+export const clarifyThreadId = (problemId: string): string => `clarify:${problemId}`
 
 /**
  * A conversation thread shared across devices: under a problem's review
- * (id = problem id) or on a primer (id = primer:<track>:<topic>). `context`
- * is read when a question is sent, so it always carries the current draft.
+ * (id = problem id), about the problem statement itself (id = clarify:<problem id>)
+ * or on a primer (id = primer:<track>:<topic>). `context` is read when a
+ * question is sent, so it always carries the current draft.
  */
 export default function useChat(id: string, context: ChatContext) {
   const [state, setState] = useState<ChatState>(EMPTY)

@@ -300,6 +300,48 @@ export function chatPrompt(problem: Problem, answer: string, run: RunResult | nu
   return base + `\n\nQuestion: ${p.question.join('\n')}\n\nKey points of a strong answer:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}\n\nCandidate's answer:\n${answer || '(none)'}\n\nYour latest review:\n${lastReview ?? '(no review yet)'}`
 }
 
+/** The thread id for clarifying questions about a problem, kept apart from the review thread. */
+export const clarifyThreadId = (problemId: string): string => `clarify:${problemId}`
+
+/**
+ * The interviewer, before the candidate starts: answers clarifying questions
+ * about the problem itself (inputs, edge cases, scale, what counts) the way a
+ * real interviewer would, and never hands over the approach.
+ */
+export function clarifyPrompt(problem: Problem): string {
+  const base =
+    'You are the interviewer who has just read this problem out to a candidate in a senior software engineer interview. ' +
+    'They are asking clarifying questions before they start. Answer each one directly in one to three sentences of plain markdown, as a real interviewer would: ' +
+    'confirm or correct an assumption, settle an ambiguity about inputs, outputs, edge cases, scale or scope, and where the problem leaves something open say so and tell them to state their assumption and proceed. ' +
+    'Treat good clarifying questions as a positive sign and answer them straight. Never reveal or hint at the solution, the algorithm, the data structure, the pattern or the complexity target; ' +
+    'if they ask how to solve it or whether an approach works, decline warmly in one sentence ("That is for you to work out, but you can ask me anything about what the problem means"). ' +
+    'Do not write code. If they ask something unrelated to the problem, answer briefly and steer back.'
+  if (isCode(problem)) {
+    return (
+      base +
+      `\n\nProblem: ${problem.title} (${problem.difficulty})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
+      `Constraints:\n${(problem.constraints ?? []).map((c) => `- ${c}`).join('\n') || '(none stated; expect ordinary interview sizes)'}\n\n` +
+      'For your eyes only, so your answers about expected behaviour stay consistent with it (never show, describe or paraphrase it):\n' +
+      `\`\`\`typescript\n${problem.solution}\n\`\`\``
+    )
+  }
+  if (isDesign(problem)) {
+    return (
+      base +
+      ' For a design prompt, clarifying questions are the whole first step: give concrete numbers when asked about scale, traffic, data size, latency or consistency, choosing realistic figures and keeping them consistent across the conversation.' +
+      `\n\nPrompt: ${problem.title}\n${problem.prompt.join('\n')}\n\nFunctional requirements:\n${problem.functional.map((f) => `- ${f}`).join('\n')}\n\nNon-functional requirements:\n${problem.nonFunctional.map((f) => `- ${f}`).join('\n')}\n\n` +
+      `For your eyes only, the areas a strong answer covers (never list them or steer the candidate towards them):\n${problem.talkingPoints.map((t) => `- ${t.heading}`).join('\n')}`
+    )
+  }
+  const p = problem as PromptProblem
+  return (
+    base +
+    ' For this kind of question, clarifying means scope and expectations: how long an answer, whether a specific situation fits, what you are weighing. Answer those plainly.' +
+    `\n\nQuestion: ${p.question.join('\n')}\n\n` +
+    `For your eyes only, what you are listening for (never list it or steer the candidate towards it):\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}`
+  )
+}
+
 /** The tutor for a topic primer: explains, gives examples and code freely, relates everything back to the primer's techniques. */
 export function primerChatPrompt(primer: Primer): string {
   const techniques = primer.techniques

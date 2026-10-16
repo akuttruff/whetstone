@@ -72,6 +72,13 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   show code snippets ("what would the syntax look like?"). On a primer the
   thread id is `primer:<track>:<topic>` and the model tutors from the primer's
   content. The last 12 turns ride along with each question.
+- **Ask the interviewer** is a third thread, under the problem statement, for
+  clarifying questions before you start (thread id `clarify:<problem id>`,
+  body `{ clarify: true, problem }`). The model plays the interviewer: it
+  settles inputs, edge cases, scale and scope, tells you to state an
+  assumption where the problem is open, and declines to discuss the approach.
+  It sees the reference solution or key points only so its answers about
+  expected behaviour stay consistent.
 - **Variants** (`POST /api/variants`) ask the model for an easier, similar or
   harder problem on the same pattern using a JSON schema. The "New problem"
   button on a problem opens a sheet: an optional free-text steer (for example
