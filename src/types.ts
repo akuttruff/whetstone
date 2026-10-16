@@ -201,6 +201,8 @@ export interface Settings {
   autoDelayS: number
   /** Let the model think before answering (slower, sometimes sharper). */
   thinking: boolean
+  /** List the techniques each problem exercises under its statement; off simulates a real interview. */
+  showTechniques: boolean
 }
 
 export type PublicSettings = Omit<Settings, 'apiKey'> & { hasApiKey: boolean }
@@ -212,6 +214,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoFeedback: false,
   autoDelayS: 8,
   thinking: false,
+  showTechniques: true,
 }
 
 /** Per-pattern averages across saved reviews. */

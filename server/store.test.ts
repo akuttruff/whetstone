@@ -13,6 +13,9 @@ describe('settings', () => {
     expect(s.getSettings().apiKey).toBe('secret')
     s.setSettings({ model: 'x' }) // key untouched when not in the patch
     expect(s.getSettings().apiKey).toBe('secret')
+    expect(s.getSettings().showTechniques).toBe(true)
+    s.setSettings({ showTechniques: false })
+    expect(s.getPublicSettings().showTechniques).toBe(false)
     expect(() => s.setSettings({ baseUrl: 'not a url' })).toThrow(ValidationError)
     expect(() => s.setSettings({ autoDelayS: 0 })).toThrow(ValidationError)
     s.setSettings({ baseUrl: 'http://x:1/v1/' })

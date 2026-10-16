@@ -17,6 +17,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
   const [apiKey, setApiKey] = useState('')
   const [autoDelayS, setAutoDelayS] = useState(settings.autoDelayS)
   const [thinking, setThinking] = useState(settings.thinking)
+  const [showTechniques, setShowTechniques] = useState(settings.showTechniques)
   const [models, setModels] = useState<ModelOption[]>([])
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -28,13 +29,14 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
     setApiKey('')
     setAutoDelayS(settings.autoDelayS)
     setThinking(settings.thinking)
+    setShowTechniques(settings.showTechniques)
     void api.models().then((r) => { setModels(r.models); setModelsError(r.error) })
   }, [open, settings])
 
   const save = async (): Promise<void> => {
     setBusy(true)
     try {
-      const patch: Partial<Settings> = { baseUrl, model, autoDelayS, thinking }
+      const patch: Partial<Settings> = { baseUrl, model, autoDelayS, thinking, showTechniques }
       if (apiKey) patch.apiKey = apiKey
       await onSave(patch)
       const r = await api.models()
@@ -79,6 +81,13 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
             <label className="field row">
               <input type="checkbox" checked={thinking} onChange={(e) => setThinking(e.target.checked)} />
               <span>Let the model think first (slower, sometimes sharper)</span>
+            </label>
+            <label className="field row">
+              <input type="checkbox" checked={showTechniques} onChange={(e) => setShowTechniques(e.target.checked)} />
+              <span>
+                Show the techniques each problem uses
+                <small className="field-hint">Turn off to practise like a real interview, where nobody names the pattern for you.</small>
+              </span>
             </label>
           </div>
           <div className="sheet-actions">

@@ -78,6 +78,15 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   technique applies and why, a walkthrough on an example, the complexity, a
   snippet, or the whole solution if you ask. It has the reference solution,
   hints, talking points or key points to explain from.
+- **Techniques** (`src/data/techniques.ts`) is a catalogue of the techniques
+  the coding and practical problems exercise, matched to a problem by its
+  `pattern` string (so generated variants get their parent's). Chips under
+  the statement open a sheet with a plain-words explanation, the moves, the
+  invariant, the primer's template, and for most techniques a step-through
+  visualisation (`src/viz/*`): the real algorithm runs on a small fixed
+  example and records one frame per step, drawn as a row of cells, a grid or
+  a graph with a caption. Settings → "Show the techniques each problem uses"
+  hides the chips for interview-style practice.
 - **Variants** (`POST /api/variants`) ask the model for an easier, similar or
   harder problem on the same pattern using a JSON schema. The "New problem"
   button on a problem opens a sheet: an optional free-text steer (for example

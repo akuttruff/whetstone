@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Lightbulb, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
 import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
@@ -8,12 +8,15 @@ import ChatThread from './ChatThread.tsx'
 import GuidePanel from './GuidePanel.tsx'
 import ReviewPanel from './ReviewPanel.tsx'
 import RunPanel from './RunPanel.tsx'
+import TechniqueSheet from './TechniqueSheet.tsx'
 import useDraft from '../hooks/useDraft.ts'
 import useChat, { aboutThreadId } from '../hooks/useChat.ts'
 import useGuide from '../hooks/useGuide.ts'
 import useReview from '../hooks/useReview.ts'
 import { api } from '../lib/api.ts'
 import { DIFFICULTY_LABEL, blankFor } from '../lib/format.ts'
+import { techniquesFor } from '../data/techniques.ts'
+import type { TechniqueDoc } from '../data/techniques.ts'
 import { isCode } from '../types.ts'
 import type { Direction, Problem, PublicSettings, RunResult, Track } from '../types.ts'
 
@@ -52,6 +55,8 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const guide = useGuide(problem, draft.text, run)
   const chat = useChat(problem.id, { problem, answer: draft.text, run })
   const about = useChat(aboutThreadId(problem.id), { about: true, problem })
+  const techniques = useMemo(() => (settings.showTechniques ? techniquesFor(problem) : []), [problem, settings.showTechniques])
+  const [technique, setTechnique] = useState<TechniqueDoc | null>(null)
 
   useEffect(() => {
     setTab(wide ? 'work' : 'problem')
@@ -208,7 +213,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
       <div className={`pbody-grid${wide ? ' wide' : ''}`}>
         {(wide || tab === 'problem') && (
           <div className="pane pane-problem">
-            <ProblemBody problem={problem} onPrimer={onPrimer} />
+            <ProblemBody problem={problem} onPrimer={onPrimer} techniques={techniques} onTechnique={setTechnique} />
             <ChatThread
               {...about}
               enabled
@@ -225,6 +230,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         {tab === 'review' && <div className="pane pane-review">{reviewPanel}</div>}
         {tab === 'guide' && <div className="pane pane-review">{guidePanel}</div>}
       </div>
+      <TechniqueSheet technique={technique} problem={problem} onClose={() => setTechnique(null)} onPrimer={onPrimer} />
     </div>
   )
 }

@@ -318,9 +318,9 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .empty-detail { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--faint); }
 
 /* ====== settings sheet ====== */
-.sheet-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.sheet-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 400; } /* above CodeMirror's panels (300) */
 .sheet {
-  position: fixed; left: 0; right: 0; bottom: 0; max-height: 92dvh;
+  position: fixed; left: 0; right: 0; bottom: 0; max-height: 92dvh; z-index: 401;
   background: var(--raised); border-radius: 16px 16px 0 0; outline: none;
   display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -357,3 +357,98 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .gen-level .gen-level-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .gen-level small { color: var(--dim); }
 .request-note { font-size: 13px; color: var(--dim); font-style: italic; margin: 0 0 10px; }
+
+/* ====== techniques ====== */
+.techniques { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 14px; }
+.techniques-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); margin-right: 2px; }
+.technique-chip { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); border-color: var(--blue-dim); }
+.technique-chip:active { background: var(--raised-2); }
+.technique-play { color: var(--amber); }
+@media (min-width: 900px) {
+  .sheet.sheet-technique { left: 50%; right: auto; width: 760px; transform: translateX(-50%) !important; }
+}
+.technique-body { font-size: 15px; line-height: 1.5; padding-bottom: 8px; }
+.technique-body h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); margin: 4px 0 0; }
+.technique-topic { margin: 0; font-size: 13px; color: var(--dim); }
+.technique-topic .technique-complexity { font-family: var(--mono); font-size: 12px; color: var(--amber); }
+.technique-summary { margin: 0; }
+.technique-steps { margin: 0; padding-left: 20px; }
+.technique-steps li { margin-bottom: 4px; }
+.technique-invariant { margin: 0; background: var(--raised-2); border-left: 3px solid var(--blue); border-radius: 0 8px 8px 0; padding: 8px 10px; font-size: 14px; }
+.technique-also { margin: 0; font-size: 13px; color: var(--dim); }
+.field-hint { display: block; font-weight: 400; color: var(--faint); }
+
+/* ====== visualiser ====== */
+.viz { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; outline: none; }
+.viz:focus-visible { border-color: var(--blue-dim); }
+.viz-title { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+.viz-scene { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.viz-array { display: flex; flex-direction: column; gap: 2px; min-width: 100%; }
+.viz-row { display: grid; gap: 3px; }
+.viz-slot { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 1px; min-height: 14px; font-size: 10px; color: var(--faint); font-family: var(--mono); }
+.viz-marks .viz-slot { min-height: 16px; }
+.viz-mark { font-size: 10px; font-weight: 700; color: var(--blue); font-family: var(--mono); line-height: 1; padding: 1px 3px; border-radius: 4px; background: var(--raised); white-space: nowrap; }
+.viz-mark.match { color: var(--amber); }
+.viz-mark.done { color: var(--green); }
+.viz-mark.bad { color: var(--red); }
+.viz-cell {
+  display: flex; align-items: center; justify-content: center; min-height: 34px; padding: 4px 3px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--raised); font-family: var(--mono); font-size: 13px; color: var(--ink);
+  transition: background 0.2s, border-color 0.2s, color 0.2s; text-align: center; overflow-wrap: anywhere;
+}
+.viz-cell.in-range { border-color: var(--blue-dim); }
+.viz-cell.window { background: #27384b; border-color: var(--blue-dim); }
+.viz-cell.active { background: var(--blue); border-color: var(--blue); color: #0e1218; font-weight: 700; }
+.viz-cell.match { background: var(--amber); border-color: var(--amber); color: #0e1218; font-weight: 700; }
+.viz-cell.done { background: #2f4a37; border-color: var(--green); color: var(--green); font-weight: 600; }
+.viz-cell.bad { background: #4a2f2f; border-color: var(--red); color: var(--red); }
+.viz-cell.dim { opacity: 0.4; }
+.viz-cell.mark { border-style: dashed; border-color: var(--amber); color: var(--amber); }
+.viz-grid { display: grid; gap: 3px; width: max-content; max-width: 100%; }
+.viz-grid .viz-cell { min-height: 32px; min-width: 32px; }
+.viz-grid-label { display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--faint); min-width: 18px; }
+.viz-graph { width: 100%; height: auto; display: block; max-height: 300px; }
+.viz-edge { stroke: var(--faint); stroke-width: 0.6; fill: none; transition: stroke 0.2s; }
+.viz-edge.active { stroke: var(--blue); stroke-width: 0.9; }
+.viz-edge.dim { stroke: var(--line); stroke-dasharray: 1.2 1.2; }
+.viz-arrowhead { fill: var(--faint); }
+.viz-arrowhead.active { fill: var(--blue); }
+.viz-edge-label { font-size: 3px; fill: var(--dim); text-anchor: middle; font-family: var(--mono); }
+.viz-node circle { fill: var(--raised); stroke: var(--line); stroke-width: 0.5; transition: fill 0.2s, stroke 0.2s; }
+.viz-node-label { font-size: 3.4px; fill: var(--ink); text-anchor: middle; font-family: var(--mono); font-weight: 600; }
+.viz-node-tag { font-size: 2.5px; fill: var(--dim); text-anchor: middle; font-family: var(--mono); }
+.viz-node.window circle { fill: #27384b; stroke: var(--blue-dim); }
+.viz-node.active circle { fill: var(--blue); stroke: var(--blue); }
+.viz-node.active .viz-node-label { fill: #0e1218; }
+.viz-node.match circle { fill: var(--amber); stroke: var(--amber); }
+.viz-node.match .viz-node-label { fill: #0e1218; }
+.viz-node.done circle { fill: #2f4a37; stroke: var(--green); }
+.viz-node.done .viz-node-label { fill: var(--green); }
+.viz-node.bad circle { fill: #4a2f2f; stroke: var(--red); }
+.viz-node.bad .viz-node-label { fill: var(--red); }
+.viz-node.dim { opacity: 0.35; }
+.viz-aux { display: flex; flex-direction: column; gap: 8px; }
+.viz-list { display: flex; flex-direction: column; gap: 4px; }
+.viz-list-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); }
+.viz-list-note { font-size: 11px; color: var(--faint); font-style: italic; }
+.viz-list-items { display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px; align-items: center; }
+.viz-box {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 26px; min-height: 26px; padding: 2px 7px; border-radius: 6px; justify-content: center;
+  border: 1px solid var(--line); background: var(--raised); font-family: var(--mono); font-size: 12px; transition: background 0.2s, border-color 0.2s;
+}
+.viz-box.active { background: var(--blue); border-color: var(--blue); color: #0e1218; font-weight: 700; }
+.viz-box.match { background: var(--amber); border-color: var(--amber); color: #0e1218; font-weight: 700; }
+.viz-box.done { background: #2f4a37; border-color: var(--green); color: var(--green); }
+.viz-box.bad { background: #4a2f2f; border-color: var(--red); color: var(--red); }
+.viz-box.dim { opacity: 0.4; }
+.viz-box.window { background: #27384b; border-color: var(--blue-dim); }
+.viz-kv-k { color: var(--blue); }
+.viz-kv-arrow { color: var(--faint); }
+.viz-empty { font-size: 12px; color: var(--faint); font-style: italic; }
+.viz-vars { display: flex; flex-wrap: wrap; gap: 6px 12px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+.viz-var-k { color: var(--faint); }
+.viz-var-v { color: var(--ink); font-weight: 600; }
+.viz-caption { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); min-height: 42px; }
+.viz-controls { display: flex; align-items: center; gap: 2px; }
+.viz-controls input[type="range"] { flex: 1; min-width: 40px; margin: 0 8px; accent-color: var(--blue); }
+.viz-step { font-family: var(--mono); font-size: 12px; color: var(--dim); white-space: nowrap; }

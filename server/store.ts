@@ -98,6 +98,7 @@ export class Store {
     }
     if (p.autoFeedback !== undefined) next.autoFeedback = p.autoFeedback === true
     if (p.thinking !== undefined) next.thinking = p.thinking === true
+    if (p.showTechniques !== undefined) next.showTechniques = p.showTechniques === true
     if (p.autoDelayS !== undefined) {
       const n = Number(p.autoDelayS)
       if (!Number.isFinite(n) || n < 2 || n > 120) throw new ValidationError('autoDelayS must be between 2 and 120')

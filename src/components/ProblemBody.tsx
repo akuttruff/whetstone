@@ -1,15 +1,35 @@
 import { useState } from 'react'
 import Markdown from 'react-markdown'
 import CodeEditor from './CodeEditor.tsx'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Play } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
 import { isCode, isDesign } from '../types.ts'
 import type { Problem } from '../types.ts'
+import type { TechniqueDoc } from '../data/techniques.ts'
+
+interface Props {
+  problem: Problem
+  onPrimer?: (topic: string) => void
+  /** The techniques the problem exercises; empty (or omitted) when the interview-mode setting hides them. */
+  techniques?: TechniqueDoc[]
+  onTechnique?: (t: TechniqueDoc) => void
+}
 
 /** The statement, prompt or question, with its spoilers behind disclosure. */
-export default function ProblemBody({ problem, onPrimer }: { problem: Problem; onPrimer?: (topic: string) => void }) {
+export default function ProblemBody({ problem, onPrimer, techniques = [], onTechnique }: Props) {
   const [solutionOpen, setSolutionOpen] = useState(false)
   const primer = primerFor(problem.track, problem.topic)
+  const techniqueRow = techniques.length > 0 && onTechnique && (
+    <div className="techniques" aria-label="Techniques">
+      <span className="techniques-label">Techniques</span>
+      {techniques.map((t) => (
+        <button key={t.id} className="chip technique-chip" onClick={() => onTechnique(t)} title={t.viz ? 'Explanation with a step-by-step visualisation' : 'Explanation'}>
+          {t.name}
+          {t.viz && <Play size={11} className="technique-play" />}
+        </button>
+      ))}
+    </div>
+  )
   const primerLink = (
     <>
       {primer && onPrimer && (
@@ -25,6 +45,7 @@ export default function ProblemBody({ problem, onPrimer }: { problem: Problem; o
       <div className="pbody md">
         {primerLink}
         {problem.description.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
+        {techniqueRow}
         <h3>Examples</h3>
         {problem.examples.map((ex, i) => (
           <div key={i} className="example">
