@@ -21,11 +21,14 @@ npm run check      # typecheck + lint + tests
 npm run deploy     # build and restart the persistent instance on :8310
 ```
 
-The persistent instance is the launchd job `com.amie.whetstone` (plist in
-`scripts/`), served over Tailscale at
-`https://amies-mac-studio.tail1585ef.ts.net:8444`. Its data lives in `.data/`.
+The persistent instance is a launchd job (`com.amie.whetstone`, plist in
+`scripts/`) that runs `vite preview` on :8310. To reach it from a phone, put it
+behind Tailscale Serve (`tailscale serve --bg --https=8444 http://127.0.0.1:8310`)
+and open `https://<your-machine>.<your-tailnet>.ts.net:8444`. Its data lives in
+`.data/`.
 
-Install the launch agent once:
+Install the launch agent once. Edit the three paths in the plist first (the
+`npm` binary, this checkout, and the log file), then:
 
 ```bash
 cp scripts/com.amie.whetstone.plist ~/Library/LaunchAgents/

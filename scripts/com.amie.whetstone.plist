@@ -6,24 +6,24 @@
   <string>com.amie.whetstone</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/amiekuttruff/.asdf/installs/nodejs/24.21.0/bin/npm</string>
+    <string>/path/to/node/bin/npm</string>
     <string>run</string>
     <string>preview</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/amiekuttruff/Code/interview-prep</string>
+  <string>/path/to/interview-prep</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/Users/amiekuttruff/.asdf/installs/nodejs/24.21.0/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>/path/to/node/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/amiekuttruff/Library/Logs/com.amie.whetstone.log</string>
+  <string>/path/to/Library/Logs/com.amie.whetstone.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/amiekuttruff/Library/Logs/com.amie.whetstone.log</string>
+  <string>/path/to/Library/Logs/com.amie.whetstone.log</string>
 </dict>
 </plist>
