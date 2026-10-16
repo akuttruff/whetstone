@@ -108,7 +108,7 @@ export const api = {
   /** Ask a question in a thread (under a review, about the problem, or on a primer); streams the reply. */
   async ask(
     id: string,
-    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } } | { clarify: true; problem: Problem }) & { message: string },
+    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } } | { about: true; problem: Problem }) & { message: string },
     onEvent: (e: ChatEvent) => void,
     signal: AbortSignal,
   ): Promise<void> {

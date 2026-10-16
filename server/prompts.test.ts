@@ -118,19 +118,19 @@ describe('guides', () => {
   })
 })
 
-import { chatPrompt, clarifyPrompt, clarifyThreadId, primerChatPrompt } from './prompts.ts'
+import { chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt } from './prompts.ts'
 import { primerFor } from '../src/data/primers.ts'
 
 describe('chat prompts', () => {
-  it('casts the model as the interviewer for clarifying questions, with the answer held back', () => {
-    const s = clarifyPrompt(twoSum)
-    expect(s).toMatch(/interviewer/)
-    expect(s).toMatch(/Never reveal/)
+  it('makes an open tutor on the problem that holds nothing back', () => {
+    const s = aboutPrompt(twoSum)
+    expect(s).toMatch(/Do not hold back/)
+    expect(s).toMatch(/complete solution/)
     expect(s).toContain(twoSum.examples[0]!.input)
     expect(s).toContain(twoSum.solution)
-    expect(clarifyPrompt(design)).toContain(design.functional[0]!)
-    expect(clarifyPrompt(design)).toMatch(/concrete numbers/)
-    expect(clarifyThreadId('two-sum')).toBe('clarify:two-sum')
+    expect(aboutPrompt(design)).toContain(design.functional[0]!)
+    expect(aboutPrompt(design)).toContain(design.talkingPoints[0]!.bullets[0]!)
+    expect(aboutThreadId('two-sum')).toBe('about:two-sum')
   })
   it('carries the code, tests and latest review, and allows snippets', () => {
     const s = chatPrompt(twoSum, 'my code', null, 'the review text')

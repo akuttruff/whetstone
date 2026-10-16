@@ -300,45 +300,47 @@ export function chatPrompt(problem: Problem, answer: string, run: RunResult | nu
   return base + `\n\nQuestion: ${p.question.join('\n')}\n\nKey points of a strong answer:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}\n\nCandidate's answer:\n${answer || '(none)'}\n\nYour latest review:\n${lastReview ?? '(no review yet)'}`
 }
 
-/** The thread id for clarifying questions about a problem, kept apart from the review thread. */
-export const clarifyThreadId = (problemId: string): string => `clarify:${problemId}`
+/** The thread id for questions about a problem, kept apart from the review thread. */
+export const aboutThreadId = (problemId: string): string => `about:${problemId}`
 
 /**
- * The interviewer, before the candidate starts: answers clarifying questions
- * about the problem itself (inputs, edge cases, scale, what counts) the way a
- * real interviewer would, and never hands over the approach.
+ * A tutor on one problem. This is practice, so nothing is held back: it
+ * clarifies the statement, explains the techniques that apply and why, walks
+ * an approach through on an example, shows code, and gives the full solution
+ * when asked for it outright.
  */
-export function clarifyPrompt(problem: Problem): string {
+export function aboutPrompt(problem: Problem): string {
   const base =
-    'You are the interviewer who has just read this problem out to a candidate in a senior software engineer interview. ' +
-    'They are asking clarifying questions before they start. Answer each one directly in one to three sentences of plain markdown, as a real interviewer would: ' +
-    'confirm or correct an assumption, settle an ambiguity about inputs, outputs, edge cases, scale or scope, and where the problem leaves something open say so and tell them to state their assumption and proceed. ' +
-    'Treat good clarifying questions as a positive sign and answer them straight. Never reveal or hint at the solution, the algorithm, the data structure, the pattern or the complexity target; ' +
-    'if they ask how to solve it or whether an approach works, decline warmly in one sentence ("That is for you to work out, but you can ask me anything about what the problem means"). ' +
-    'Do not write code. If they ask something unrelated to the problem, answer briefly and steer back.'
+    'You are a senior engineer helping a candidate practise for a senior software engineer interview. They are studying the problem below and may ask you anything about it: ' +
+    'what it means, what the edge cases are, which techniques apply and why, how an approach works step by step, what the complexity is, how to write a particular part, or what the complete solution looks like. ' +
+    'Answer every question directly and concretely in markdown, under 300 words. Explain the idea before the code, walk through it on a small example when that helps, name the technique so they can recognise it next time, and compare alternatives when asked which to use. ' +
+    'Show short TypeScript snippets (fenced) freely; give the complete solution when they ask for it outright, with a line or two on why it works. ' +
+    'Do not hold back to make them work for it: this is a study session, not the interview. If they ask something unrelated to the problem, answer briefly and steer back.'
   if (isCode(problem)) {
     return (
       base +
-      `\n\nProblem: ${problem.title} (${problem.difficulty})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
-      `Constraints:\n${(problem.constraints ?? []).map((c) => `- ${c}`).join('\n') || '(none stated; expect ordinary interview sizes)'}\n\n` +
-      'For your eyes only, so your answers about expected behaviour stay consistent with it (never show, describe or paraphrase it):\n' +
-      `\`\`\`typescript\n${problem.solution}\n\`\`\``
+      `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
+      `Constraints:\n${(problem.constraints ?? []).map((c) => `- ${c}`).join('\n') || '(none stated)'}\n\n` +
+      `Hints the problem comes with:\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
+      `Reference solution, for you to explain from and build on:\n\`\`\`typescript\n${problem.solution}\n\`\`\``
     )
   }
   if (isDesign(problem)) {
     return (
       base +
-      ' For a design prompt, clarifying questions are the whole first step: give concrete numbers when asked about scale, traffic, data size, latency or consistency, choosing realistic figures and keeping them consistent across the conversation.' +
+      ' For a design prompt, give concrete numbers when asked about scale, traffic, data size, latency or consistency, choosing realistic figures and keeping them consistent across the conversation, and explain the components, data model and trade-offs a strong answer covers.' +
       `\n\nPrompt: ${problem.title}\n${problem.prompt.join('\n')}\n\nFunctional requirements:\n${problem.functional.map((f) => `- ${f}`).join('\n')}\n\nNon-functional requirements:\n${problem.nonFunctional.map((f) => `- ${f}`).join('\n')}\n\n` +
-      `For your eyes only, the areas a strong answer covers (never list them or steer the candidate towards them):\n${problem.talkingPoints.map((t) => `- ${t.heading}`).join('\n')}`
+      `Talking points a strong answer covers:\n${problem.talkingPoints.map((t) => `${t.heading}\n${t.bullets.map((b) => `  - ${b}`).join('\n')}`).join('\n')}`
     )
   }
   const p = problem as PromptProblem
   return (
     base +
-    ' For this kind of question, clarifying means scope and expectations: how long an answer, whether a specific situation fits, what you are weighing. Answer those plainly.' +
+    (problem.track === 'behavioral'
+      ? ' For a behavioural question, help them shape a story in STAR form: what makes a strong example, what interviewers listen for, how to phrase the result, and what follow-ups to expect.'
+      : ' For a knowledge question, explain the mechanism, the trade-offs and a concrete example, at the depth a senior engineer would be expected to have.') +
     `\n\nQuestion: ${p.question.join('\n')}\n\n` +
-    `For your eyes only, what you are listening for (never list it or steer the candidate towards it):\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}`
+    `Key points of a strong answer:\n${p.keyPoints.map((k) => `- ${k}`).join('\n')}\n\nFollow-ups to expect:\n${p.followUps.map((f) => `- ${f}`).join('\n') || '(none listed)'}`
   )
 }
 

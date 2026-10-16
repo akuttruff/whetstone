@@ -218,7 +218,7 @@ export class Store {
     this.deleteDraft(id)
     this.deleteGuide(id)
     this.clearChat(id)
-    this.clearChat(`clarify:${id}`)
+    this.clearChat(`about:${id}`)
   }
 
   // ── follow-up conversation under a review ────────────────────────────

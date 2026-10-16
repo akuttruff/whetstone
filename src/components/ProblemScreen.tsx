@@ -9,7 +9,7 @@ import GuidePanel from './GuidePanel.tsx'
 import ReviewPanel from './ReviewPanel.tsx'
 import RunPanel from './RunPanel.tsx'
 import useDraft from '../hooks/useDraft.ts'
-import useChat, { clarifyThreadId } from '../hooks/useChat.ts'
+import useChat, { aboutThreadId } from '../hooks/useChat.ts'
 import useGuide from '../hooks/useGuide.ts'
 import useReview from '../hooks/useReview.ts'
 import { api } from '../lib/api.ts'
@@ -19,13 +19,13 @@ import type { Direction, Problem, PublicSettings, RunResult, Track } from '../ty
 
 type Tab = 'problem' | 'work' | 'review' | 'guide'
 
-/** Openers for the clarifying thread, the questions a candidate asks before touching the keyboard. */
-const CLARIFY_SUGGESTIONS: Record<Track, string[]> = {
-  coding: ['Can the input be empty?', 'Can there be duplicates?', 'What should I return if there is no valid answer?', 'How large can the input get?'],
-  practical: ['Is this single-threaded, or can calls overlap?', 'What should happen on invalid input?', 'Does the order of results matter?', 'Can I assume the callbacks never throw?'],
-  design: ['How many users, and how many requests per second?', 'Is it read-heavy or write-heavy?', 'Do we need strong consistency, or is eventual fine?', 'What latency is acceptable?'],
-  knowledge: ['How deep an answer are you looking for?', 'Should I cover trade-offs or just the mechanism?', 'Is there a particular language or runtime in mind?'],
-  behavioral: ['Can the example come from a side project?', 'How long an answer are you after?', 'Are you looking for a people story or a technical one?'],
+/** Openers for the thread under the problem: anything goes, this is practice. */
+const ABOUT_SUGGESTIONS: Record<Track, string[]> = {
+  coding: ['Which technique fits this, and why?', 'Walk me through the approach on the first example', 'What are the edge cases?', 'What is the best possible complexity here?'],
+  practical: ['How would you structure this?', 'What should happen on invalid input or overlapping calls?', 'What are the edge cases?', 'Show me the core of the solution'],
+  design: ['How many users and requests per second should I assume?', 'Which components does a strong answer have?', 'What is the hardest part of this design?', 'What trade-offs will the interviewer probe?'],
+  knowledge: ['Explain the mechanism from first principles', 'What are the trade-offs?', 'Give me a concrete example', 'What follow-up would an interviewer ask?'],
+  behavioral: ['What makes a strong example for this question?', 'What are interviewers listening for?', 'How do I phrase the result?', 'What follow-ups should I expect?'],
 }
 
 interface Props {
@@ -51,7 +51,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const review = useReview(problem, draft.text, blank, run, settings.autoFeedback && draft.loaded, settings.autoDelayS)
   const guide = useGuide(problem, draft.text, run)
   const chat = useChat(problem.id, { problem, answer: draft.text, run })
-  const clarify = useChat(clarifyThreadId(problem.id), { clarify: true, problem })
+  const about = useChat(aboutThreadId(problem.id), { about: true, problem })
 
   useEffect(() => {
     setTab(wide ? 'work' : 'problem')
@@ -210,14 +210,14 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
           <div className="pane pane-problem">
             <ProblemBody problem={problem} onPrimer={onPrimer} />
             <ChatThread
-              {...clarify}
+              {...about}
               enabled
-              title="Ask the interviewer"
-              placeholder="Clarify the problem: inputs, edge cases, scale, what counts…"
-              suggestions={CLARIFY_SUGGESTIONS[problem.track]}
-              onAsk={clarify.ask}
-              onStop={clarify.stop}
-              onClear={() => void clarify.clear()}
+              title="Ask about the problem"
+              placeholder="Anything: what it means, which technique, how it works, the code…"
+              suggestions={ABOUT_SUGGESTIONS[problem.track]}
+              onAsk={about.ask}
+              onStop={about.stop}
+              onClear={() => void about.clear()}
             />
           </div>
         )}

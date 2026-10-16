@@ -151,20 +151,20 @@ describe('api', () => {
     expect(await (await realFetch(base + '/api/chat/two-sum')).json()).toEqual([])
   })
 
-  it('runs a clarifying thread apart from the review thread', async () => {
+  it('runs an about-the-problem thread apart from the review thread', async () => {
     const problem = BUILTIN_PROBLEMS.find((p) => p.id === 'two-sum')!
-    const id = encodeURIComponent('clarify:two-sum')
+    const id = encodeURIComponent('about:two-sum')
     fakeFetch.mockClear()
-    const res = await post(`/api/chat/${id}`, { clarify: true, problem, message: 'Can nums be empty?' })
+    const res = await post(`/api/chat/${id}`, { about: true, problem, message: 'Can nums be empty?' })
     expect(res.status).toBe(200)
     const events = (await res.text()).split('\n\n').filter(Boolean).map((f) => JSON.parse(f.slice(5)))
     expect(events.find((e) => e.type === 'done')).toBeTruthy()
     const sent = JSON.parse(String((fakeFetch.mock.calls[0] as [unknown, RequestInit])[1].body)) as { messages: { role: string; content: string }[] }
-    expect(sent.messages[0]!.content).toMatch(/interviewer/)
+    expect(sent.messages[0]!.content).toMatch(/Do not hold back/)
     expect((await (await realFetch(base + `/api/chat/${id}`)).json()).length).toBe(2)
     // the review thread for the same problem is untouched
     expect(await (await realFetch(base + '/api/chat/two-sum')).json()).toEqual([])
-    expect((await post('/api/chat/two-sum', { clarify: true, problem, message: 'x' })).status).toBe(400)
+    expect((await post('/api/chat/two-sum', { about: true, problem, message: 'x' })).status).toBe(400)
   })
 
   it('runs a primer thread with the primer as context', async () => {

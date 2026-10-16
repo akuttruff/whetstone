@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, clarifyPrompt, clarifyThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
 import { DIRECTIONS, TRACKS, isCode } from '../src/types.ts'
 import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
@@ -198,16 +198,16 @@ export function createApi(options: ApiOptions = {}) {
         return json(res, 200, { ok: true })
       }
       if (method === 'POST') {
-        const body = (await readBody(req)) as { problem?: unknown; primer?: { track?: unknown; topic?: unknown }; clarify?: unknown; answer?: unknown; run?: unknown; message?: unknown }
+        const body = (await readBody(req)) as { problem?: unknown; primer?: { track?: unknown; topic?: unknown }; about?: unknown; answer?: unknown; run?: unknown; message?: unknown }
         const message = typeof body.message === 'string' ? body.message.trim().slice(0, 8000) : ''
         if (!message) throw new ValidationError('message is empty')
-        // The context is a problem's review (thread id = problem id), clarifying
-        // questions about a problem (clarify:<problem id>) or a primer (primer:<track>:<topic>).
+        // The context is a problem's review (thread id = problem id), any question
+        // about a problem (about:<problem id>) or a primer (primer:<track>:<topic>).
         let system: string
-        if (body.clarify) {
+        if (body.about) {
           const problem = problemFromBody(body.problem)
-          if (clarifyThreadId(problem.id) !== id) throw new ValidationError('problem id mismatch')
-          system = clarifyPrompt(problem)
+          if (aboutThreadId(problem.id) !== id) throw new ValidationError('problem id mismatch')
+          system = aboutPrompt(problem)
         } else if (body.primer) {
           const track = TRACKS.find((t) => t.id === body.primer?.track)?.id
           const topic = typeof body.primer.topic === 'string' ? body.primer.topic : ''

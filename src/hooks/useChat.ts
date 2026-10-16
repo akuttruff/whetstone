@@ -5,7 +5,7 @@ import type { ChatMessage, Problem, RunResult, Track } from '../types.ts'
 export type ChatContext =
   | { problem: Problem; answer: string; run: RunResult | null }
   | { primer: { track: Track; topic: string } }
-  | { clarify: true; problem: Problem }
+  | { about: true; problem: Problem }
 
 export interface ChatState {
   messages: ChatMessage[]
@@ -18,12 +18,12 @@ export interface ChatState {
 const EMPTY: ChatState = { messages: [], pending: '', streaming: false, error: null }
 
 export const primerThreadId = (track: Track, topic: string): string => `primer:${track}:${topic}`
-/** Clarifying questions about a problem, kept apart from its review thread. Mirrors server/prompts.ts. */
-export const clarifyThreadId = (problemId: string): string => `clarify:${problemId}`
+/** Any question about a problem, kept apart from its review thread. Mirrors server/prompts.ts. */
+export const aboutThreadId = (problemId: string): string => `about:${problemId}`
 
 /**
  * A conversation thread shared across devices: under a problem's review
- * (id = problem id), about the problem statement itself (id = clarify:<problem id>)
+ * (id = problem id), about the problem itself (id = about:<problem id>)
  * or on a primer (id = primer:<track>:<topic>). `context` is read when a
  * question is sent, so it always carries the current draft.
  */
