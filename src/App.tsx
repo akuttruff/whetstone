@@ -42,8 +42,8 @@ export default function App() {
   const [track, setTrack] = useState<Track>(() => remembered<Track>(TRACK_KEY, (v) => TRACKS.some((t) => t.id === v)) ?? 'coding')
   const [selectedId, setSelectedId] = useState<string | null>(() => remembered(SELECTED_KEY, () => true))
   const [settingsOpen, setSettingsOpen] = useState(false)
-  /** A topic whose primer is open instead of a problem. */
-  const [primerTopic, setPrimerTopic] = useState<string | null>(null)
+  /** A topic whose primer is open instead of a problem, in the track it belongs to. */
+  const [primerOpen, setPrimerOpen] = useState<{ track: Track; topic: string } | null>(null)
 
   const selected = selectedId ? problems.byId.get(selectedId) ?? null : null
   const inTrack = useMemo(() => problems.all.filter((p) => p.track === track), [problems.all, track])
@@ -57,7 +57,7 @@ export default function App() {
   useEffect(() => remember(SELECTED_KEY, selectedId), [selectedId])
 
   const select = (id: string | null): void => {
-    setPrimerTopic(null)
+    setPrimerOpen(null)
     setSelectedId(id)
     if (id) {
       const p = problems.byId.get(id)
@@ -70,13 +70,13 @@ export default function App() {
     setSelectedId(p.id)
   }
 
-  const openPrimer = (topic: string): void => {
-    const p = problems.all.find((q) => q.topic === topic && q.track === (selected?.track ?? track))
-    if (p) setTrack(p.track)
-    setPrimerTopic(topic)
+  /** The list names the tab's track; a problem names its own, which may differ from the tab on a wide screen. */
+  const openPrimer = (track: Track, topic: string): void => {
+    setTrack(track)
+    setPrimerOpen({ track, topic })
   }
-  const primer = primerTopic ? primerFor(selected?.track ?? track, primerTopic) ?? null : null
-  const primerCount = primer ? inTrack.filter((p) => p.topic === primer.topic).length : 0
+  const primer = primerOpen ? primerFor(primerOpen.track, primerOpen.topic) ?? null : null
+  const primerProblems = primer ? problems.all.filter((p) => p.track === primer.track && p.topic === primer.topic) : []
 
   const onDelete = async (p: Problem): Promise<void> => {
     if (!window.confirm(`Delete "${p.title}"?`)) return
@@ -98,11 +98,11 @@ export default function App() {
           <SettingsIcon size={20} />
         </button>
       </header>
-      <TrackTabs value={track} counts={counts} onChange={(t) => { setTrack(t); setPrimerTopic(null); if (!wide) setSelectedId(null) }} />
+      <TrackTabs value={track} counts={counts} onChange={(t) => { setTrack(t); setPrimerOpen(null); if (!wide) setSelectedId(null) }} />
       <div className="scroll">
         <p className="blurb">{TRACKS.find((t) => t.id === track)?.blurb}</p>
         <ProgressCard progress={progress} track={track} />
-        <ProblemList problems={inTrack} selectedId={primerTopic ? null : selectedId} progress={progress} onSelect={select} onDelete={(p) => void onDelete(p)} onPrimer={openPrimer} primerTopic={primerTopic} />
+        <ProblemList problems={inTrack} selectedId={primerOpen ? null : selectedId} progress={progress} onSelect={select} onDelete={(p) => void onDelete(p)} onPrimer={(topic) => openPrimer(track, topic)} primerTopic={primerOpen?.topic ?? null} />
       </div>
     </div>
   )
@@ -111,12 +111,12 @@ export default function App() {
     <PrimerScreen
       key={primer.topic}
       primer={primer}
-      count={primerCount}
+      count={primerProblems.length}
       wide={wide}
-      onBack={() => setPrimerTopic(null)}
+      onBack={() => setPrimerOpen(null)}
       onStart={() => {
-        const first = inTrack.find((p) => p.topic === primer.topic)
-        setPrimerTopic(null)
+        const first = primerProblems[0]
+        setPrimerOpen(null)
         if (first) setSelectedId(first.id)
       }}
     />
@@ -130,7 +130,7 @@ export default function App() {
       onAutoChange={onAutoChange}
       onVariant={onVariant}
       onReviewed={onReviewed}
-      onPrimer={openPrimer}
+      onPrimer={(topic) => openPrimer(selected.track, topic)}
     />
   ) : (
     <div className="empty-detail">

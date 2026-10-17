@@ -52,4 +52,23 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: /Read the Arrays & Hashing primer first/ }))
     expect(await screen.findByText('Say it out loud')).toBeInTheDocument()
   })
+
+  it('opens a Knowledge primer from the list while a coding problem is open on a wide screen', async () => {
+    stubServer()
+    const narrow = window.matchMedia
+    vi.stubGlobal('matchMedia', (query: string) => ({ ...narrow(query), matches: query.includes('min-width') }))
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Whetstone' })
+    await user.click(screen.getByText('Two Sum'))
+    expect(await screen.findByRole('heading', { name: 'Two Sum' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Knowledge/ }))
+    await user.click(screen.getAllByRole('button', { name: /Primer/ })[0]!)
+    expect(await screen.findByRole('heading', { level: 1, name: /TypeScript & JavaScript/ })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Two Sum' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Start practising' }))
+    expect(await screen.findByRole('heading', { name: 'The event loop' })).toBeInTheDocument()
+  })
 })
