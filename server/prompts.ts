@@ -127,6 +127,7 @@ const CODE_SCHEMA: JsonSchemaSpec = {
     type: 'object',
     properties: {
       title: { type: 'string' },
+      pattern: { type: 'string' },
       description: STR_ARRAY,
       examples: {
         type: 'array',
@@ -159,6 +160,7 @@ const DESIGN_SCHEMA: JsonSchemaSpec = {
     type: 'object',
     properties: {
       title: { type: 'string' },
+      pattern: { type: 'string' },
       prompt: STR_ARRAY,
       functional: STR_ARRAY,
       nonFunctional: STR_ARRAY,
@@ -176,7 +178,7 @@ const PROMPT_SCHEMA: JsonSchemaSpec = {
   name: 'prompt_problem',
   schema: {
     type: 'object',
-    properties: { title: { type: 'string' }, question: STR_ARRAY, keyPoints: STR_ARRAY, followUps: STR_ARRAY },
+    properties: { title: { type: 'string' }, pattern: { type: 'string' }, question: STR_ARRAY, keyPoints: STR_ARRAY, followUps: STR_ARRAY },
     required: ['title', 'question', 'keyPoints', 'followUps'],
   },
 }
@@ -203,6 +205,21 @@ function directionBrief(direction: Direction, target: Difficulty): string {
     'It should take a strong candidate 25 to 35 minutes.'
 }
 
+/**
+ * What goes in the "pattern" field. Easier and similar variants stay on the
+ * parent's pattern by definition. A harder one may genuinely move to another
+ * technique (a window maximum with a twist is a monotonic deque, not a hash
+ * map), and the pattern is what the technique chips and progress key on, so
+ * the model names it, from the known vocabulary when one fits.
+ */
+function patternBrief(problem: Problem, direction: Direction, known: string[]): string {
+  if (direction !== 'harder') return `\n\nSet "pattern" to exactly "${problem.pattern}".`
+  const names = [...new Set(known.map((k) => k.trim()).filter(Boolean))]
+  return `\n\nSet "pattern" to the core technique the NEW solution hinges on. Keep "${problem.pattern}" when it is still the backbone. ` +
+    'If your twist changes the core technique, name the new one instead' +
+    (names.length > 0 ? `, using one of these known names when one fits:\n${names.join(' | ')}` : '.')
+}
+
 /** Titles the model must steer clear of: siblings already generated on this pattern, so repeated drills stay fresh. */
 function avoidBrief(avoid: string[]): string {
   const titles = [...new Set(avoid.map((t) => t.trim()).filter(Boolean))].slice(0, 30)
@@ -220,12 +237,12 @@ function requestBrief(request: string | undefined): string {
     'If it asks for a different pattern, keep this pattern and honour the spirit of the request in the scenario instead.'
 }
 
-export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = [], request?: string): { system: string; user: string; schema: JsonSchemaSpec } {
+export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = [], request?: string, known: string[] = []): { system: string; user: string; schema: JsonSchemaSpec } {
   const target = stepDifficulty(problem.difficulty, direction)
   const common =
     'You write interview practice material for senior software engineers. Produce ONE new problem as JSON matching the schema. ' +
     'It must be a different problem from the original (different title and scenario), self-contained, and correct. '
-  const avoidText = requestBrief(request) + avoidBrief(avoid)
+  const avoidText = requestBrief(request) + patternBrief(problem, direction, known) + avoidBrief(avoid)
   if (isCode(problem)) {
     return {
       schema: CODE_SCHEMA,
@@ -550,12 +567,25 @@ export function validateProblem(input: unknown, fallback: Pick<Problem, 'track' 
 
 const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
 
+/**
+ * The pattern a variant is saved under. Easier and similar variants always
+ * take the parent's. A harder one takes the model's when it named one,
+ * spelt the way the catalogue spells it if it is a known pattern.
+ */
+export function variantPattern(raw: unknown, parent: Problem, direction: Direction, known: string[] = []): string {
+  if (direction !== 'harder') return parent.pattern
+  const named = str((raw as Record<string, unknown> | null)?.pattern, 100)
+  if (!named) return parent.pattern
+  return known.find((k) => k.toLowerCase() === named.toLowerCase()) ?? named
+}
+
 /** The model's JSON for a variant, made into a saved-shape problem under its parent. */
-export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean, request?: string): Problem {
+export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean, request?: string, known: string[] = []): Problem {
   const difficulty = stepDifficulty(parent.difficulty, direction)
+  const pattern = variantPattern(raw, parent, direction, known)
   const p = validateProblem(
-    { ...(raw as object), track: parent.track, topic: parent.topic, pattern: parent.pattern, difficulty, source: 'generated', parentId: parent.id },
-    { track: parent.track, topic: parent.topic, pattern: parent.pattern, difficulty },
+    { ...(raw as object), track: parent.track, topic: parent.topic, pattern, difficulty, source: 'generated', parentId: parent.id },
+    { track: parent.track, topic: parent.topic, pattern, difficulty },
   )
   let id = `${slug(p.title) || 'variant'}-${direction}`
   let n = 2

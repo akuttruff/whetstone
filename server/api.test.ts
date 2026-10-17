@@ -42,7 +42,7 @@ const fakeFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit):
   }
   // A variant request: a tiny knowledge problem.
   lastVariantPrompt = (body as { messages: { content: string }[] }).messages.at(-1)!.content
-  return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ title: 'Smaller question', question: ['why?'], keyPoints: ['a', 'b'], followUps: [] }) } }] })
+  return Response.json({ model: 'fake', choices: [{ message: { content: JSON.stringify({ title: 'Smaller question', pattern: 'Consensus protocols', question: ['why?'], keyPoints: ['a', 'b'], followUps: [] }) } }] })
 })
 
 beforeAll(async () => {
@@ -99,7 +99,14 @@ describe('api', () => {
     const { problem, verified } = await res.json()
     expect(problem).toMatchObject({ title: 'Smaller question', track: 'knowledge', parentId: parent.id, source: 'generated' })
     expect(verified).toBeNull()
+    // an easier variant ignores the pattern the model named; a harder one keeps it
+    expect(problem.pattern).toBe(parent.pattern)
     expect(await (await realFetch(base + '/api/problems')).json()).toHaveLength(1)
+    const harder = await (await post('/api/variants', { problem: parent, direction: 'harder' })).json()
+    expect(harder.problem.pattern).toBe('Consensus protocols')
+    expect(lastVariantPrompt).toMatch(/Set "pattern" to the core technique/)
+    expect(lastVariantPrompt).toContain(parent.pattern)
+    await realFetch(`${base}/api/problems/${harder.problem.id}`, { method: 'DELETE' })
     // A similar variant keeps the parent's difficulty; an unknown direction falls back to easier.
     const similar = await (await post('/api/variants', { problem: parent, direction: 'similar' })).json()
     expect(similar.problem).toMatchObject({ difficulty: parent.difficulty, parentId: parent.id })

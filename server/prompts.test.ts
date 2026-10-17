@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseVerdict, reviewPrompt, stepDifficulty, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { parseVerdict, reviewPrompt, stepDifficulty, validateProblem, variantFromModel, variantPattern, variantPrompt } from './prompts.ts'
 import { ValidationError } from './store.ts'
 import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
 import type { CodeProblem, Problem } from '../src/types.ts'
@@ -78,6 +78,28 @@ describe('variants', () => {
     const p = variantFromModel(raw, twoSum, 'easier', (id) => id === 'pair-sum-exists-easier') as CodeProblem
     expect(p).toMatchObject({ id: 'pair-sum-exists-easier-2', track: 'coding', topic: twoSum.topic, pattern: twoSum.pattern, difficulty: 'easy', source: 'generated', parentId: 'two-sum', direction: 'easier' })
     expect(p.tests).toEqual([{ call: 'pairSum()', expected: true }])
+  })
+  it('lets a harder variant name its own pattern, from the known vocabulary', () => {
+    const known = ['Hash map lookup', 'Monotonic deque']
+    // easier and similar stay on the parent's pattern, whatever the model says
+    expect(variantPrompt(twoSum, 'similar', [], '', known).user).toContain('Set "pattern" to exactly "Hash map lookup"')
+    expect(variantPrompt(twoSum, 'easier', [], '', known).user).not.toMatch(/known names/)
+    expect(variantPattern({ pattern: 'Monotonic deque' }, twoSum, 'similar', known)).toBe('Hash map lookup')
+    // harder may move, and the prompt offers the vocabulary
+    const { user } = variantPrompt(twoSum, 'harder', [], '', known)
+    expect(user).toMatch(/Keep "Hash map lookup" when it is still the backbone/)
+    expect(user).toContain('Hash map lookup | Monotonic deque')
+    expect(variantPattern({ pattern: 'monotonic DEQUE' }, twoSum, 'harder', known)).toBe('Monotonic deque')
+    expect(variantPattern({ pattern: 'Sparse table' }, twoSum, 'harder', known)).toBe('Sparse table')
+    expect(variantPattern({}, twoSum, 'harder', known)).toBe('Hash map lookup')
+    expect(variantPattern({ pattern: '   ' }, twoSum, 'harder', known)).toBe('Hash map lookup')
+    const raw = {
+      title: 'Window Max With Ties', pattern: 'monotonic deque', description: ['Max per window.'], examples: [{ input: '[1,3], 1', output: '[1,3]' }], hints: ['deque'],
+      starter: 'export function f(): number[] { return [] }', solution: 'export function f(): number[] { return [1, 3] }',
+      tests: [{ call: 'f()', expectedJson: '[1,3]' }],
+    }
+    expect(variantFromModel(raw, twoSum, 'harder', () => false, '', known).pattern).toBe('Monotonic deque')
+    expect(variantFromModel(raw, twoSum, 'similar', () => false, '', known).pattern).toBe('Hash map lookup')
   })
   it('refuses a variant without the essentials', () => {
     expect(() => variantFromModel({ title: 'x' }, twoSum, 'easier', () => false)).toThrow(ValidationError)

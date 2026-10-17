@@ -80,7 +80,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   hints, talking points or key points to explain from.
 - **Techniques** (`src/data/techniques.ts`) is a catalogue of the techniques
   the coding and practical problems exercise, matched to a problem by its
-  `pattern` string (so generated variants get their parent's). Chips under
+  `pattern` string. Chips under
   the statement open a sheet with a plain-words explanation, the moves, the
   invariant, the primer's template, and for most techniques a step-through
   visualisation (`src/viz/*`): the real algorithm runs on a small fixed
@@ -92,7 +92,11 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   button on a problem opens a sheet: an optional free-text steer (for example
   "keep practising hash lookups but focus on counting") and then the level.
   "Similar" keeps the difficulty and the core technique but changes the
-  scenario, so you can drill one pattern by repetition. The steer rides along
+  scenario, so you can drill one pattern by repetition. Easier and similar
+  variants are saved under the parent's pattern; a harder one may name its
+  own (the model is given the track's pattern vocabulary) when its twist
+  moves the core technique, so the technique chips and progress stay right.
+  The steer rides along
   in the prompt (max 600 characters) and is saved on the generated problem,
   which shows it under its statement. The request also lists the titles
   already on that pattern (built-in and generated) so repeated drills stay

@@ -172,12 +172,16 @@ export function createApi(options: ApiOptions = {}) {
       const request = (body.request ?? '').trim()
       if (request.length > REQUEST_MAX_CHARS) throw new ValidationError(`request is too long (max ${REQUEST_MAX_CHARS} characters)`)
       const settings = store.getSettings()
-      const avoid = [...BUILTIN_PROBLEMS, ...store.listProblems()]
+      const all = [...BUILTIN_PROBLEMS, ...store.listProblems()]
+      const avoid = all
         .filter((q) => q.id !== parent.id && q.track === parent.track && q.pattern === parent.pattern)
         .map((q) => q.title)
-      const { system, user, schema } = variantPrompt(parent, direction, avoid, request)
+      // The pattern vocabulary of this track, so a harder variant that moves
+      // to another technique names it the way the technique catalogue does.
+      const known = [...new Set(all.filter((q) => q.track === parent.track).map((q) => q.pattern))]
+      const { system, user, schema } = variantPrompt(parent, direction, avoid, request, known)
       const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: VARIANT_MAX_TOKENS, temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
-      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request)
+      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request, known)
       let verified: { passed: number; total: number } | null = null
       if (isCode(problem) && problem.tests.length > 0) {
         const run = await runTests(problem.solution, problem.tests, { dir: runDir })
