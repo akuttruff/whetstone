@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { ArrowLeft, BookOpen } from 'lucide-react'
 import ChatThread from './ChatThread.tsx'
 import CodeEditor from './CodeEditor.tsx'
+import DocLinks from './DocLinks.tsx'
+import { TOPIC_DOCS } from '../data/docs.ts'
 import useChat, { primerThreadId } from '../hooks/useChat.ts'
 import { COMPLEXITY_GLOSSARY } from '../data/primers.ts'
 import type { Primer } from '../types.ts'
@@ -93,6 +95,8 @@ export default function PrimerScreen({ primer, count, wide, onBack, onStart }: P
 
         <h3>Say it out loud</h3>
         <ul>{primer.checklist.map((c, i) => <li key={i}>{c}</li>)}</ul>
+
+        <DocLinks links={TOPIC_DOCS[primer.topic] ?? []} title="Read more" />
 
         <ChatThread
           {...chat}

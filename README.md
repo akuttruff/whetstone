@@ -56,6 +56,11 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
 - **Auto review** debounces N seconds after the last edit (Settings), skips
   unchanged or starter text, and queues one more review if you keep typing
   during one.
+- **Reading** (`src/data/docs.ts`): each Knowledge question on the web side of
+  the track (JavaScript, HTTP, performance, testing) links the reference page
+  behind it, MDN where MDN covers it and the tool's own documentation where
+  not; its primer links where the topic's reading starts. A test checks every
+  key names a built-in question or topic.
 - **Primers** (`src/data/primers-*.ts`) are one per topic in every track: how
   to recognise the problem type, each technique with when/how/complexity and a
   TypeScript template, pitfalls, and what to say out loud. They open from the

@@ -70,5 +70,8 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: 'Start practising' }))
     expect(await screen.findByRole('heading', { name: 'The event loop' })).toBeInTheDocument()
+    const more = screen.getByRole('link', { name: /JavaScript execution model/ })
+    expect(more).toHaveAttribute('href', expect.stringContaining('developer.mozilla.org'))
+    expect(more).toHaveAttribute('target', '_blank')
   })
 })

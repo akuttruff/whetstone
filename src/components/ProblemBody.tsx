@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import Markdown from 'react-markdown'
 import CodeEditor from './CodeEditor.tsx'
+import DocLinks from './DocLinks.tsx'
+import { PROBLEM_DOCS } from '../data/docs.ts'
 import { BookOpen, Play } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
 import { isCode, isDesign } from '../types.ts'
@@ -114,6 +116,7 @@ export default function ProblemBody({ problem, onPrimer, techniques = [], onTech
           <ul>{problem.followUps.map((f, i) => <li key={i}>{f}</li>)}</ul>
         </details>
       )}
+      <DocLinks links={PROBLEM_DOCS[problem.id] ?? []} />
     </div>
   )
 }
