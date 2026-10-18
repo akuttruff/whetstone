@@ -37,6 +37,34 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
 /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --https=8444 http://127.0.0.1:8310
 ```
 
+## Local models
+
+Every review, hint ladder, tutor thread and generated variant is written by
+a model on this machine. Whetstone speaks the OpenAI chat API
+(`POST <server>/chat/completions`, streamed), so it works with any local
+server that does.
+
+- **oMLX** is the default: `http://127.0.0.1:8000/v1` with
+  `Qwen3.8-27B-MLX-8bit`, which is what the prompts are tuned on. Start
+  oMLX with that model loaded and nothing needs setting.
+- **LM Studio** works too. Start its server in the **Developer** tab, set
+  *Model server* in Settings to `http://127.0.0.1:1234/v1`, pick the model
+  by its LM Studio name (for example `qwen/qwen3.8-27b`), and paste an API
+  token if **Require Authentication** is on. The token stays on the server.
+- **Thinking.** "Let the model think first" in Settings turns the model's
+  reasoning on (`enable_thinking` through `chat_template_kwargs`, which
+  Qwen models honour). Off is faster; on is sometimes sharper on reviews
+  and design critiques. `<think>` blocks are stripped either way.
+- **Structured output.** Variants and ports ask for a JSON schema
+  (`response_format: json_schema`, strict), so the server must support it;
+  oMLX and LM Studio both do.
+- **What runs where.** The model only reads and writes text. Your code runs
+  in Whetstone's own sandbox on this machine (Node, `ruby`, `javac`), and
+  the test results go to the model with the draft.
+
+Settings are stored server-side, so the phone and the desktop share the
+same model and server.
+
 ## How it works
 
 - **Content** is plain data in `src/data/*.ts`. Every problem has a `topic`
