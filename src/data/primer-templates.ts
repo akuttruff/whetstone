@@ -556,6 +556,55 @@ class Heap<T> {
   }
 }`,
   },
+  'Caching::LRU via Map order': {
+    ruby: `def get(key)
+  return nil unless @m.key?(key)
+  v = @m.delete(key)
+  @m[key] = v # a Hash keeps insertion order: re-adding moves it to the end
+  v
+end`,
+    java: `public V get(K key) {
+  if (!m.containsKey(key)) return null;
+  V v = m.remove(key);
+  m.put(key, v); // a LinkedHashMap keeps insertion order: re-adding moves it to the end
+  return v;
+}`,
+  },
+  'Async & Concurrency::Worker pool over a shared counter': {
+    ruby: `next_index = 0
+mutex = Mutex.new
+worker = lambda do
+  loop do
+    i = mutex.synchronize { next_index += 1; next_index - 1 }
+    break if i >= items.length
+    results[i] = fn.call(items[i], i)
+  end
+end
+Array.new(limit) { Thread.new(&worker) }.each(&:join)`,
+    java: `AtomicInteger next = new AtomicInteger();
+Runnable worker = () -> {
+  for (int i = next.getAndIncrement(); i < items.size(); i = next.getAndIncrement()) results.set(i, fn.apply(items.get(i), i));
+};
+List<Thread> threads = new ArrayList<>();
+for (int w = 0; w < limit; w++) { Thread t = new Thread(worker); t.start(); threads.add(t); }
+for (Thread t : threads) t.join();`,
+  },
+  'Async & Concurrency::Timeout and cancellation': {
+    ruby: `token = CancelToken.new
+thread = Thread.new { run.call(token) }
+if thread.join(ms / 1000.0).nil? # still running: cancel and report
+  token.cancel
+  raise 'timeout'
+end
+thread.value`,
+    java: `Future<T> future = executor.submit(() -> run.apply(token));
+try {
+  return future.get(ms, TimeUnit.MILLISECONDS);
+} catch (TimeoutException e) {
+  token.cancel(); // so the callee stops
+  throw new Exception("timeout");
+}`,
+  },
   'Strings::Expand around centre': {
     ruby: `expand = lambda do |l, r|
   while l >= 0 && r < s.length && s[l] == s[r]

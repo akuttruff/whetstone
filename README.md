@@ -1,8 +1,8 @@
 # Whetstone
 
 Interview practice for senior software engineers, reviewed by a local model.
-Five tracks (coding in TypeScript, Ruby or Java; practical TypeScript; system
-design; knowledge questions; behavioral), a primer per topic distilling the
+Five tracks (coding and practical utilities, each in TypeScript, Ruby or
+Java; system design; knowledge questions; behavioral), a primer per topic distilling the
 techniques before you start, a live editor with sandboxed tests, streaming
 model feedback with an optional auto mode, a hint ladder when you are stuck,
 and a steerable easier/similar/harder variant generation on the same pattern.
@@ -45,19 +45,22 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   names the function (`fn`) and gives its arguments as JSON (`args`), with an
   `expected` JSON value, so the same checks run in every language (linked
   lists travel as `{ val, next }` objects, trees as `{ val, left, right }`).
-  The practical track's tests are TypeScript `call` expressions, since they
-  exercise closures and promises. `server/content.test.ts` runs every
-  reference solution through the real sandbox, so content cannot drift.
-- **Languages.** Every coding problem exists in TypeScript, Ruby and Java:
-  `src/data/ports-ruby.ts` and `ports-java.ts` hold a starter and a reference
-  solution per problem, written by hand to mirror the TypeScript ones, and
-  the content test runs each through its own sandbox (and checks each starter
-  loads or compiles). The toggle next to the title picks the language; it is
+  Practical problems are about closures, timers and promises, which JSON
+  cannot carry, so each has a test driver (`src/data/practical-drivers.ts`):
+  a function in the starter that replays a plain-data script against the
+  candidate's code and returns plain data. `server/content.test.ts` runs
+  every reference solution through the real sandbox, so content cannot drift.
+- **Languages.** Every coding and practical problem exists in TypeScript,
+  Ruby and Java: `src/data/ports-*.ts` hold a starter and a reference
+  solution per problem, written by hand to mirror the TypeScript ones
+  (promises become threads or executors, AbortSignal a small CancelToken),
+  and the content test runs each through its own sandbox (and checks each
+  starter loads or compiles). The toggle next to the title picks the language; it is
   a setting, so the phone and the desktop agree. Drafts, reviews, hint
   ladders and threads are kept per language (`<id>@ruby`, `<id>@java`; plain
   id for TypeScript), and the review, tutor and hint prompts all speak that
-  language. Primer templates come in all three too. The practical track is
-  TypeScript only. Ruby and Java need their toolchains on the machine running
+  language. Primer templates come in all three too. Ruby and Java need their
+  toolchains on the machine running
   the server (`brew install ruby openjdk`; see `server/langs.ts` for where it
   looks, or set `WHETSTONE_RUBY` / `WHETSTONE_JAVA_HOME`); `GET /api/languages`
   says what is available and Settings shows it.

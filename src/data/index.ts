@@ -2,6 +2,9 @@ import type { Problem, Track } from '../types.ts'
 import { normaliseTests } from '../lib/tests.ts'
 import { RUBY_PORTS } from './ports-ruby.ts'
 import { JAVA_PORTS } from './ports-java.ts'
+import { RUBY_PRACTICAL } from './ports-practical-ruby.ts'
+import { JAVA_PRACTICAL } from './ports-practical-java.ts'
+import { PRACTICAL_DRIVERS } from './practical-drivers.ts'
 import { CODING_PROBLEMS } from './coding.ts'
 import { CODING_ARRAYS } from './coding-arrays.ts'
 import { CODING_STRUCTURES } from './coding-structures.ts'
@@ -23,10 +26,13 @@ import { BEHAVIORAL_MORE } from './behavioral-more.ts'
 const neutral = (ps: Problem[]): Problem[] =>
   ps.map((p) => {
     if (!('tests' in p)) return p
-    const ruby = RUBY_PORTS[p.id]
-    const java = JAVA_PORTS[p.id]
-    const ports = p.track === 'coding' && (ruby || java) ? { ...(ruby ? { ruby } : {}), ...(java ? { java } : {}) } : undefined
-    return { ...p, tests: normaliseTests(p.tests), ...(ports ? { ports } : {}) }
+    const ruby = (p.track === 'coding' ? RUBY_PORTS : RUBY_PRACTICAL)[p.id]
+    const java = (p.track === 'coding' ? JAVA_PORTS : JAVA_PRACTICAL)[p.id]
+    const ports = ruby || java ? { ...(ruby ? { ruby } : {}), ...(java ? { java } : {}) } : undefined
+    // Practical problems: the test driver rides along in the starter and the solution, and the tests call it.
+    const drivers = p.track === 'practical' ? PRACTICAL_DRIVERS[p.id] : undefined
+    const withDriver = drivers?.driver ? { starter: p.starter.trimEnd() + '\n\n' + drivers.driver, solution: p.solution.trimEnd() + '\n\n' + drivers.driver } : {}
+    return { ...p, ...withDriver, tests: normaliseTests(drivers?.tests ?? p.tests), ...(ports ? { ports } : {}) }
   })
 
 export const BUILTIN_PROBLEMS: Problem[] = neutral([

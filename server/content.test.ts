@@ -10,7 +10,6 @@ import { runTests } from './runner.ts'
 
 const dir = path.join(os.tmpdir(), 'whetstone-content-test')
 const code = BUILTIN_PROBLEMS.filter(isCode)
-const coding = code.filter((p) => p.track === 'coding')
 const have = availability()
 
 describe('built-in content', () => {
@@ -32,8 +31,8 @@ describe('built-in content', () => {
     }
   })
 
-  it('every coding problem has language-neutral tests (function name plus JSON arguments)', () => {
-    const stuck = coding.filter((p) => !languageNeutral(p.tests)).map((p) => p.id)
+  it('every code problem has language-neutral tests (function name plus JSON arguments)', () => {
+    const stuck = code.filter((p) => !languageNeutral(p.tests)).map((p) => p.id)
     expect(stuck).toEqual([])
   })
 
@@ -60,10 +59,10 @@ describe('built-in content', () => {
  */
 const portSuite = (language: Exclude<Language, 'typescript'>): void => {
   describe.skipIf(!have[language])(`${language} ports`, () => {
-    it('cover every coding problem, with a starter that differs from the solution', () => {
-      const missing = coding.filter((p) => !p.ports?.[language]).map((p) => p.id)
+    it('cover every coding and practical problem, with a starter that differs from the solution', () => {
+      const missing = code.filter((p) => !p.ports?.[language]).map((p) => p.id)
       expect(missing).toEqual([])
-      for (const p of coding) {
+      for (const p of code) {
         const port = p.ports![language]!
         expect(port.starter.trim().length, `${p.id} starter`).toBeGreaterThan(0)
         expect(port.starter, p.id).not.toBe(port.solution)
@@ -72,7 +71,7 @@ const portSuite = (language: Exclude<Language, 'typescript'>): void => {
 
     it('every solution passes its tests and every starter loads', async () => {
       const failures: string[] = []
-      const queue = coding.filter((p) => p.ports?.[language]).slice()
+      const queue = code.filter((p) => p.ports?.[language]).slice()
       const worker = async (): Promise<void> => {
         for (let p = queue.shift(); p; p = queue.shift()) {
           const port = p.ports![language]!
@@ -101,8 +100,8 @@ describe('primers', () => {
     const orphans = PRIMERS.filter((p) => !topics.has(`${p.track}::${p.topic}`)).map((p) => `${p.track}::${p.topic}`)
     expect(orphans).toEqual([])
   })
-  it('have every coding template in Ruby and Java, and no orphan templates', () => {
-    const coding = PRIMERS.filter((p) => p.track === 'coding')
+  it('have every coding and practical template in Ruby and Java, and no orphan templates', () => {
+    const coding = PRIMERS.filter((p) => p.track === 'coding' || p.track === 'practical')
     const keys = new Set(coding.flatMap((p) => p.techniques.filter((t) => t.template).map((t) => `${p.topic}::${t.name}`)))
     expect([...keys].filter((k) => !PRIMER_TEMPLATES[k])).toEqual([])
     expect(Object.keys(PRIMER_TEMPLATES).filter((k) => !keys.has(k))).toEqual([])

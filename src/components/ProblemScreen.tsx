@@ -46,7 +46,7 @@ interface Props {
 
 export default function ProblemScreen({ problem, settings, wide, onBack, onAutoChange, onVariant, onPorted, onReviewed, onPrimer }: Props) {
   const code = isCode(problem)
-  // Practical problems are TypeScript whatever the toggle says; coding ones follow it.
+  // Code problems (coding and practical) follow the toggle; prose ones have no language.
   const language = langFor(problem, settings.language)
   const port = portFor(problem, language)
   /** Drafts, reviews, guides and threads are per language: the problem id in TypeScript, id@language otherwise. */
@@ -224,7 +224,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
             <span className={`diff diff-${problem.difficulty}`}>{DIFFICULTY_LABEL[problem.difficulty]}</span>
             <span className="dot" />
             <span>{problem.pattern}</span>
-            {problem.track === 'coding' && (
+            {code && (
               <>
                 <span className="dot" />
                 <span>{LANGUAGE_LABEL[language]}</span>

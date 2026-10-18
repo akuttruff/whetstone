@@ -8,13 +8,13 @@ export type Track = 'coding' | 'practical' | 'design' | 'knowledge' | 'behaviora
 
 export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: 'coding', label: 'Coding', blurb: 'Algorithms and data structures, pattern by pattern.' },
-  { id: 'practical', label: 'Practical', blurb: 'The utilities senior TypeScript engineers get asked to write live: caches, pools, limiters, emitters.' },
+  { id: 'practical', label: 'Practical', blurb: 'The utilities senior engineers get asked to write live: caches, pools, limiters, emitters.' },
   { id: 'design', label: 'Design', blurb: 'System design prompts with the talking points a strong answer covers.' },
   { id: 'knowledge', label: 'Knowledge', blurb: 'Short-answer questions across the stack: language, web, data, distributed systems, infra, AI.' },
   { id: 'behavioral', label: 'Behavioral', blurb: 'Leadership and collaboration stories, told in STAR form.' },
 ]
 
-/** The languages a coding problem can be attempted in. Practical problems are TypeScript only. */
+/** The languages a code problem (coding or practical) can be attempted in. */
 export type Language = 'typescript' | 'ruby' | 'java'
 export const LANGUAGES: { id: Language; label: string; short: string }[] = [
   { id: 'typescript', label: 'TypeScript', short: 'TS' },
@@ -95,8 +95,8 @@ export interface CodeProblem extends ProblemBase {
   ports?: Partial<Record<Exclude<Language, 'typescript'>, Port>>
 }
 
-/** The language a problem is worked in: practical problems are TypeScript whatever the setting. */
-export const langFor = (p: Problem, language: Language): Language => (p.track === 'coding' ? language : 'typescript')
+/** The language a problem is worked in: the setting for code problems, TypeScript (irrelevant) for prose ones. */
+export const langFor = (p: Problem, language: Language): Language => (isCode(p) ? language : 'typescript')
 
 /** The starter and solution in a language, or null when the problem has not been ported to it. */
 export function portFor(p: Problem, language: Language): Port | null {

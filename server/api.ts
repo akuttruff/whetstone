@@ -215,7 +215,6 @@ export function createApi(options: ApiOptions = {}) {
       const problem = problemFromBody(body.problem)
       const language = languageFromBody(body.language)
       if (!isCode(problem)) throw new ValidationError('only code problems have ports')
-      if (problem.track !== 'coding') throw new ValidationError('practical problems are TypeScript only')
       if (!store.hasProblem(problem.id)) throw new ValidationError('built-in problems are ported by hand; this is for generated ones')
       if (portFor(problem, language)) throw new ValidationError(`already available in ${LANGUAGE_LABEL[language]}`)
       const { system, user, schema } = portPrompt(problem, language)
