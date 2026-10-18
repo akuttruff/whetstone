@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App.tsx'
 
 /** The server, faked: no generated problems, default settings, nothing reviewed. */
-function stubServer(): void {
+function stubServer(language = 'typescript'): void {
   vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const u = String(url)
     const method = init?.method ?? 'GET'
-    if (u.startsWith('/api/settings')) return Response.json({ baseUrl: 'http://x/v1', model: 'm', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: true, language: 'typescript', hasApiKey: false })
+    if (u.startsWith('/api/settings')) return Response.json({ baseUrl: 'http://x/v1', model: 'm', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: true, language, hasApiKey: false })
     if (u.startsWith('/api/languages')) return Response.json({ typescript: true, ruby: true, java: true })
     if (u.startsWith('/api/problems')) return Response.json([])
     if (u.startsWith('/api/progress')) return Response.json({ patterns: [], latest: { 'two-sum': 9 } })
@@ -38,6 +38,18 @@ describe('App', () => {
     expect(screen.getByRole('tab', { name: 'Notes' })).toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: 'Notes' }))
     expect(await screen.findByPlaceholderText(/Requirements/)).toBeInTheDocument()
+  })
+
+  it('lists the knowledge topic of the selected language only', async () => {
+    stubServer('ruby')
+    const user = userEvent.setup()
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Whetstone' })).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Knowledge/ }))
+    expect(await screen.findByText('The GVL, threads, fibers and Ractors')).toBeInTheDocument()
+    expect(screen.queryByText('The event loop')).not.toBeInTheDocument()
+    expect(screen.queryByText('JVM memory and garbage collection')).not.toBeInTheDocument()
+    expect(screen.getByText('HTTP caching')).toBeInTheDocument() // shared topics stay
   })
 
   it('opens a topic primer from the list and from a problem, and starts practising from it', async () => {

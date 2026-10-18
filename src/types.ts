@@ -47,6 +47,8 @@ interface ProblemBase {
   direction?: Direction
   /** For generated variants: what the candidate asked for when generating it, if anything. */
   request?: string
+  /** Only listed when this language is selected (language-specific knowledge questions); absent means every language. */
+  language?: Language
   createdAt?: string
 }
 

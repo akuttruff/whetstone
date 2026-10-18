@@ -129,7 +129,7 @@ export const KNOWLEDGE_MORE: PromptProblem[] = [
     ['Bounded contexts align models with teams; the same word (customer) means different things in billing and support', 'Aggregates define transactional consistency boundaries; small aggregates; invariants enforced inside', 'Anti-corruption layer when integrating with legacy or third-party models', 'Overkill for CRUD apps or tiny teams; the strategic patterns matter more than the tactical ones'],
     ['How do you discover boundaries in an existing monolith?']),
   q('arch-hexagonal-12factor', 'Architecture', 'Application structure', 'easy', 'Hexagonal architecture and 12-factor apps',
-    'Explain ports-and-adapters (hexagonal) architecture and the 12-factor principles. Which of them matter most for a Node service deployed in containers, and which are often cargo-culted?',
+    'Explain ports-and-adapters (hexagonal) architecture and the 12-factor principles. Which of them matter most for a service deployed in containers, and which are often cargo-culted?',
     ['Domain logic depends on interfaces (ports); adapters implement them for HTTP, DB, queues; enables testing with fakes', '12-factor: config in environment, stateless processes, logs as streams, disposability, dev/prod parity, backing services attached', 'Most valuable: config, statelessness, logs, graceful shutdown; cargo-cult: layering ceremony in small services', 'Dependency injection without a heavy framework'],
     ['Where do you draw the line on abstraction for a two-person team?']),
   q('arch-adr-documentation', 'Architecture', 'Engineering practice', 'easy', 'Technical documentation that gets read',
@@ -181,7 +181,7 @@ export const KNOWLEDGE_MORE: PromptProblem[] = [
     ['Cache when reads dominate, computation is expensive, and staleness is tolerable; measure hit rate and cost per miss', 'Layer by proximity: in-process for hot small data, distributed for shared, CDN for public', 'High-cardinality keys with low reuse give poor hit rates; cache the expensive sub-result instead', 'Set TTLs by staleness tolerance; invalidate on write for correctness-sensitive data'],
     ['How do you measure whether a cache is helping?']),
   q('perf-profiling-method', 'Performance', 'Methodology', 'medium', 'A method for performance work',
-    'Describe your method for performance work so it does not become guesswork: setting a target, measuring, finding the bottleneck, fixing, and verifying. Include the tools you use for Node and for the browser.',
+    'Describe your method for performance work so it does not become guesswork: setting a target, measuring, finding the bottleneck, fixing, and verifying. Include the tools you use on the server and in the browser.',
     ['Define the target (p95 under X at Y load); measure in production or a faithful environment; one change at a time', 'Find the bottleneck with profiles and traces (CPU profiles, flame graphs, EXPLAIN, DevTools performance panel, Lighthouse)', 'Amdahl: fix the biggest share first; beware micro-optimisations', 'Verify with the same measurement; add a regression guard (benchmark in CI, alert on latency)'],
     ['What do you do when the profile is flat?']),
 ]

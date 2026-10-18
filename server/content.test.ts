@@ -3,7 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_PROBLEMS } from '../src/data/full.ts'
 import { languageNeutral } from '../src/lib/tests.ts'
-import { isCode } from '../src/types.ts'
+import { isCode, isPrompt } from '../src/types.ts'
 import type { Language } from '../src/types.ts'
 import { availability } from './langs.ts'
 import { runTests } from './runner.ts'
@@ -29,6 +29,18 @@ describe('built-in content', () => {
       expect(p.tests.length, `${p.id} has no tests`).toBeGreaterThan(0)
       expect(p.starter, p.id).not.toBe(p.solution)
     }
+  })
+
+  it('gives each language its own knowledge topic, tagged so only that language lists it', () => {
+    const knowledge = BUILTIN_PROBLEMS.filter(isPrompt).filter((p) => p.track === 'knowledge')
+    for (const [language, topic] of [['typescript', 'TypeScript & JavaScript'], ['ruby', 'Ruby'], ['java', 'Java']] as const) {
+      const own = knowledge.filter((p) => p.language === language)
+      expect(own.length, language).toBeGreaterThanOrEqual(10)
+      expect(new Set(own.map((p) => p.topic)), language).toEqual(new Set([topic]))
+    }
+    // The shared topics name no language in their questions.
+    const shared = knowledge.filter((p) => !p.language)
+    expect(shared.filter((p) => /typescript|\bnode\b|ruby|\bjava\b/i.test(p.question.join(' '))).map((p) => p.id)).toEqual([])
   })
 
   it('every code problem has language-neutral tests (function name plus JSON arguments)', () => {

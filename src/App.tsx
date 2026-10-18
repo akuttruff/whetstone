@@ -56,12 +56,14 @@ export default function App() {
   const ready = settingsLoaded && problems.ready
 
   const selected = selectedId ? problems.byId.get(selectedId) ?? null : null
-  const inTrack = useMemo(() => problems.all.filter((p) => p.track === track), [problems.all, track])
+  /** Problems for the current language: language-specific knowledge topics show only for their language. */
+  const forLanguage = useMemo(() => problems.all.filter((p) => !p.language || p.language === settings.language), [problems.all, settings.language])
+  const inTrack = useMemo(() => forLanguage.filter((p) => p.track === track), [forLanguage, track])
   const counts = useMemo(() => {
     const c = Object.fromEntries(TRACKS.map((t) => [t.id, 0])) as Record<Track, number>
-    for (const p of problems.all) c[p.track]++
+    for (const p of forLanguage) c[p.track]++
     return c
-  }, [problems.all])
+  }, [forLanguage])
 
   useEffect(() => remember(TRACK_KEY, track), [track])
   useEffect(() => remember(SELECTED_KEY, selectedId), [selectedId])
@@ -86,7 +88,7 @@ export default function App() {
     setPrimerOpen({ track, topic })
   }
   const primer = primerOpen ? primerFor(primerOpen.track, primerOpen.topic) ?? null : null
-  const primerProblems = primer ? problems.all.filter((p) => p.track === primer.track && p.topic === primer.topic) : []
+  const primerProblems = primer ? forLanguage.filter((p) => p.track === primer.track && p.topic === primer.topic) : []
 
   const onDelete = async (p: Problem): Promise<void> => {
     if (!window.confirm(`Delete "${p.title}"?`)) return

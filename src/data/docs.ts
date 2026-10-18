@@ -15,6 +15,11 @@ const node = (label: string, path: string): DocLink => ({ label, url: `https://n
 const ts = (label: string, path: string): DocLink => ({ label, url: `https://www.typescriptlang.org/docs/handbook/${path}` })
 const react = (label: string, path: string): DocLink => ({ label, url: `https://react.dev/learn/${path}` })
 const owasp = (label: string, url: string): DocLink => ({ label, url })
+const rb = (label: string, path: string): DocLink => ({ label, url: `https://docs.ruby-lang.org/en/3.4/${path}` })
+const rails = (label: string, path: string): DocLink => ({ label, url: `https://guides.rubyonrails.org/${path}` })
+const jdk = (label: string, path: string): DocLink => ({ label, url: `https://docs.oracle.com/en/java/javase/21/${path}` })
+const devjava = (label: string, path: string): DocLink => ({ label, url: `https://dev.java/learn/${path}` })
+const link = (label: string, url: string): DocLink => ({ label, url })
 
 /** Where a whole topic's reading starts, shown at the foot of its primer. */
 export const TOPIC_DOCS: Record<string, DocLink[]> = {
@@ -23,6 +28,16 @@ export const TOPIC_DOCS: Record<string, DocLink[]> = {
     mdn('JavaScript Reference', 'Web/JavaScript/Reference'),
     ts('TypeScript Handbook', 'intro.html'),
     node('Node.js documentation', 'api/'),
+  ],
+  'Ruby': [
+    rb('Ruby documentation', 'index.html'),
+    rails('Rails Guides', ''),
+    link('Ruby language reference', 'https://ruby-doc.org/'),
+  ],
+  'Java': [
+    jdk('Java SE 21 documentation', 'index.html'),
+    devjava('Learn Java (dev.java)', ''),
+    link('OpenJDK', 'https://openjdk.org/'),
   ],
   'Web & HTTP': [
     mdn('HTTP', 'Web/HTTP'),
@@ -40,6 +55,36 @@ export const TOPIC_DOCS: Record<string, DocLink[]> = {
 
 /** The pages behind one question, by its id. */
 export const PROBLEM_DOCS: Record<string, DocLink[]> = {
+  // ── Ruby ────────────────────────────────────────────────────────────
+  'rb-gvl-concurrency': [rb('Thread', 'Thread.html'), rb('Fiber', 'Fiber.html'), rb('Ractor', 'ractor_md.html')],
+  'rb-blocks-procs-lambdas': [rb('Proc', 'Proc.html'), rb('Methods: blocks and yield', 'syntax/methods_rdoc.html')],
+  'rb-method-lookup': [rb('Module', 'Module.html'), rb('Refinements', 'syntax/refinements_rdoc.html'), rb('BasicObject#method_missing', 'BasicObject.html#method-i-method_missing')],
+  'rb-duck-typing-types': [link('RBS', 'https://github.com/ruby/rbs'), link('Sorbet', 'https://sorbet.org/docs/overview'), link('Steep', 'https://github.com/soutaro/steep')],
+  'rb-exceptions': [rb('Exceptions', 'syntax/exceptions_rdoc.html'), rb('Exception', 'Exception.html'), rb('StandardError', 'StandardError.html')],
+  'rb-memory-gc': [rb('GC', 'GC.html'), rb('ObjectSpace', 'ObjectSpace.html'), link('memory_profiler', 'https://github.com/SamSaffron/memory_profiler')],
+  'rb-require-bundler': [rb('Kernel#require', 'Kernel.html#method-i-require'), link('Bundler', 'https://bundler.io/'), link('Zeitwerk', 'https://github.com/fxn/zeitwerk')],
+  'rb-rack-request-lifecycle': [link('Rack specification', 'https://github.com/rack/rack/blob/main/SPEC.rdoc'), rails('Rails on Rack', 'rails_on_rack.html'), link('Puma', 'https://github.com/puma/puma')],
+  'rb-enumerable-lazy': [rb('Enumerable', 'Enumerable.html'), rb('Enumerator', 'Enumerator.html'), rb('Enumerator::Lazy', 'Enumerator/Lazy.html')],
+  'rb-metaprogramming': [rb('Module#define_method', 'Module.html#method-i-define_method'), rb('BasicObject#instance_eval', 'BasicObject.html#method-i-instance_eval'), rb('Object#send', 'Object.html#method-i-send')],
+  'rb-activerecord-performance': [rails('Active Record Query Interface', 'active_record_querying.html'), link('Bullet', 'https://github.com/flyerhzm/bullet')],
+  'rb-testing': [link('RSpec', 'https://rspec.info/documentation/'), link('Minitest', 'https://docs.seattlerb.org/minitest/'), rails('Testing Rails Applications', 'testing.html')],
+  'rb-mutability-frozen': [rb('Object#freeze', 'Object.html#method-i-freeze'), rb('Data', 'Data.html'), rb('Struct', 'Struct.html')],
+  'rb-performance-tooling': [rb('YJIT', 'yjit/yjit_md.html'), link('StackProf', 'https://github.com/tmm1/stackprof'), link('benchmark-ips', 'https://github.com/evanphx/benchmark-ips')],
+  // ── Java ────────────────────────────────────────────────────────────
+  'java-jvm-memory-gc': [jdk('Garbage collection tuning', 'gctuning/introduction-garbage-collection-tuning.html'), jdk('G1 garbage collector', 'gctuning/garbage-first-g1-garbage-collector1.html'), jdk('ZGC', 'gctuning/z-garbage-collector.html')],
+  'java-concurrency-jmm': [jdk('Java Language Specification: memory model', 'docs/specs/jls/jls-17.html#jls-17.4'), jdk('Virtual threads', 'core/virtual-threads.html'), link('Concurrency (Java Tutorials)', 'https://docs.oracle.com/javase/tutorial/essential/concurrency/')],
+  'java-generics-erasure': [devjava('Generics', 'generics/'), jdk('Records', 'language/records.html'), jdk('Sealed classes', 'language/sealed-classes-and-interfaces.html')],
+  'java-exceptions': [devjava('Exceptions', 'exceptions/'), jdk('Optional', 'docs/api/java.base/java/util/Optional.html'), jdk('AutoCloseable', 'docs/api/java.base/java/lang/AutoCloseable.html')],
+  'java-equals-hashcode-immutability': [jdk('Object#equals', 'docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)'), jdk('Records', 'language/records.html'), devjava('Using records', 'records/')],
+  'java-collections-internals': [jdk('HashMap', 'docs/api/java.base/java/util/HashMap.html'), jdk('ConcurrentHashMap', 'docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html'), devjava('Collections', 'api/collections-framework/')],
+  'java-streams-lambdas': [link('Streams (Java Tutorials)', 'https://docs.oracle.com/javase/tutorial/collections/streams/'), jdk('java.util.stream', 'docs/api/java.base/java/util/stream/package-summary.html'), devjava('Lambda expressions', 'lambdas/')],
+  'java-classloading-build': [jdk('ClassLoader', 'docs/api/java.base/java/lang/ClassLoader.html'), devjava('Modules', 'modules/'), link('Gradle dependency resolution', 'https://docs.gradle.org/current/userguide/dependency_resolution.html')],
+  'java-spring-request-lifecycle': [link('Spring Web MVC', 'https://docs.spring.io/spring-framework/reference/web/webmvc.html'), link('Spring transaction management', 'https://docs.spring.io/spring-framework/reference/data-access/transaction.html'), link('Spring dependency injection', 'https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html')],
+  'java-jit-performance': [jdk('JIT compiler', 'vm/java-hotspot-virtual-machine-performance-enhancements.html'), jdk('Flight Recorder', 'jfapi/why-use-jfr-api.html'), link('async-profiler', 'https://github.com/async-profiler/async-profiler')],
+  'java-testing': [link('JUnit 5 user guide', 'https://junit.org/junit5/docs/current/user-guide/'), link('Mockito', 'https://site.mockito.org/'), link('Testcontainers', 'https://java.testcontainers.org/')],
+  'java-serialization-json': [link('Jackson', 'https://github.com/FasterXML/jackson'), jdk('java.time', 'docs/api/java.base/java/time/package-summary.html'), jdk('ObjectInputFilter', 'docs/api/java.base/java/io/ObjectInputFilter.html')],
+  'java-reactive-backpressure': [link('Reactive Streams specification', 'https://www.reactive-streams.org/'), jdk('java.util.concurrent.Flow', 'docs/api/java.base/java/util/concurrent/Flow.html'), link('Project Reactor reference', 'https://projectreactor.io/docs/core/release/reference/')],
+  'java-memory-leaks': [jdk('jcmd', 'docs/specs/man/jcmd.html'), link('Eclipse Memory Analyzer', 'https://eclipse.dev/mat/'), link('Caffeine', 'https://github.com/ben-manes/caffeine')],
   // ── TypeScript & JavaScript ──────────────────────────────────────────
   'ts-event-loop': [
     mdn('JavaScript execution model', 'Web/JavaScript/Reference/Execution_model'),

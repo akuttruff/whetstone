@@ -12,6 +12,8 @@ import { DESIGN_PROBLEMS } from './design.ts'
 import { DESIGN_MORE } from './design-more.ts'
 import { KNOWLEDGE_PROBLEMS } from './knowledge.ts'
 import { KNOWLEDGE_MORE } from './knowledge-more.ts'
+import { KNOWLEDGE_RUBY } from './knowledge-ruby.ts'
+import { KNOWLEDGE_JAVA } from './knowledge-java.ts'
 import { BEHAVIORAL_PROBLEMS } from './behavioral.ts'
 import { BEHAVIORAL_MORE } from './behavioral-more.ts'
 
@@ -22,9 +24,15 @@ import { BEHAVIORAL_MORE } from './behavioral-more.ts'
  * call it. The Ruby and Java ports are not attached here: the browser loads
  * them on demand (see ports.ts, `withPorts`) and the server uses full.ts.
  */
+/** Knowledge topics that belong to one language: listed only when that language is selected. */
+export const LANGUAGE_TOPICS: Record<string, Language> = { 'TypeScript & JavaScript': 'typescript', Ruby: 'ruby', Java: 'java' }
+
 const neutral = (ps: Problem[]): Problem[] =>
   ps.map((p) => {
-    if (!('tests' in p)) return p
+    if (!('tests' in p)) {
+      const language = p.track === 'knowledge' ? LANGUAGE_TOPICS[p.topic] : undefined
+      return language ? { ...p, language } : p
+    }
     const drivers = p.track === 'practical' ? PRACTICAL_DRIVERS[p.id] : undefined
     const withDriver = drivers?.driver ? { starter: p.starter.trimEnd() + '\n\n' + drivers.driver, solution: p.solution.trimEnd() + '\n\n' + drivers.driver } : {}
     return { ...p, ...withDriver, tests: normaliseTests(drivers?.tests ?? p.tests) }
@@ -59,6 +67,8 @@ export const BUILTIN_PROBLEMS: Problem[] = neutral([
   ...DESIGN_MORE,
   ...KNOWLEDGE_PROBLEMS,
   ...KNOWLEDGE_MORE,
+  ...KNOWLEDGE_RUBY,
+  ...KNOWLEDGE_JAVA,
   ...BEHAVIORAL_PROBLEMS,
   ...BEHAVIORAL_MORE,
 ])

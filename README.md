@@ -59,8 +59,10 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   a setting, so the phone and the desktop agree. Drafts, reviews, hint
   ladders and threads are kept per language (`<id>@ruby`, `<id>@java`; plain
   id for TypeScript), and the review, tutor and hint prompts all speak that
-  language. Primer templates come in all three too. Ruby and Java need their
-  toolchains on the machine running
+  language. Primer templates come in all three too, and the Knowledge track
+  has a language topic per language (TypeScript & JavaScript, Ruby, Java),
+  listed only for the selected one; the other knowledge topics are shared.
+  Ruby and Java need their toolchains on the machine running
   the server (`brew install ruby openjdk`; see `server/langs.ts` for where it
   looks, or set `WHETSTONE_RUBY` / `WHETSTONE_JAVA_HOME`); `GET /api/languages`
   says what is available and Settings shows it.

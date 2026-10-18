@@ -595,6 +595,7 @@ function base(o: Record<string, unknown>, fallback: Pick<Problem, 'track' | 'top
     difficulty,
     source: o.source === 'generated' ? 'generated' : 'builtin',
     ...(str(o.parentId, 200) ? { parentId: str(o.parentId, 200) } : {}),
+    ...(LANGUAGES.some((l) => l.id === o.language) ? { language: o.language as Language } : {}),
   } as Omit<Problem, 'track'> & { track: Problem['track'] }
 }
 
@@ -670,7 +671,7 @@ export function variantFromModel(raw: unknown, parent: Problem, direction: Direc
     ? o
     : { ...o, starter: '', solution: '', ports: { [language]: { starter: o.starter, solution: o.solution } } }
   const p = validateProblem(
-    { ...shaped, track: parent.track, topic: parent.topic, pattern, difficulty, source: 'generated', parentId: parent.id },
+    { ...shaped, track: parent.track, topic: parent.topic, pattern, difficulty, source: 'generated', parentId: parent.id, ...(parent.language ? { language: parent.language } : {}) },
     { track: parent.track, topic: parent.topic, pattern, difficulty },
   )
   let id = `${slug(p.title) || 'variant'}-${direction}`

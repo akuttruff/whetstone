@@ -129,7 +129,7 @@ export const KNOWLEDGE_PROBLEMS: PromptProblem[] = [
     ],
     ['How do you revoke access when JWTs are stateless?']),
   q('web-owasp', 'Web & HTTP', 'Application security', 'medium', 'OWASP top risks in practice',
-    'Name the application-security risks you check for in every code review and how each is prevented in a TypeScript stack. Include injection, broken access control, SSRF and supply chain.',
+    'Name the application-security risks you check for in every code review and how each is prevented in your stack. Include injection, broken access control, SSRF and supply chain.',
     [
       'Injection: parameterised queries and ORMs, never string-built SQL; command execution with argument arrays; output encoding for HTML',
       'Broken access control: authorise on every request server-side by object, not just by route; IDOR checks; deny by default',
@@ -420,10 +420,10 @@ export const KNOWLEDGE_PROBLEMS: PromptProblem[] = [
     ],
     ['When does SSR hurt rather than help?']),
   q('perf-backend', 'Performance', 'Backend performance', 'medium', 'Finding the bottleneck in a slow endpoint',
-    'An API endpoint\'s p99 latency doubled after a release. Describe your approach to finding the cause and the common culprits in a Node + database service.',
+    'An API endpoint\'s p99 latency doubled after a release. Describe your approach to finding the cause and the common culprits in a service backed by a database.',
     [
       'Start with traces: where does the time go per span; compare before/after the release',
-      'Culprits: N+1 queries, missing index after a query change, lock contention, serialising a huge object, synchronous CPU work on the event loop, connection pool exhaustion',
+      'Culprits: N+1 queries, missing index after a query change, lock contention, serialising a huge object, CPU-heavy work blocking request handling (the event loop or a thread pool), connection pool exhaustion',
       'Check saturation: pool wait time, event-loop lag, GC pauses, downstream latency',
       'Reproduce with a load test and profile (CPU profile, EXPLAIN ANALYZE)',
       'Fix, then add a regression guard: latency budget per endpoint in CI or alerting',
