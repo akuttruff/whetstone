@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api.ts'
-import type { ChatMessage, Problem, RunResult, Track } from '../types.ts'
+import type { ChatMessage, Language, Problem, RunResult, Track } from '../types.ts'
 
 export type ChatContext =
-  | { problem: Problem; answer: string; run: RunResult | null }
+  | { problem: Problem; answer: string; run: RunResult | null; language: Language }
   | { primer: { track: Track; topic: string } }
-  | { about: true; problem: Problem }
+  | { about: true; problem: Problem; language: Language }
 
 export interface ChatState {
   messages: ChatMessage[]
@@ -18,8 +18,8 @@ export interface ChatState {
 const EMPTY: ChatState = { messages: [], pending: '', streaming: false, error: null }
 
 export const primerThreadId = (track: Track, topic: string): string => `primer:${track}:${topic}`
-/** Any question about a problem, kept apart from its review thread. Mirrors server/prompts.ts. */
-export const aboutThreadId = (problemId: string): string => `about:${problemId}`
+/** Any question about a problem, kept apart from its review thread; takes the work key (id, or id@language). Mirrors server/prompts.ts. */
+export const aboutThreadId = (key: string): string => `about:${key}`
 
 /**
  * A conversation thread shared across devices: under a problem's review

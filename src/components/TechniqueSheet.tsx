@@ -7,17 +7,19 @@ import { BUILTIN_PROBLEMS } from '../data/index.ts'
 import { primerFor } from '../data/primers.ts'
 import { vizFor } from '../viz/index.ts'
 import type { TechniqueDoc } from '../data/techniques.ts'
-import type { Problem } from '../types.ts'
+import { LANGUAGE_LABEL } from '../types.ts'
+import type { Language, Problem } from '../types.ts'
 
 interface Props {
   technique: TechniqueDoc | null
   problem: Problem
   onClose: () => void
   onPrimer?: (topic: string) => void
+  language?: Language
 }
 
 /** A technique explained: what it is, the moves, the invariant, a step-through visualisation, and the primer's template. */
-export default function TechniqueSheet({ technique, problem, onClose, onPrimer }: Props) {
+export default function TechniqueSheet({ technique, problem, onClose, onPrimer, language = 'typescript' }: Props) {
   const viz = useMemo(() => (technique?.viz ? vizFor(technique.viz) : undefined), [technique])
   const primer = technique ? primerFor(problem.track, technique.topic) : undefined
   const card = technique?.primerTechnique && primer ? primer.techniques.find((t) => t.name === technique.primerTechnique) : undefined
@@ -40,12 +42,17 @@ export default function TechniqueSheet({ technique, problem, onClose, onPrimer }
                 {technique.invariant && (
                   <p className="technique-invariant"><strong>What stays true:</strong> {technique.invariant}</p>
                 )}
-                {card?.template && (
-                  <details className="spoiler">
-                    <summary>Template to memorise</summary>
-                    <div className="solution"><CodeEditor value={card.template} readOnly height="auto" /></div>
-                  </details>
-                )}
+                {card?.template && (() => {
+                  const ported = language !== 'typescript' ? card.templates?.[language] : undefined
+                  const shown = language === 'typescript' ? 'typescript' : ported ? language : 'typescript'
+                  return (
+                    <details className="spoiler">
+                      <summary>Template to memorise</summary>
+                      <div className="solution"><CodeEditor value={ported ?? card.template} readOnly height="auto" language={shown} /></div>
+                      {shown !== language && <p className="template-note">Shown in TypeScript: this template has no {LANGUAGE_LABEL[language]} version yet.</p>}
+                    </details>
+                  )
+                })()}
                 {card?.pitfalls && card.pitfalls.length > 0 && (
                   <>
                     <h3>Pitfalls</h3>

@@ -14,6 +14,15 @@ export const TRACKS: { id: Track; label: string; blurb: string }[] = [
   { id: 'behavioral', label: 'Behavioral', blurb: 'Leadership and collaboration stories, told in STAR form.' },
 ]
 
+/** The languages a coding problem can be attempted in. Practical problems are TypeScript only. */
+export type Language = 'typescript' | 'ruby' | 'java'
+export const LANGUAGES: { id: Language; label: string; short: string }[] = [
+  { id: 'typescript', label: 'TypeScript', short: 'TS' },
+  { id: 'ruby', label: 'Ruby', short: 'Ruby' },
+  { id: 'java', label: 'Java', short: 'Java' },
+]
+export const LANGUAGE_LABEL: Record<Language, string> = { typescript: 'TypeScript', ruby: 'Ruby', java: 'Java' }
+
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
 
@@ -48,16 +57,28 @@ export interface Example {
 }
 
 /**
- * One automated check: `call` is a TypeScript expression evaluated with the
- * solution's exports in scope (e.g. `twoSum([2, 7], 9)`); it may use `await`.
+ * One automated check. The language-neutral form names the function (`fn`,
+ * in any naming convention: each runner also tries its own, so `twoSum` and
+ * `two_sum` both resolve) and gives its arguments as JSON (`args`); linked
+ * lists travel as `{ val, next }` objects and trees as `{ val, left, right }`.
+ * The TypeScript-only form is a `call` expression evaluated with the
+ * solution's exports in scope; it may use `await` (the practical track).
  * The result is JSON-normalised and compared with `expected`.
  */
 export interface TestCase {
   name?: string
-  call: string
+  fn?: string
+  args?: unknown[]
+  call?: string
   expected: unknown
   /** Compare as a multiset: arrays (at any depth) are sorted before comparing. */
   unordered?: boolean
+}
+
+/** A problem's code in one language. */
+export interface Port {
+  starter: string
+  solution: string
 }
 
 export interface CodeProblem extends ProblemBase {
@@ -66,10 +87,33 @@ export interface CodeProblem extends ProblemBase {
   examples: Example[]
   constraints?: string[]
   hints: string[]
+  /** TypeScript starter and reference solution. Empty strings on a generated problem written in another language that has no TypeScript port yet. */
   starter: string
   solution: string
   tests: TestCase[]
+  /** The same problem in other languages, hand-written for built-ins and model-written (then verified against `tests`) for generated ones. */
+  ports?: Partial<Record<Exclude<Language, 'typescript'>, Port>>
 }
+
+/** The language a problem is worked in: practical problems are TypeScript whatever the setting. */
+export const langFor = (p: Problem, language: Language): Language => (p.track === 'coding' ? language : 'typescript')
+
+/** The starter and solution in a language, or null when the problem has not been ported to it. */
+export function portFor(p: Problem, language: Language): Port | null {
+  if (!isCode(p)) return null
+  if (langFor(p, language) === 'typescript') return p.starter ? { starter: p.starter, solution: p.solution } : null
+  return p.ports?.[language as Exclude<Language, 'typescript'>] ?? null
+}
+
+/** The languages a problem can be attempted in right now. */
+export const portedLanguages = (p: Problem): Language[] => LANGUAGES.map((l) => l.id).filter((l) => portFor(p, l) !== null)
+
+/**
+ * The key drafts, reviews, guides and chat threads are stored under: the
+ * problem id in TypeScript (as before the other languages existed), and
+ * `<id>@<language>` otherwise, so each language keeps its own attempt.
+ */
+export const workKey = (p: Problem, language: Language): string => (langFor(p, language) === 'typescript' ? p.id : `${p.id}@${language}`)
 
 export interface TalkingPoint {
   heading: string
@@ -147,6 +191,8 @@ export interface Technique {
   complexity?: string
   /** A TypeScript skeleton to memorise. */
   template?: string
+  /** The same skeleton in the other languages. */
+  templates?: Partial<Record<Exclude<Language, 'typescript'>, string>>
   pitfalls?: string[]
 }
 
@@ -203,6 +249,8 @@ export interface Settings {
   thinking: boolean
   /** List the techniques each problem exercises under its statement; off simulates a real interview. */
   showTechniques: boolean
+  /** The language coding problems are attempted in (the toggle next to the title). */
+  language: Language
 }
 
 export type PublicSettings = Omit<Settings, 'apiKey'> & { hasApiKey: boolean }
@@ -215,6 +263,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoDelayS: 8,
   thinking: false,
   showTechniques: true,
+  language: 'typescript',
 }
 
 /** Per-pattern averages across saved reviews. */

@@ -6,7 +6,8 @@ import DocLinks from './DocLinks.tsx'
 import { TOPIC_DOCS } from '../data/docs.ts'
 import useChat, { primerThreadId } from '../hooks/useChat.ts'
 import { COMPLEXITY_GLOSSARY } from '../data/primers.ts'
-import type { Primer } from '../types.ts'
+import { LANGUAGE_LABEL } from '../types.ts'
+import type { Language, Primer } from '../types.ts'
 
 interface Props {
   primer: Primer
@@ -15,10 +16,13 @@ interface Props {
   wide: boolean
   onBack: () => void
   onStart: () => void
+  /** Templates are shown in this language when the primer has them. */
+  language?: Language
 }
 
 /** Everything someone needs before attempting a topic: how to recognise it, each technique with its template, the traps, and what to say out loud. */
-export default function PrimerScreen({ primer, count, wide, onBack, onStart }: Props) {
+export default function PrimerScreen({ primer, count, wide, onBack, onStart, language = 'typescript' }: Props) {
+  const lang = primer.track === 'coding' ? language : 'typescript'
   const [openTemplates, setOpenTemplates] = useState<Set<number>>(() => new Set())
   const chat = useChat(primerThreadId(primer.track, primer.topic), { primer: { track: primer.track, topic: primer.topic } })
   const first = primer.techniques[0]?.name ?? 'the first technique'
@@ -79,12 +83,17 @@ export default function PrimerScreen({ primer, count, wide, onBack, onStart }: P
               <p className="technique-when"><strong>When:</strong> {t.when}</p>
               <ol className="technique-how">{t.how.map((h, j) => <li key={j}>{h}</li>)}</ol>
               {t.complexity && t.complexity !== '—' && <p className="technique-complexity">{t.complexity}</p>}
-              {t.template && (
-                <div className="technique-template">
-                  <button className="link-btn" onClick={() => toggle(i)}>{openTemplates.has(i) ? 'Hide template' : 'Show template'}</button>
-                  {openTemplates.has(i) && <div className="solution"><CodeEditor value={t.template} readOnly height="auto" /></div>}
-                </div>
-              )}
+              {t.template && (() => {
+                const ported = lang !== 'typescript' ? t.templates?.[lang] : undefined
+                const shown: Language = ported ? lang : 'typescript'
+                return (
+                  <div className="technique-template">
+                    <button className="link-btn" onClick={() => toggle(i)}>{openTemplates.has(i) ? 'Hide template' : 'Show template'}</button>
+                    {openTemplates.has(i) && <div className="solution"><CodeEditor value={ported ?? t.template!} readOnly height="auto" language={shown} /></div>}
+                    {openTemplates.has(i) && shown !== lang && <p className="template-note">Shown in TypeScript: this template has no {LANGUAGE_LABEL[lang]} version yet.</p>}
+                  </div>
+                )
+              })()}
               {t.pitfalls && t.pitfalls.length > 0 && <ul className="technique-pitfalls">{t.pitfalls.map((p, j) => <li key={j}>{p}</li>)}</ul>}
             </li>
           ))}

@@ -1,11 +1,12 @@
 # Whetstone
 
 Interview practice for senior software engineers, reviewed by a local model.
-Five tracks (coding, practical TypeScript, system design, knowledge questions,
-behavioral), a primer per topic distilling the techniques before you start, a
-live TypeScript editor with sandboxed tests, streaming model feedback with an
-optional auto mode, a hint ladder when you are stuck, and a steerable easier/similar/harder variant
-generation on the same pattern. Mobile-first (iPhone 13 mini), with a split view on desktop.
+Five tracks (coding in TypeScript, Ruby or Java; practical TypeScript; system
+design; knowledge questions; behavioral), a primer per topic distilling the
+techniques before you start, a live editor with sandboxed tests, streaming
+model feedback with an optional auto mode, a hint ladder when you are stuck,
+and a steerable easier/similar/harder variant generation on the same pattern.
+Mobile-first (iPhone 13 mini), with a split view on desktop.
 
 Same stack as cairn and lm-chat: Vite 8 + React 19 + TypeScript 7, a Vite
 plugin server (`server/api.ts`) with SQLite (`node:sqlite`), Vitest, oxlint.
@@ -40,14 +41,36 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
 
 - **Content** is plain data in `src/data/*.ts`. Every problem has a `topic`
   (list grouping), a `pattern` (the skill it exercises; variants keep it), a
-  difficulty, and track-specific fields. Code problems carry `tests`: each is a
-  `call` expression evaluated with the solution's exports in scope and an
-  `expected` JSON value. `server/content.test.ts` runs every reference
-  solution through the real sandbox, so content cannot drift.
-- **Run** (`POST /api/run`) writes the draft to a scratch directory and runs
-  it in a child Node process with Node's native TypeScript support
-  (`--experimental-transform-types`), a per-test and overall timeout, and
-  captured console output. It is a convenience, not a security boundary.
+  difficulty, and track-specific fields. Code problems carry `tests`: each
+  names the function (`fn`) and gives its arguments as JSON (`args`), with an
+  `expected` JSON value, so the same checks run in every language (linked
+  lists travel as `{ val, next }` objects, trees as `{ val, left, right }`).
+  The practical track's tests are TypeScript `call` expressions, since they
+  exercise closures and promises. `server/content.test.ts` runs every
+  reference solution through the real sandbox, so content cannot drift.
+- **Languages.** Every coding problem exists in TypeScript, Ruby and Java:
+  `src/data/ports-ruby.ts` and `ports-java.ts` hold a starter and a reference
+  solution per problem, written by hand to mirror the TypeScript ones, and
+  the content test runs each through its own sandbox (and checks each starter
+  loads or compiles). The toggle next to the title picks the language; it is
+  a setting, so the phone and the desktop agree. Drafts, reviews, hint
+  ladders and threads are kept per language (`<id>@ruby`, `<id>@java`; plain
+  id for TypeScript), and the review, tutor and hint prompts all speak that
+  language. Primer templates come in all three too. The practical track is
+  TypeScript only. Ruby and Java need their toolchains on the machine running
+  the server (`brew install ruby openjdk`; see `server/langs.ts` for where it
+  looks, or set `WHETSTONE_RUBY` / `WHETSTONE_JAVA_HOME`); `GET /api/languages`
+  says what is available and Settings shows it.
+- **Run** (`POST /api/run`, body `{ code, tests, language }`) writes the draft
+  to a scratch directory and runs it under a per-language harness: a child
+  Node process with native TypeScript support, `ruby`, or `javac` + `java`.
+  Each harness calls the tested function by name (`twoSum` or `two_sum` both
+  resolve), converts the JSON arguments to that language's values (Java by
+  reflection on the method signature: `int[]`, `List<List<Integer>>`,
+  `char[][]`, `ListNode`, …), and reports raw results; the comparison with the
+  expected values happens once, in `server/runner.ts`. A per-test and overall
+  timeout and captured console output apply in every language. It is a
+  convenience, not a security boundary.
 - **Review** (`POST /api/review`) streams the model's review as server-sent
   events. The prompt is per track (code with test results, design notes against
   talking points, STAR for behavioral) and ends with a `VERDICT` line carrying a
@@ -107,8 +130,11 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   already on that pattern (built-in and generated) so repeated drills stay
   distinct. For code, the model's own
   solution is run against the tests it wrote; failing tests are dropped and the
-  result says how many were verified. Variants are stored in SQLite under
-  their parent.
+  result says how many were verified. A variant is written in the language
+  currently selected; opening it in another language shows a "Write it in …"
+  button that asks the model for a port (`POST /api/port`), saved only once
+  the ported solution passes the same tests. Variants are stored in SQLite
+  under their parent.
 - **Drafts** and settings live server-side, so the phone and the desktop share
   them.
 
@@ -116,7 +142,8 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
 
 ```
 server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
-          prompts.ts (review + variant prompts, validation), runner.ts (sandbox)
+          prompts.ts (review + variant + port prompts, validation),
+          runner.ts (sandbox) with harness-ts/ruby/java.ts and langs.ts
 src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), types.ts
 scripts/  deploy.sh, com.amie.whetstone.plist
 ```

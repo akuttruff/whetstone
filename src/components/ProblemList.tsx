@@ -2,7 +2,8 @@ import { useMemo } from 'react'
 import { BookOpen, ChevronRight, Trash2 } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
 import { DIFFICULTY_LABEL, difficultyRank, scoreTone } from '../lib/format.ts'
-import type { Direction, Problem, Progress } from '../types.ts'
+import { workKey } from '../types.ts'
+import type { Direction, Language, Problem, Progress } from '../types.ts'
 
 interface Props {
   problems: Problem[]
@@ -13,6 +14,8 @@ interface Props {
   onPrimer: (topic: string) => void
   /** The topic whose primer is open, so its header can show it. */
   primerTopic: string | null
+  /** The language being worked in: the score shown is that language's latest. */
+  language: Language
 }
 
 /** Variants saved before the direction was stored carry it only in their id. */
@@ -20,7 +23,7 @@ function variantLabel(p: Problem): Direction {
   return p.direction ?? (/-harder(-\d+)?$/.test(p.id) ? 'harder' : /-similar(-\d+)?$/.test(p.id) ? 'similar' : 'easier')
 }
 
-export default function ProblemList({ problems, selectedId, progress, onSelect, onDelete, onPrimer, primerTopic }: Props) {
+export default function ProblemList({ problems, selectedId, progress, onSelect, onDelete, onPrimer, primerTopic, language }: Props) {
   const groups = useMemo(() => {
     const byTopic = new Map<string, Problem[]>()
     for (const p of problems) {
@@ -56,7 +59,7 @@ export default function ProblemList({ problems, selectedId, progress, onSelect, 
             )}
           </div>
           {g.items.map((p) => {
-            const score = progress.latest[p.id]
+            const score = progress.latest[workKey(p, language)]
             const tone = scoreTone(score)
             const depth = p.parentId ? 1 : 0
             return (

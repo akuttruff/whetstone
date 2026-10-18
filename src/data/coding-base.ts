@@ -423,6 +423,14 @@ export function hasCycle(head: ListNode | null): boolean {
   // your code
   return false;
 }
+
+/** Test driver. Leave as is: builds the list and links the tail to node pos (-1 for none). */
+export function hasCycleAt(vals: number[], pos: number): boolean {
+  const nodes = vals.map((v) => new ListNode(v));
+  nodes.forEach((n, i) => { n.next = nodes[i + 1] ?? null; });
+  if (pos >= 0 && nodes.length > 0) nodes[nodes.length - 1].next = nodes[pos];
+  return hasCycle(nodes[0] ?? null);
+}
 `,
     solution: LIST_NODE + `export function hasCycle(head: ListNode | null): boolean {
   let slow = head;
@@ -433,6 +441,13 @@ export function hasCycle(head: ListNode | null): boolean {
     if (slow === fast) return true;
   }
   return false;
+}
+
+export function hasCycleAt(vals: number[], pos: number): boolean {
+  const nodes = vals.map((v) => new ListNode(v));
+  nodes.forEach((n, i) => { n.next = nodes[i + 1] ?? null; });
+  if (pos >= 0 && nodes.length > 0) nodes[nodes.length - 1].next = nodes[pos];
+  return hasCycle(nodes[0] ?? null);
 }
 `,
   },

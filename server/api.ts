@@ -3,12 +3,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, PORT_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, portFromModel, portPrompt, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
-import { DIRECTIONS, TRACKS, isCode } from '../src/types.ts'
+import { availability } from './langs.ts'
+import { DIRECTIONS, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, langFor, portFor, workKey } from '../src/types.ts'
 import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
 import { primerFor } from '../src/data/primers.ts'
-import type { Direction, Problem, RunResult, TestCase } from '../src/types.ts'
+import type { Direction, Language, Problem, RunResult, TestCase } from '../src/types.ts'
 
 type Middleware = (req: IncomingMessage, res: ServerResponse, next: () => void) => void
 
@@ -68,6 +69,14 @@ function problemFromBody(v: unknown): Problem {
   return validateProblem(v, FALLBACK)
 }
 
+/** The language a request is about; TypeScript when absent (clients from before the toggle). */
+function languageFromBody(v: unknown): Language {
+  if (v === undefined || v === null) return 'typescript'
+  const l = LANGUAGES.find((x) => x.id === v)
+  if (!l) throw new ValidationError('unknown language')
+  return l.id
+}
+
 export function createApi(options: ApiOptions = {}) {
   const store = new Store({ dir: options.dir })
   const fetchImpl = options.fetchImpl ?? fetch
@@ -91,6 +100,8 @@ export function createApi(options: ApiOptions = {}) {
         return json(res, 200, { models: [], error: (err as Error).message })
       }
     }
+
+    if (p === '/api/languages' && method === 'GET') return json(res, 200, availability())
 
     if (p === '/api/problems' && method === 'GET') return json(res, 200, store.listProblems())
     if ((m = /^\/api\/problems\/([^/]+)$/.exec(p)) && method === 'DELETE') {
@@ -121,17 +132,18 @@ export function createApi(options: ApiOptions = {}) {
     // Run a draft against the problem's tests. The client sends both: built-in
     // problems live in the bundle, not the database.
     if (p === '/api/run' && method === 'POST') {
-      const body = (await readBody(req)) as { code?: unknown; tests?: unknown }
-      const tests = Array.isArray(body.tests) ? (body.tests as TestCase[]).filter((t) => t && typeof t.call === 'string').slice(0, 20) : []
+      const body = (await readBody(req)) as { code?: unknown; tests?: unknown; language?: unknown }
+      const tests = Array.isArray(body.tests) ? (body.tests as TestCase[]).filter((t) => t && (typeof t.call === 'string' || (typeof t.fn === 'string' && Array.isArray(t.args)))).slice(0, 20) : []
       if (typeof body.code !== 'string') throw new ValidationError('code is required')
-      return json(res, 200, await runTests(body.code, tests, { dir: runDir }))
+      return json(res, 200, await runTests(body.code, tests, { dir: runDir, language: languageFromBody(body.language) }))
     }
 
     // A model review, streamed as server-sent events: {type:'delta'} pieces,
     // then {type:'done', review} once it is saved, or {type:'error'}.
     if (p === '/api/review' && method === 'POST') {
-      const body = (await readBody(req)) as { problem?: unknown; answer?: unknown; run?: unknown }
+      const body = (await readBody(req)) as { problem?: unknown; answer?: unknown; run?: unknown; language?: unknown }
       const problem = problemFromBody(body.problem)
+      const language = langFor(problem, languageFromBody(body.language))
       const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
       const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
       const settings = store.getSettings()
@@ -140,7 +152,7 @@ export function createApi(options: ApiOptions = {}) {
       const ac = new AbortController()
       req.on('close', () => ac.abort())
       try {
-        const { system, user } = reviewPrompt(problem, answer, run)
+        const { system, user } = reviewPrompt(problem, answer, run, language)
         const { text, model } = await chatStream(
           settings,
           { system, user, maxTokens: REVIEW_MAX_TOKENS, temperature: 0.3, signal: ac.signal },
@@ -149,7 +161,7 @@ export function createApi(options: ApiOptions = {}) {
         )
         const verdict = parseVerdict(text)
         const review = store.addReview({
-          problemId: problem.id, track: problem.track, topic: problem.topic, pattern: problem.pattern,
+          problemId: workKey(problem, language), track: problem.track, topic: problem.topic, pattern: problem.pattern,
           score: verdict.score, correct: verdict.correct, focus: verdict.focus, text: verdict.text, model,
         })
         send({ type: 'done', review })
@@ -165,8 +177,9 @@ export function createApi(options: ApiOptions = {}) {
     // solution must pass the tests it wrote. The model is told which titles
     // already exist on the pattern so repeated drills do not converge.
     if (p === '/api/variants' && method === 'POST') {
-      const body = (await readBody(req)) as { problem?: unknown; direction?: unknown; request?: unknown }
+      const body = (await readBody(req)) as { problem?: unknown; direction?: unknown; request?: unknown; language?: unknown }
       const parent = problemFromBody(body.problem)
+      const language = langFor(parent, languageFromBody(body.language))
       const direction: Direction = DIRECTIONS.find((d) => d === body.direction) ?? 'easier'
       if (body.request !== undefined && typeof body.request !== 'string') throw new ValidationError('request must be a string')
       const request = (body.request ?? '').trim()
@@ -179,17 +192,42 @@ export function createApi(options: ApiOptions = {}) {
       // The pattern vocabulary of this track, so a harder variant that moves
       // to another technique names it the way the technique catalogue does.
       const known = [...new Set(all.filter((q) => q.track === parent.track).map((q) => q.pattern))]
-      const { system, user, schema } = variantPrompt(parent, direction, avoid, request, known)
+      const { system, user, schema } = variantPrompt(parent, direction, avoid, request, known, language)
       const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: VARIANT_MAX_TOKENS, temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
-      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request, known)
+      let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request, known, language)
       let verified: { passed: number; total: number } | null = null
       if (isCode(problem) && problem.tests.length > 0) {
-        const run = await runTests(problem.solution, problem.tests, { dir: runDir })
+        const port = portFor(problem, language)
+        const run = await runTests(port?.solution ?? '', problem.tests, { dir: runDir, language })
         verified = { passed: run.passed, total: problem.tests.length }
         if (run.error) problem = { ...problem, tests: [] }
         else problem = { ...problem, tests: problem.tests.filter((_, i) => run.results[i]?.pass) }
       }
       return json(res, 201, { problem: store.addProblem(problem), verified })
+    }
+
+    // The same generated problem in another language: the model writes the
+    // starter and solution, the solution must pass every test in that
+    // language, and only then is the port saved. Built-in problems are
+    // ported by hand in src/data, so this is for variants.
+    if (p === '/api/port' && method === 'POST') {
+      const body = (await readBody(req)) as { problem?: unknown; language?: unknown }
+      const problem = problemFromBody(body.problem)
+      const language = languageFromBody(body.language)
+      if (!isCode(problem)) throw new ValidationError('only code problems have ports')
+      if (problem.track !== 'coding') throw new ValidationError('practical problems are TypeScript only')
+      if (!store.hasProblem(problem.id)) throw new ValidationError('built-in problems are ported by hand; this is for generated ones')
+      if (portFor(problem, language)) throw new ValidationError(`already available in ${LANGUAGE_LABEL[language]}`)
+      const { system, user, schema } = portPrompt(problem, language)
+      const { data } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: PORT_MAX_TOKENS, temperature: 0.3, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
+      const port = portFromModel(data)
+      const run = problem.tests.length > 0 ? await runTests(port.solution, problem.tests, { dir: runDir, language }) : null
+      if (run && !run.ok) {
+        const why = run.error ?? run.results.filter((r) => !r.pass).map((r) => `${r.name}: expected ${r.expected}, got ${r.actual}`).join('; ')
+        return json(res, 422, { error: `The ${LANGUAGE_LABEL[language]} version the model wrote failed its tests (${run.passed} of ${run.total} passed). ${why.slice(0, 600)} Try again.` })
+      }
+      const saved = language === 'typescript' ? store.setTypeScript(problem.id, port) : store.setPort(problem.id, language, port)
+      return json(res, 201, { problem: saved, verified: run ? { passed: run.passed, total: run.total } : null })
     }
 
     // The follow-up conversation under a problem's review. POST streams the
@@ -202,16 +240,18 @@ export function createApi(options: ApiOptions = {}) {
         return json(res, 200, { ok: true })
       }
       if (method === 'POST') {
-        const body = (await readBody(req)) as { problem?: unknown; primer?: { track?: unknown; topic?: unknown }; about?: unknown; answer?: unknown; run?: unknown; message?: unknown }
+        const body = (await readBody(req)) as { problem?: unknown; primer?: { track?: unknown; topic?: unknown }; about?: unknown; answer?: unknown; run?: unknown; message?: unknown; language?: unknown }
         const message = typeof body.message === 'string' ? body.message.trim().slice(0, 8000) : ''
         if (!message) throw new ValidationError('message is empty')
-        // The context is a problem's review (thread id = problem id), any question
-        // about a problem (about:<problem id>) or a primer (primer:<track>:<topic>).
+        // The context is a problem's review (thread id = the problem's work key:
+        // its id, or <id>@<language>), any question about a problem (about:<key>)
+        // or a primer (primer:<track>:<topic>).
         let system: string
         if (body.about) {
           const problem = problemFromBody(body.problem)
-          if (aboutThreadId(problem.id) !== id) throw new ValidationError('problem id mismatch')
-          system = aboutPrompt(problem)
+          const language = langFor(problem, languageFromBody(body.language))
+          if (aboutThreadId(workKey(problem, language)) !== id) throw new ValidationError('problem id mismatch')
+          system = aboutPrompt(problem, language)
         } else if (body.primer) {
           const track = TRACKS.find((t) => t.id === body.primer?.track)?.id
           const topic = typeof body.primer.topic === 'string' ? body.primer.topic : ''
@@ -221,10 +261,11 @@ export function createApi(options: ApiOptions = {}) {
           system = primerChatPrompt(primer)
         } else {
           const problem = problemFromBody(body.problem)
-          if (problem.id !== id) throw new ValidationError('problem id mismatch')
+          const language = langFor(problem, languageFromBody(body.language))
+          if (workKey(problem, language) !== id) throw new ValidationError('problem id mismatch')
           const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
           const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
-          system = chatPrompt(problem, answer, run, store.listReviews(id, 1)[0]?.text ?? null)
+          system = chatPrompt(problem, answer, run, store.listReviews(id, 1)[0]?.text ?? null, language)
         }
         const history = store.listChat(id, CHAT_HISTORY).map((c) => ({ role: c.role, content: c.content }))
         const userTurn = store.addChat(id, 'user', message)
@@ -256,12 +297,13 @@ export function createApi(options: ApiOptions = {}) {
       const id = decodeURIComponent(m[1]!)
       if (method === 'GET') return json(res, 200, { guide: store.getGuide(id) })
       if (method === 'POST') {
-        const body = (await readBody(req)) as { problem?: unknown; answer?: unknown; run?: unknown }
+        const body = (await readBody(req)) as { problem?: unknown; answer?: unknown; run?: unknown; language?: unknown }
         const problem = problemFromBody(body.problem)
-        if (problem.id !== id) throw new ValidationError('problem id mismatch')
+        const language = langFor(problem, languageFromBody(body.language))
+        if (workKey(problem, language) !== id) throw new ValidationError('problem id mismatch')
         const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
         const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
-        const { system, user, schema } = guidePrompt(problem, answer, run)
+        const { system, user, schema } = guidePrompt(problem, answer, run, language)
         const { data, model } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: GUIDE_MAX_TOKENS, temperature: 0.5, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
         return json(res, 201, { guide: store.saveGuide(id, guideFromModel(data), model) })
       }

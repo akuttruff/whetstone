@@ -76,9 +76,10 @@ const META: Record<string, { pattern: string; tests: TestCase[] }> = {
   'linked-list-cycle': {
     pattern: "Floyd's tortoise and hare",
     tests: [
-      { call: '(() => { const a = { val: 1, next: null }; const b = { val: 2, next: a }; a.next = b; return hasCycle(a) })()', expected: true },
-      { call: 'hasCycle({ val: 1, next: { val: 2, next: null } })', expected: false },
-      { call: 'hasCycle(null)', expected: false },
+      { call: 'hasCycleAt([3, 2, 0, -4], 1)', expected: true },
+      { call: 'hasCycleAt([1, 2], 0)', expected: true },
+      { call: 'hasCycleAt([1, 2], -1)', expected: false },
+      { call: 'hasCycleAt([], -1)', expected: false },
     ],
   },
   'binary-search': {

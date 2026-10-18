@@ -1,4 +1,4 @@
-import type { ChatMessage, Direction, Guide, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings, Track } from '../types.ts'
+import type { ChatMessage, Direction, Guide, Language, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings, Track } from '../types.ts'
 
 export class ApiError extends Error {
   readonly status: number
@@ -68,6 +68,8 @@ export const api = {
   settings: () => request<PublicSettings>('/api/settings'),
   saveSettings: (patch: Partial<Settings>) => request<PublicSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(patch) }),
   models: () => request<{ models: ModelOption[]; error: string | null }>('/api/models'),
+  /** Which languages the server machine can run (Ruby and Java need their toolchains installed). */
+  languages: () => request<Record<Language, boolean>>('/api/languages'),
 
   generated: () => request<Problem[]>('/api/problems'),
   deleteProblem: (id: string) => request<{ ok: true }>(`/api/problems/${enc(id)}`, { method: 'DELETE' }),
@@ -80,22 +82,29 @@ export const api = {
   progress: () => request<Progress>('/api/progress'),
 
   guide: (id: string) => request<{ guide: Guide | null }>(`/api/guides/${enc(id)}`),
-  writeGuide: (problem: Problem, answer: string, run: RunResult | null) =>
-    request<{ guide: Guide }>(`/api/guides/${enc(problem.id)}`, { method: 'POST', body: JSON.stringify({ problem, answer, run }) }),
+  writeGuide: (key: string, problem: Problem, answer: string, run: RunResult | null, language: Language) =>
+    request<{ guide: Guide }>(`/api/guides/${enc(key)}`, { method: 'POST', body: JSON.stringify({ problem, answer, run, language }) }),
   revealGuide: (id: string, revealed: number) =>
     request<{ guide: Guide }>(`/api/guides/${enc(id)}`, { method: 'PUT', body: JSON.stringify({ revealed }) }),
 
-  run: (code: string, tests: unknown[]) => request<RunResult>('/api/run', { method: 'POST', body: JSON.stringify({ code, tests }) }),
+  run: (code: string, tests: unknown[], language: Language) => request<RunResult>('/api/run', { method: 'POST', body: JSON.stringify({ code, tests, language }) }),
 
-  variant: (problem: Problem, direction: Direction, steer = '') =>
+  variant: (problem: Problem, direction: Direction, steer = '', language: Language = 'typescript') =>
     request<{ problem: Problem; verified: { passed: number; total: number } | null }>('/api/variants', {
       method: 'POST',
-      body: JSON.stringify({ problem, direction, request: steer }),
+      body: JSON.stringify({ problem, direction, request: steer, language }),
+    }),
+
+  /** Have the model write a generated problem in another language; saved only once its solution passes the tests. */
+  port: (problem: Problem, language: Language) =>
+    request<{ problem: Problem; verified: { passed: number; total: number } | null }>('/api/port', {
+      method: 'POST',
+      body: JSON.stringify({ problem, language }),
     }),
 
   /** Stream a review; resolves once the server has sent done or error, or the signal aborts. */
   async review(
-    body: { problem: Problem; answer: string; run: RunResult | null },
+    body: { problem: Problem; answer: string; run: RunResult | null; language: Language },
     onEvent: (e: ReviewEvent) => void,
     signal: AbortSignal,
   ): Promise<void> {
@@ -108,7 +117,7 @@ export const api = {
   /** Ask a question in a thread (under a review, about the problem, or on a primer); streams the reply. */
   async ask(
     id: string,
-    body: ({ problem: Problem; answer: string; run: RunResult | null } | { primer: { track: Track; topic: string } } | { about: true; problem: Problem }) & { message: string },
+    body: ({ problem: Problem; answer: string; run: RunResult | null; language: Language } | { primer: { track: Track; topic: string } } | { about: true; problem: Problem; language: Language }) & { message: string },
     onEvent: (e: ChatEvent) => void,
     signal: AbortSignal,
   ): Promise<void> {

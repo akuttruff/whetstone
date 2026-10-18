@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api.ts'
-import type { Guide, Problem, RunResult } from '../types.ts'
+import type { Guide, Language, Problem, RunResult } from '../types.ts'
 
 /**
  * The hint ladder for a problem: loaded from the server, written by the
  * model for the attempt as it stands, revealed one rung at a time.
  */
-export default function useGuide(problem: Problem, answer: string, run: RunResult | null) {
+export default function useGuide(problem: Problem, key: string, language: Language, answer: string, run: RunResult | null) {
   const [guide, setGuide] = useState<Guide | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [writing, setWriting] = useState(false)
@@ -17,30 +17,30 @@ export default function useGuide(problem: Problem, answer: string, run: RunResul
     setGuide(null)
     setLoaded(false)
     setError(null)
-    void api.guide(problem.id)
+    void api.guide(key)
       .then(({ guide: g }) => { if (!cancelled) setGuide(g) })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoaded(true) })
     return () => { cancelled = true }
-  }, [problem.id])
+  }, [key])
 
   const write = useCallback(async (): Promise<void> => {
     setWriting(true)
     setError(null)
     try {
-      const { guide: g } = await api.writeGuide(problem, answer, run)
+      const { guide: g } = await api.writeGuide(key, problem, answer, run, language)
       setGuide(g)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setWriting(false)
     }
-  }, [problem, answer, run])
+  }, [key, problem, answer, run, language])
 
   const reveal = useCallback((n: number): void => {
     setGuide((g) => (g ? { ...g, revealed: Math.max(0, Math.min(g.steps.length, n)) } : g))
-    void api.revealGuide(problem.id, n).catch(() => {})
-  }, [problem.id])
+    void api.revealGuide(key, n).catch(() => {})
+  }, [key])
 
   return { guide, loaded, writing, error, write, reveal }
 }

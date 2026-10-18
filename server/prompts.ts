@@ -1,5 +1,6 @@
-import { DIFFICULTIES, TRACKS, isCode, isDesign, isPrompt } from '../src/types.ts'
-import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Primer, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
+import { DIFFICULTIES, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, isDesign, isPrompt, portFor } from '../src/types.ts'
+import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Language, Port, Primer, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
+import { normaliseTest, testLabel } from '../src/lib/tests.ts'
 import type { JsonSchemaSpec } from './llm.ts'
 import { ValidationError } from './store.ts'
 
@@ -29,11 +30,27 @@ function fmtRun(run: RunResult | null | undefined): string {
   return `Automated tests: ${run.passed}/${run.total} passed.\n${lines.join('\n')}${run.output ? `\nConsole output:\n${run.output.slice(0, 1500)}` : ''}`
 }
 
-export function reviewPrompt(problem: Problem, answer: string, run?: RunResult | null): { system: string; user: string } {
+/** The fenced-code tag for a language. */
+const fence = (l: Language): string => l
+const label = (l: Language): string => LANGUAGE_LABEL[l]
+
+/**
+ * The reference solution in the language being worked in, or the
+ * TypeScript one with a note when the problem has not been ported yet.
+ */
+function referenceSolution(problem: CodeProblem, language: Language): string {
+  const port = portFor(problem, language)
+  if (port) return `\`\`\`${fence(language)}\n${port.solution}\n\`\`\``
+  const any = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([, p]) => p)
+  if (!any) return '(none)'
+  return `(in ${label(any[0])}; the candidate works in ${label(language)}, so translate as you explain)\n\`\`\`${fence(any[0])}\n${any[1]!.solution}\n\`\`\``
+}
+
+export function reviewPrompt(problem: Problem, answer: string, run?: RunResult | null, language: Language = 'typescript'): { system: string; user: string } {
   if (isCode(problem)) {
     return {
       system:
-        'You are a senior software engineer conducting a coding interview for a senior role. Review the candidate\'s TypeScript attempt at the problem below. ' +
+        `You are a senior software engineer conducting a coding interview for a senior role. Review the candidate's ${label(language)} attempt at the problem below. ` +
         'Judge correctness against the statement and examples, edge cases, time and space complexity versus the expected pattern, and clarity of the code. ' +
         'Use the automated test results when present but also reason about cases they do not cover. Do not rewrite their solution. ' +
         STYLE + VERDICT_RULE,
@@ -42,7 +59,7 @@ export function reviewPrompt(problem: Problem, answer: string, run?: RunResult |
         `Examples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
         (problem.constraints?.length ? `Constraints:\n${problem.constraints.map((c) => `- ${c}`).join('\n')}\n\n` : '') +
         `${fmtRun(run)}\n\n` +
-        `Candidate's code:\n\`\`\`typescript\n${answer}\n\`\`\``,
+        `Candidate's code:\n\`\`\`${fence(language)}\n${answer}\n\`\`\``,
     }
   }
   if (isDesign(problem)) {
@@ -145,8 +162,8 @@ const CODE_SCHEMA: JsonSchemaSpec = {
         type: 'array',
         items: {
           type: 'object',
-          properties: { name: { type: 'string' }, call: { type: 'string' }, expectedJson: { type: 'string' }, unordered: { type: 'boolean' } },
-          required: ['call', 'expectedJson'],
+          properties: { name: { type: 'string' }, fn: { type: 'string' }, argsJson: { type: 'string' }, expectedJson: { type: 'string' }, unordered: { type: 'boolean' } },
+          required: ['fn', 'argsJson', 'expectedJson'],
         },
       },
     },
@@ -237,7 +254,39 @@ function requestBrief(request: string | undefined): string {
     'If it asks for a different pattern, keep this pattern and honour the spirit of the request in the scenario instead.'
 }
 
-export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = [], request?: string, known: string[] = []): { system: string; user: string; schema: JsonSchemaSpec } {
+/** How the starter and solution must look in each language: what the runner and the editor expect. */
+export function codeRules(language: Language): string {
+  if (language === 'ruby') {
+    return 'Rules for Ruby: "starter" defines exactly one top-level method in snake_case (or a class plus a top-level driver method for a data-structure problem), with a short comment on the inputs and the return value and a body of `# your code` that returns a placeholder; ' +
+      '"solution" is the same file completed, correct and idiomatic Ruby 3, standard library only (require "set" is fine), nothing printed. ' +
+      'A linked list is `class ListNode; attr_accessor :val, :next; def initialize(val = 0, nxt = nil); @val = val; @next = nxt; end; end` and a tree is `class TreeNode; attr_accessor :val, :left, :right; def initialize(val = 0, left = nil, right = nil); @val = val; @left = left; @right = right; end; end`, declared at the top of the file when used. '
+  }
+  if (language === 'java') {
+    return 'Rules for Java: "starter" is one file with `import java.util.*;` and a non-public `class Solution { ... }` holding exactly one public method in camelCase with a TODO body returning a placeholder (plus a public driver method, with helper classes as further top-level non-public classes, for a data-structure problem); ' +
+      '"solution" is the same file completed, correct and idiomatic Java 17, standard library only, no package statement, no main method, nothing printed. ' +
+      'Parameter types must match the test arguments: int[] for integer arrays, int[][] or char[][] for grids, String, List<List<Integer>> for jagged lists, ListNode or TreeNode for lists and trees; return primitives, String, arrays, Lists or a Map. ' +
+      'A linked list is `class ListNode { int val; ListNode next; ListNode() {} ListNode(int val) { this.val = val; } }` and a tree is `class TreeNode { int val; TreeNode left, right; TreeNode() {} TreeNode(int val) { this.val = val; } }`, declared as top-level classes in the file when used. '
+  }
+  return 'Rules for TypeScript: "starter" exports exactly one function (or a class plus an exported driver function) with full type annotations and a TODO body; ' +
+    '"solution" is the same file completed, correct and idiomatic, with no external imports. ' +
+    'A linked list is `class ListNode { val: number; next: ListNode | null; constructor(val = 0, next: ListNode | null = null) { this.val = val; this.next = next } }` and a tree is `interface TreeNode { val: number; left: TreeNode | null; right: TreeNode | null }`, declared in the file when used. '
+}
+
+const TESTS_RULE =
+  '"tests" are 3 to 5 checks: "fn" is the function or method name exactly as written in the starter, "argsJson" is a JSON array of its arguments in order ' +
+  '(a linked list as nested {"val":1,"next":null} objects, a tree as {"val":1,"left":null,"right":null} objects, a grid as an array of arrays), ' +
+  'and "expectedJson" is the exact return value as JSON, e.g. "[0,1]", "true" or "\\"abc\\"". Set "unordered": true when any order of elements is acceptable. Every test must pass against your solution. '
+
+/** The original's code shown to the model: in the language asked for when it exists, else whichever exists with a note. */
+function originalCode(problem: CodeProblem, language: Language): string {
+  const port = portFor(problem, language)
+  if (port) return `Original starter:\n${port.starter}\n\nOriginal solution (for the pattern; do not copy):\n${port.solution}`
+  const any = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([, p]) => p)
+  if (!any) return ''
+  return `Original starter (in ${label(any[0])}; write the new problem in ${label(language)}):\n${any[1]!.starter}\n\nOriginal solution (for the pattern; do not copy):\n${any[1]!.solution}`
+}
+
+export function variantPrompt(problem: Problem, direction: Direction, avoid: string[] = [], request?: string, known: string[] = [], language: Language = 'typescript'): { system: string; user: string; schema: JsonSchemaSpec } {
   const target = stepDifficulty(problem.difficulty, direction)
   const common =
     'You write interview practice material for senior software engineers. Produce ONE new problem as JSON matching the schema. ' +
@@ -248,16 +297,13 @@ export function variantPrompt(problem: Problem, direction: Direction, avoid: str
       schema: CODE_SCHEMA,
       system:
         common +
-        'Rules for TypeScript problems: "starter" exports exactly one function (or a class plus an exported driver function) with full type annotations and a TODO body; ' +
-        '"solution" is the same file completed, correct and idiomatic, with no external imports; ' +
-        '"tests" are 3 to 5 checks where "call" is a JavaScript expression that calls the exported function exactly as named in the starter, e.g. "twoSum([2, 7], 9)", ' +
-        'and "expectedJson" is the exact return value as a JSON string, e.g. "[0,1]" or "true" or "\\"abc\\"". Set "unordered": true when any order of elements is acceptable. ' +
-        'Every test must pass against your solution. Do not use markdown in any field. Keep description to 1 to 3 short paragraphs.',
+        `The problem is written in ${label(language)}. ` + codeRules(language) + TESTS_RULE +
+        'Do not use markdown in any field. Keep description to 1 to 3 short paragraphs.',
       user:
         `${directionBrief(direction, target)}\n\n` +
         `Original problem (${problem.difficulty}; topic: ${problem.topic}; pattern: ${problem.pattern}): ${problem.title}\n\n` +
         `${problem.description.join('\n\n')}\n\nExamples:\n${fmtExamples(problem.examples)}\n\n` +
-        `Original starter:\n${problem.starter}\n\nOriginal solution (for the pattern; do not copy):\n${problem.solution}${avoidText}`,
+        `${originalCode(problem, language)}${avoidText}`,
     }
   }
   if (isDesign(problem)) {
@@ -297,16 +343,16 @@ export const CHAT_HISTORY = 12
  * The reviewer, continuing the conversation. Unlike the review itself this
  * may show code: the point of a follow-up is usually "how would I write that".
  */
-export function chatPrompt(problem: Problem, answer: string, run: RunResult | null | undefined, lastReview: string | null): string {
+export function chatPrompt(problem: Problem, answer: string, run: RunResult | null | undefined, lastReview: string | null, language: Language = 'typescript'): string {
   const base =
     'You are the senior engineer who just reviewed this candidate\'s interview attempt, now answering their follow-up questions. ' +
-    'Answer the question directly and concretely, in markdown, under 250 words. When they ask how to implement a suggestion or what the syntax looks like, show a short focused code snippet (TypeScript, fenced) for exactly that part; ' +
+    `Answer the question directly and concretely, in markdown, under 250 words. When they ask how to implement a suggestion or what the syntax looks like, show a short focused code snippet (${label(language)}, fenced) for exactly that part; ` +
     'give a complete solution only if they ask for it outright. Refer to their actual code and the review. If they ask something unrelated to the problem, answer briefly and steer back. '
   if (isCode(problem)) {
     return (
       base +
       `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples)}\n\n` +
-      `${fmtRun(run)}\n\nCandidate's current code:\n\`\`\`typescript\n${answer}\n\`\`\`\n\n` +
+      `${fmtRun(run)}\n\nCandidate's current code:\n\`\`\`${fence(language)}\n${answer}\n\`\`\`\n\n` +
       `Your latest review:\n${lastReview ?? '(no review yet)'}`
     )
   }
@@ -326,12 +372,12 @@ export const aboutThreadId = (problemId: string): string => `about:${problemId}`
  * an approach through on an example, shows code, and gives the full solution
  * when asked for it outright.
  */
-export function aboutPrompt(problem: Problem): string {
+export function aboutPrompt(problem: Problem, language: Language = 'typescript'): string {
   const base =
     'You are a senior engineer helping a candidate practise for a senior software engineer interview. They are studying the problem below and may ask you anything about it: ' +
     'what it means, what the edge cases are, which techniques apply and why, how an approach works step by step, what the complexity is, how to write a particular part, or what the complete solution looks like. ' +
     'Answer every question directly and concretely in markdown, under 300 words. Explain the idea before the code, walk through it on a small example when that helps, name the technique so they can recognise it next time, and compare alternatives when asked which to use. ' +
-    'Show short TypeScript snippets (fenced) freely; give the complete solution when they ask for it outright, with a line or two on why it works. ' +
+    `Show short ${label(language)} snippets (fenced) freely; give the complete solution when they ask for it outright, with a line or two on why it works. ` +
     'Do not hold back to make them work for it: this is a study session, not the interview. If they ask something unrelated to the problem, answer briefly and steer back.'
   if (isCode(problem)) {
     return (
@@ -339,7 +385,7 @@ export function aboutPrompt(problem: Problem): string {
       `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
       `Constraints:\n${(problem.constraints ?? []).map((c) => `- ${c}`).join('\n') || '(none stated)'}\n\n` +
       `Hints the problem comes with:\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
-      `Reference solution, for you to explain from and build on:\n\`\`\`typescript\n${problem.solution}\n\`\`\``
+      `Reference solution, for you to explain from and build on:\n${referenceSolution(problem, language)}`
     )
   }
   if (isDesign(problem)) {
@@ -403,13 +449,13 @@ const GUIDE_SCHEMA: JsonSchemaSpec = {
  * attempt as it stands, so someone who is stuck can get there themselves
  * before looking at the answer.
  */
-export function guidePrompt(problem: Problem, answer: string, run?: RunResult | null): { system: string; user: string; schema: JsonSchemaSpec } {
+export function guidePrompt(problem: Problem, answer: string, run?: RunResult | null, language: Language = 'typescript'): { system: string; user: string; schema: JsonSchemaSpec } {
   const common =
     'You are a patient senior engineer tutoring a candidate who is stuck on an interview problem and does not want to give up. ' +
     'Write a ladder of 5 to 7 hints as JSON. Each step has a short "title", a "hint" (2 to 4 sentences, plain text, no markdown) and "tryThis": one small concrete thing to attempt before reading the next step. ' +
     'Step 1 is the gentlest nudge: restate what the problem is really asking and point at the key observation without stating it. Each later step gives away a little more. ' +
     'The second-to-last step is a complete plan in prose or pseudocode. The last step walks the plan through one of the examples and covers edge cases and complexity. ' +
-    'Never include a complete solution in TypeScript. Tailor the ladder to the attempt: say what is already right, and make the early steps about the first thing that is wrong or missing. ' +
+    `Never include a complete solution in ${label(language)} or any other language. Tailor the ladder to the attempt: say what is already right, and make the early steps about the first thing that is wrong or missing. ` +
     'If the attempt is empty or unchanged from the starter, start from zero. '
   if (isCode(problem)) {
     return {
@@ -420,9 +466,9 @@ export function guidePrompt(problem: Problem, answer: string, run?: RunResult | 
         `Examples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
         (problem.constraints?.length ? `Constraints:\n${problem.constraints.map((c) => `- ${c}`).join('\n')}\n\n` : '') +
         `Author's hints, for your reference (do not just repeat them):\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
-        `Reference solution, for your reference only (never show it):\n${problem.solution}\n\n` +
+        `Reference solution, for your reference only (never show it):\n${referenceSolution(problem, language)}\n\n` +
         `${fmtRun(run)}\n\n` +
-        `Current attempt:\n\`\`\`typescript\n${answer}\n\`\`\``,
+        `Current attempt:\n\`\`\`${fence(language)}\n${answer}\n\`\`\``,
     }
   }
   if (isDesign(problem)) {
@@ -488,16 +534,47 @@ function tests(v: unknown): TestCase[] {
   for (const t of v) {
     if (!t || typeof t !== 'object') continue
     const o = t as Record<string, unknown>
-    const call = str(o.call, 4000)
-    if (!call) continue
     let expected: unknown
     if ('expectedJson' in o) {
       try { expected = JSON.parse(String(o.expectedJson)) } catch { continue }
     } else if ('expected' in o) {
       expected = o.expected
     } else continue
-    out.push({ call, expected, ...(str(o.name, 200) ? { name: str(o.name, 200) } : {}), ...(o.unordered === true ? { unordered: true } : {}) })
+    const extra = { ...(str(o.name, 200) ? { name: str(o.name, 200) } : {}), ...(o.unordered === true ? { unordered: true } : {}) }
+    const fn = str(o.fn, 200)
+    if (fn && /^[A-Za-z_$][\w$]*$/.test(fn)) {
+      let args: unknown
+      if ('argsJson' in o) {
+        try { args = JSON.parse(String(o.argsJson)) } catch { continue }
+      } else args = o.args
+      if (!Array.isArray(args)) continue
+      out.push({ fn, args, expected, ...extra })
+    } else {
+      const call = str(o.call, 4000)
+      if (!call) continue
+      out.push(normaliseTest({ call, expected, ...extra }))
+    }
     if (out.length >= 12) break
+  }
+  return out
+}
+
+/** A port as sent by the client or the model: starter and solution, both non-empty. */
+export function portOf(v: unknown): Port | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  const starter = str(o.starter)
+  const solution = str(o.solution)
+  return starter && solution ? { starter, solution } : null
+}
+
+function portsOf(v: unknown): NonNullable<CodeProblem['ports']> {
+  const out: NonNullable<CodeProblem['ports']> = {}
+  if (!v || typeof v !== 'object') return out
+  for (const l of LANGUAGES) {
+    if (l.id === 'typescript') continue
+    const port = portOf((v as Record<string, unknown>)[l.id])
+    if (port) out[l.id] = port
   }
   return out
 }
@@ -531,12 +608,14 @@ export function validateProblem(input: unknown, fallback: Pick<Problem, 'track' 
   if (b.track === 'coding' || b.track === 'practical') {
     const starter = str(o.starter)
     const solution = str(o.solution)
-    if (!starter || !solution) throw new ValidationError('a code problem needs starter and solution')
+    const ports = portsOf(o.ports)
+    if ((!starter || !solution) && Object.keys(ports).length === 0) throw new ValidationError('a code problem needs starter and solution')
     const p: CodeProblem = {
       ...b, track: b.track,
       description: strs(o.description, 10), examples: examples(o.examples), hints: strs(o.hints, 8),
-      starter, solution, tests: tests(o.tests),
+      starter: starter && solution ? starter : '', solution: starter && solution ? solution : '', tests: tests(o.tests),
       ...(strs(o.constraints, 10).length ? { constraints: strs(o.constraints, 10) } : {}),
+      ...(Object.keys(ports).length ? { ports } : {}),
     }
     if (p.description.length === 0) throw new ValidationError('a code problem needs a description')
     return p
@@ -580,11 +659,16 @@ export function variantPattern(raw: unknown, parent: Problem, direction: Directi
 }
 
 /** The model's JSON for a variant, made into a saved-shape problem under its parent. */
-export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean, request?: string, known: string[] = []): Problem {
+export function variantFromModel(raw: unknown, parent: Problem, direction: Direction, taken: (id: string) => boolean, request?: string, known: string[] = [], language: Language = 'typescript'): Problem {
   const difficulty = stepDifficulty(parent.difficulty, direction)
   const pattern = variantPattern(raw, parent, direction, known)
+  // Written in another language: the model's code is that language's port and there is no TypeScript yet.
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  const shaped = language === 'typescript' || !isCode(parent)
+    ? o
+    : { ...o, starter: '', solution: '', ports: { [language]: { starter: o.starter, solution: o.solution } } }
   const p = validateProblem(
-    { ...(raw as object), track: parent.track, topic: parent.topic, pattern, difficulty, source: 'generated', parentId: parent.id },
+    { ...shaped, track: parent.track, topic: parent.topic, pattern, difficulty, source: 'generated', parentId: parent.id },
     { track: parent.track, topic: parent.topic, pattern, difficulty },
   )
   let id = `${slug(p.title) || 'variant'}-${direction}`
@@ -592,6 +676,50 @@ export function variantFromModel(raw: unknown, parent: Problem, direction: Direc
   while (taken(id)) id = `${slug(p.title) || 'variant'}-${direction}-${n++}`
   const r = (request ?? '').trim()
   return { ...p, id, source: 'generated', parentId: parent.id, direction, ...(r ? { request: r } : {}) }
+}
+
+// ── ports: the same problem in another language ─────────────────────────
+
+export const PORT_MAX_TOKENS = 3000
+
+const PORT_SCHEMA: JsonSchemaSpec = {
+  name: 'port',
+  schema: {
+    type: 'object',
+    properties: { starter: { type: 'string' }, solution: { type: 'string' } },
+    required: ['starter', 'solution'],
+  },
+}
+
+/**
+ * Translate a problem's starter and solution into another language so the
+ * same tests pass: a generated variant written in one language, worked in
+ * another. Built-in problems are ported by hand instead.
+ */
+export function portPrompt(problem: CodeProblem, language: Language): { system: string; user: string; schema: JsonSchemaSpec } {
+  const from = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([l, p]) => l !== language && p)
+  if (!from) throw new ValidationError('the problem has no code to port from')
+  const [fromLang, port] = from
+  const calls = problem.tests.map((t) => `- ${testLabel({ ...t, name: undefined }, language)} => ${JSON.stringify(t.expected)}${t.unordered ? ' (any order)' : ''}`).join('\n')
+  return {
+    schema: PORT_SCHEMA,
+    system:
+      `You translate interview practice problems between programming languages for a candidate who practises the same problem in several. Write the ${label(language)} version of the problem below as JSON with "starter" and "solution". ` +
+      codeRules(language) +
+      `Keep the function name in ${label(language)}'s naming convention (twoSum in TypeScript and Java is two_sum in Ruby), the same parameter order and the same return shape, because the automated tests below call it exactly that way and compare the JSON of the result. ` +
+      'The starter mirrors the original starter: the same explanatory comment, the same TODO shape, the same helper classes. The solution must pass every test. Do not use markdown.',
+    user:
+      `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${problem.description.join('\n\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
+      `Original ${label(fromLang)} starter:\n${port!.starter}\n\nOriginal ${label(fromLang)} solution:\n${port!.solution}\n\n` +
+      `The tests, as they will be called in ${label(language)}:\n${calls}`,
+  }
+}
+
+/** The model's port, cleaned, or a validation error. */
+export function portFromModel(raw: unknown): Port {
+  const port = portOf(raw)
+  if (!port) throw new ValidationError('the model returned no starter and solution')
+  return port
 }
 
 export { isPrompt }

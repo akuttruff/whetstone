@@ -77,7 +77,7 @@ describe('variants', () => {
     }
     const p = variantFromModel(raw, twoSum, 'easier', (id) => id === 'pair-sum-exists-easier') as CodeProblem
     expect(p).toMatchObject({ id: 'pair-sum-exists-easier-2', track: 'coding', topic: twoSum.topic, pattern: twoSum.pattern, difficulty: 'easy', source: 'generated', parentId: 'two-sum', direction: 'easier' })
-    expect(p.tests).toEqual([{ call: 'pairSum()', expected: true }])
+    expect(p.tests).toEqual([{ fn: 'pairSum', args: [], expected: true }])
   })
   it('lets a harder variant name its own pattern, from the known vocabulary', () => {
     const known = ['Hash map lookup', 'Monotonic deque']

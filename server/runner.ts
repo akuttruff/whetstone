@@ -2,18 +2,27 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import type { RunResult, TestCase } from '../src/types.ts'
+import { JAVA_HARNESS } from './harness-java.ts'
+import { RUBY_HARNESS } from './harness-ruby.ts'
+import { TS_HARNESS } from './harness-ts.ts'
+import { javaBins, missingMessage, rubyBin } from './langs.ts'
+import { languageNeutral, normaliseTests, testLabel } from '../src/lib/tests.ts'
+import type { Language, RunResult, TestCase, TestResult } from '../src/types.ts'
 
 /**
- * Runs a draft against its problem's tests in a separate Node process, with
- * Node's own TypeScript support (type stripping plus the transform flag so
- * enums and parameter properties work too). This is the user's own code on
- * their own machine, so the sandboxing is a timeout and a scratch directory,
- * not a security boundary.
+ * Runs a draft against its problem's tests in a separate process: Node with
+ * its own TypeScript support, Ruby, or a javac + java pair. Each language has
+ * a harness that calls the tested function with the JSON arguments and
+ * prints one line of raw outcomes; the comparison with the expected values
+ * is done here, once, the same way for every language. This is the user's
+ * own code on their own machine, so the sandboxing is a timeout and a
+ * scratch directory, not a security boundary.
  */
 
 export const RUN_TIMEOUT_MS = 15_000
 export const PER_TEST_TIMEOUT_MS = 3_000
+/** Compiling Java is slow to start; it gets its own budget before the run. */
+export const COMPILE_TIMEOUT_MS = 30_000
 export const CODE_MAX = 200_000
 const MARK = '__WHETSTONE_RESULT__'
 
@@ -21,102 +30,136 @@ export interface RunOptions {
   /** Where scratch directories go; one per run, removed afterwards. */
   dir: string
   timeoutMs?: number
+  language?: Language
 }
 
-const HARNESS = String.raw`
-import { readFileSync } from 'node:fs'
-import { format } from 'node:util'
-
-const MARK = '${MARK}'
-const PER_TEST_MS = ${PER_TEST_TIMEOUT_MS}
-const tests = JSON.parse(readFileSync('./tests.json', 'utf8'))
-const logs = []
-const log = (...a) => { if (logs.length < 200) logs.push(format(...a)) }
-console.log = console.info = console.debug = console.warn = console.error = log
-const started = performance.now()
-const result = { ok: false, passed: 0, total: tests.length, results: [], output: '', ms: 0 }
-
-const finish = () => {
-  result.ms = Math.round(performance.now() - started)
-  result.output = logs.join('\n').slice(0, 20000)
-  result.ok = !result.error && result.passed === result.total
-  process.stdout.write('\n' + MARK + JSON.stringify(result) + '\n')
-  process.exit(0)
+/** What a harness reports per test, before comparison. */
+interface RawEntry {
+  name?: string
+  actual?: unknown
+  error?: string
+  ms: number
 }
-const message = (e) => (e && typeof e.message === 'string' ? e.message : String(e))
-const sortDeep = (v) => {
+interface RawResult {
+  error?: string
+  output: string
+  results: RawEntry[]
+}
+
+const sortDeep = (v: unknown): unknown => {
   if (Array.isArray(v)) return v.map(sortDeep).sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : JSON.stringify(a) > JSON.stringify(b) ? 1 : 0))
-  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v).sort()) o[k] = sortDeep(v[k]); return o }
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {}
+    for (const k of Object.keys(v as object).sort()) o[k] = sortDeep((v as Record<string, unknown>)[k])
+    return o
+  }
   return v
 }
-const norm = (v, unordered) => {
-  const json = JSON.stringify(v === undefined ? null : v)
-  const plain = JSON.parse(json === undefined ? 'null' : json)
-  return unordered ? sortDeep(plain) : plain
-}
-const show = (v) => { const s = JSON.stringify(v); return s.length > 400 ? s.slice(0, 400) + '…' : s }
-const withTimeout = (p, ms) => new Promise((resolve, reject) => {
-  const t = setTimeout(() => reject(new Error('test timed out after ' + ms + ' ms')), ms)
-  Promise.resolve(p).then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
-})
-const RESERVED = new Set(['default', 'class', 'function', 'var', 'let', 'const', 'new', 'delete', 'typeof', 'in', 'of', 'import', 'export', 'await', 'yield', 'this', 'super'])
-
-let mod
-try {
-  mod = await import('./solution.ts')
-} catch (e) {
-  result.error = 'Your code could not be loaded: ' + message(e)
-  finish()
-}
-const names = Object.keys(mod).filter((n) => /^[A-Za-z_$][\w$]*$/.test(n) && !RESERVED.has(n))
-const values = names.map((n) => mod[n])
-
-for (const t of tests) {
-  const t0 = performance.now()
-  const entry = { name: t.name || t.call, pass: false, expected: show(norm(t.expected, t.unordered)), actual: '', ms: 0 }
-  try {
-    const fn = new Function(...names, 'return (async () => (' + t.call + '))()')
-    const value = await withTimeout(fn(...values), PER_TEST_MS)
-    const actual = norm(value, t.unordered)
-    entry.actual = show(actual)
-    entry.pass = JSON.stringify(actual) === JSON.stringify(norm(t.expected, t.unordered))
-  } catch (e) {
-    entry.error = message(e)
-    entry.actual = 'threw: ' + entry.error
+const sortKeys = (v: unknown): unknown => {
+  if (Array.isArray(v)) return v.map(sortKeys)
+  if (v && typeof v === 'object') {
+    const o: Record<string, unknown> = {}
+    for (const k of Object.keys(v as object).sort()) o[k] = sortKeys((v as Record<string, unknown>)[k])
+    return o
   }
-  entry.ms = Math.round(performance.now() - t0)
-  if (entry.pass) result.passed++
-  result.results.push(entry)
+  return v
 }
-finish()
-`
 
-export async function runTests(code: string, tests: TestCase[], opts: RunOptions): Promise<RunResult> {
-  if (typeof code !== 'string' || code.length > CODE_MAX) {
-    return { ok: false, passed: 0, total: tests.length, results: [], output: '', error: 'code is missing or too long', ms: 0 }
+/**
+ * The JSON form two values are compared in: object keys in sorted order
+ * (a Java object's field order or a Ruby hash's insertion order must not
+ * matter), arrays sorted at every depth when the test is unordered.
+ */
+export function normalise(v: unknown, unordered?: boolean): unknown {
+  const json = JSON.stringify(v === undefined ? null : v)
+  const plain: unknown = JSON.parse(json === undefined ? 'null' : json)
+  return unordered ? sortDeep(plain) : sortKeys(plain)
+}
+const show = (v: unknown): string => {
+  const s = JSON.stringify(v)
+  return s.length > 400 ? s.slice(0, 400) + '…' : s
+}
+
+function compare(tests: TestCase[], raw: RawResult, language: Language, ms: number): RunResult {
+  const results: TestResult[] = tests.map((t, i) => {
+    const r = raw.results[i]
+    const expectedNorm = normalise(t.expected, t.unordered)
+    const entry: TestResult = { name: testLabel(t, language), pass: false, expected: show(expectedNorm), actual: '', ms: r?.ms ?? 0 }
+    if (!r) {
+      entry.error = 'not run'
+      entry.actual = 'not run'
+    } else if (r.error !== undefined) {
+      entry.error = r.error
+      entry.actual = 'threw: ' + r.error
+    } else {
+      const actualNorm = normalise(r.actual, t.unordered)
+      entry.actual = show(actualNorm)
+      entry.pass = JSON.stringify(actualNorm) === JSON.stringify(expectedNorm)
+    }
+    return entry
+  })
+  const passed = results.filter((r) => r.pass).length
+  return {
+    ok: !raw.error && passed === tests.length,
+    passed,
+    total: tests.length,
+    results,
+    output: (raw.output ?? '').slice(0, 20_000),
+    ...(raw.error ? { error: raw.error } : {}),
+    ms,
+  }
+}
+
+const failed = (tests: TestCase[], error: string, ms: number, output = ''): RunResult => ({ ok: false, passed: 0, total: tests.length, results: [], output, error, ms })
+
+export async function runTests(code: string, input: TestCase[], opts: RunOptions): Promise<RunResult> {
+  const language = opts.language ?? 'typescript'
+  const tests = normaliseTests(input)
+  if (typeof code !== 'string' || code.length > CODE_MAX) return failed(tests, 'code is missing or too long', 0)
+  if (language !== 'typescript' && !languageNeutral(tests)) {
+    return failed(tests, 'These tests are written as TypeScript expressions, so they can only run against TypeScript.', 0)
   }
   const dir = path.join(opts.dir, `run-${randomUUID()}`)
   fs.mkdirSync(dir, { recursive: true })
   const started = Date.now()
+  const timeoutMs = opts.timeoutMs ?? RUN_TIMEOUT_MS
   try {
-    fs.writeFileSync(path.join(dir, 'solution.ts'), code)
-    fs.writeFileSync(path.join(dir, 'tests.json'), JSON.stringify(tests))
-    fs.writeFileSync(path.join(dir, 'harness.mjs'), HARNESS)
-    const { stdout, stderr, timedOut, code: exitCode } = await spawnNode(dir, opts.timeoutMs ?? RUN_TIMEOUT_MS)
+    fs.writeFileSync(path.join(dir, 'tests.json'), JSON.stringify(tests.map((t) => ({ name: t.name, fn: t.fn, args: t.args, call: t.call }))))
+    let proc: Spawned
+    if (language === 'ruby') {
+      const ruby = rubyBin()
+      if (!ruby) return failed(tests, missingMessage('ruby'), 0)
+      fs.writeFileSync(path.join(dir, 'solution.rb'), code)
+      fs.writeFileSync(path.join(dir, 'harness.rb'), RUBY_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+      proc = await run(ruby, ['-W0', 'harness.rb'], dir, timeoutMs)
+    } else if (language === 'java') {
+      const bins = javaBins()
+      if (!bins) return failed(tests, missingMessage('java'), 0)
+      fs.writeFileSync(path.join(dir, 'Solution.java'), code)
+      fs.writeFileSync(path.join(dir, 'Harness.java'), JAVA_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+      const compiled = await run(bins.javac, ['-d', 'out', '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', '-Xdiags:compact', 'Solution.java', 'Harness.java'], dir, COMPILE_TIMEOUT_MS)
+      if (compiled.timedOut) return failed(tests, 'Compiling took too long.', Date.now() - started)
+      if (compiled.code !== 0) return failed(tests, 'Your code could not be compiled:\n' + tidyJavac(compiled.stderr || compiled.stdout), Date.now() - started)
+      proc = await run(bins.java, ['-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', 'out', 'Harness'], dir, timeoutMs)
+    } else {
+      fs.writeFileSync(path.join(dir, 'solution.ts'), code)
+      fs.writeFileSync(path.join(dir, 'harness.mjs'), TS_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+      proc = await run(process.execPath, ['--no-warnings', '--experimental-transform-types', 'harness.mjs'], dir, timeoutMs, { NODE_OPTIONS: '' })
+    }
     const ms = Date.now() - started
-    const at = stdout.lastIndexOf(MARK)
+    const at = proc.stdout.lastIndexOf(MARK)
     if (at >= 0) {
-      const line = stdout.slice(at + MARK.length).split('\n')[0]!
+      const line = proc.stdout.slice(at + MARK.length).split('\n')[0]!
       try {
-        return { ...(JSON.parse(line) as RunResult), ms }
+        return compare(tests, JSON.parse(line) as RawResult, language, ms)
       } catch {
         /* fall through to the generic error */
       }
     }
-    const error = timedOut
-      ? `Timed out after ${Math.round((opts.timeoutMs ?? RUN_TIMEOUT_MS) / 1000)} s (an infinite loop?)`
-      : `The run failed (exit ${exitCode}): ${tidy(stderr) || tidy(stdout) || 'no output'}`
-    return { ok: false, passed: 0, total: tests.length, results: [], output: tidy(stdout.replace(MARK, '')), error, ms }
+    const error = proc.timedOut
+      ? `Timed out after ${Math.round(timeoutMs / 1000)} s (an infinite loop?)`
+      : `The run failed (exit ${proc.code}): ${tidy(proc.stderr) || tidy(proc.stdout) || 'no output'}`
+    return failed(tests, error, ms, tidy(proc.stdout.replace(MARK, '')))
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -131,11 +174,29 @@ function tidy(s: string): string {
     .slice(0, 4000)
 }
 
-function spawnNode(cwd: string, timeoutMs: number): Promise<{ stdout: string; stderr: string; timedOut: boolean; code: number | null }> {
+/** javac's errors without the scratch path, the "N errors" footer, or notes. */
+function tidyJavac(s: string): string {
+  return s
+    .split('\n')
+    .filter((l) => !/^\d+ errors?$/.test(l.trim()) && !l.startsWith('Note:'))
+    .map((l) => l.replace(/^.*[\\/]Solution\.java:/, 'Solution.java:'))
+    .join('\n')
+    .trim()
+    .slice(0, 4000)
+}
+
+interface Spawned {
+  stdout: string
+  stderr: string
+  timedOut: boolean
+  code: number | null
+}
+
+function run(cmd: string, args: string[], cwd: string, timeoutMs: number, env: Record<string, string> = {}): Promise<Spawned> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--no-warnings', '--experimental-transform-types', 'harness.mjs'], {
+    const child = spawn(cmd, args, {
       cwd,
-      env: { PATH: process.env.PATH ?? '', NODE_OPTIONS: '' },
+      env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', LANG: 'en_US.UTF-8', ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let stdout = ''

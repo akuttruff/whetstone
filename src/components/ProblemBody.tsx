@@ -5,8 +5,8 @@ import DocLinks from './DocLinks.tsx'
 import { PROBLEM_DOCS } from '../data/docs.ts'
 import { BookOpen, Play } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
-import { isCode, isDesign } from '../types.ts'
-import type { Problem } from '../types.ts'
+import { LANGUAGE_LABEL, isCode, isDesign, langFor, portFor } from '../types.ts'
+import type { Language, Problem } from '../types.ts'
 import type { TechniqueDoc } from '../data/techniques.ts'
 
 interface Props {
@@ -15,11 +15,17 @@ interface Props {
   /** The techniques the problem exercises; empty (or omitted) when the interview-mode setting hides them. */
   techniques?: TechniqueDoc[]
   onTechnique?: (t: TechniqueDoc) => void
+  /** The reference solution is shown in this language when the problem has it. */
+  language?: Language
 }
 
 /** The statement, prompt or question, with its spoilers behind disclosure. */
-export default function ProblemBody({ problem, onPrimer, techniques = [], onTechnique }: Props) {
+export default function ProblemBody({ problem, onPrimer, techniques = [], onTechnique, language = 'typescript' }: Props) {
   const [solutionOpen, setSolutionOpen] = useState(false)
+  const lang = langFor(problem, language)
+  const port = portFor(problem, lang)
+  const shownLang: Language = port ? lang : 'typescript'
+  const reference = port?.solution ?? (isCode(problem) ? problem.solution : '')
   const primer = primerFor(problem.track, problem.topic)
   const techniqueRow = techniques.length > 0 && onTechnique && (
     <div className="techniques" aria-label="Techniques">
@@ -70,7 +76,9 @@ export default function ProblemBody({ problem, onPrimer, techniques = [], onTech
         )}
         <details className="spoiler" open={solutionOpen} onToggle={(e) => setSolutionOpen((e.target as HTMLDetailsElement).open)}>
           <summary>Reference solution</summary>
-          {solutionOpen && <div className="solution"><CodeEditor value={problem.solution} readOnly height="auto" /></div>}
+          {solutionOpen && reference && <div className="solution"><CodeEditor value={reference} readOnly height="auto" language={shownLang} /></div>}
+          {solutionOpen && !reference && <p className="template-note">No reference solution in {LANGUAGE_LABEL[lang]} yet; write one from the Code tab.</p>}
+          {solutionOpen && reference && shownLang !== lang && <p className="template-note">Shown in TypeScript: no {LANGUAGE_LABEL[lang]} version of this problem yet.</p>}
         </details>
         {problem.tests.length === 0 && <p className="note">This problem has no automated tests; use Review for feedback.</p>}
       </div>

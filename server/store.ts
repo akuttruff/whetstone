@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { DEFAULT_SETTINGS, DIFFICULTIES, TRACKS } from '../src/types.ts'
+import { DEFAULT_SETTINGS, DIFFICULTIES, LANGUAGES, TRACKS } from '../src/types.ts'
+import { normaliseTests } from '../src/lib/tests.ts'
 import type { ChatMessage, Guide, GuideStep, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
 
 /**
@@ -99,6 +100,11 @@ export class Store {
     if (p.autoFeedback !== undefined) next.autoFeedback = p.autoFeedback === true
     if (p.thinking !== undefined) next.thinking = p.thinking === true
     if (p.showTechniques !== undefined) next.showTechniques = p.showTechniques === true
+    if (p.language !== undefined) {
+      const l = LANGUAGES.find((x) => x.id === p.language)
+      if (!l) throw new ValidationError('unknown language')
+      next.language = l.id
+    }
     if (p.autoDelayS !== undefined) {
       const n = Number(p.autoDelayS)
       if (!Number.isFinite(n) || n < 2 || n > 120) throw new ValidationError('autoDelayS must be between 2 and 120')
@@ -209,17 +215,47 @@ export class Store {
     const rows = this.db.prepare('SELECT json FROM problems ORDER BY created_at ASC').all() as { json: string }[]
     const out: Problem[] = []
     for (const r of rows) {
-      try { out.push(JSON.parse(r.json) as Problem) } catch { /* a corrupt row is skipped, not fatal */ }
+      try {
+        const p = JSON.parse(r.json) as Problem
+        // Variants saved before tests were language-neutral carry TypeScript call expressions.
+        if ('tests' in p && Array.isArray(p.tests)) p.tests = normaliseTests(p.tests)
+        out.push(p)
+      } catch { /* a corrupt row is skipped, not fatal */ }
     }
     return out
   }
 
+  /** Save a port of a generated problem to another language, verified by the caller. */
+  setPort(id: string, language: 'ruby' | 'java', port: { starter: string; solution: string }): Problem {
+    const row = this.db.prepare('SELECT json FROM problems WHERE id = ?').get(id) as { json: string } | undefined
+    if (!row) throw new ValidationError('no such generated problem')
+    const p = JSON.parse(row.json) as Problem
+    if (!('tests' in p)) throw new ValidationError('not a code problem')
+    const next = { ...p, ports: { ...(p.ports ?? {}), [language]: port } }
+    this.db.prepare('UPDATE problems SET json = ? WHERE id = ?').run(JSON.stringify(next), id)
+    return next
+  }
+
+  /** Save the TypeScript version of a generated problem written in another language. */
+  setTypeScript(id: string, port: { starter: string; solution: string }): Problem {
+    const row = this.db.prepare('SELECT json FROM problems WHERE id = ?').get(id) as { json: string } | undefined
+    if (!row) throw new ValidationError('no such generated problem')
+    const p = JSON.parse(row.json) as Problem
+    if (!('tests' in p)) throw new ValidationError('not a code problem')
+    const next = { ...p, starter: port.starter, solution: port.solution }
+    this.db.prepare('UPDATE problems SET json = ? WHERE id = ?').run(JSON.stringify(next), id)
+    return next
+  }
+
   deleteProblem(id: string): void {
     this.db.prepare('DELETE FROM problems WHERE id = ?').run(id)
-    this.deleteDraft(id)
-    this.deleteGuide(id)
-    this.clearChat(id)
-    this.clearChat(`about:${id}`)
+    // Every language's attempt: the plain id (TypeScript) and <id>@<language>.
+    for (const key of [id, ...LANGUAGES.filter((l) => l.id !== 'typescript').map((l) => `${id}@${l.id}`)]) {
+      this.deleteDraft(key)
+      this.deleteGuide(key)
+      this.clearChat(key)
+      this.clearChat(`about:${key}`)
+    }
   }
 
   // ── follow-up conversation under a review ────────────────────────────

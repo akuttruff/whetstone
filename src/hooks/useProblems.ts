@@ -13,10 +13,12 @@ export default function useProblems() {
   const byId = useMemo(() => new Map(all.map((p) => [p.id, p])), [all])
 
   const add = useCallback((p: Problem): void => setGenerated((g) => [...g, p]), [])
+  /** A generated problem changed on the server (a port was added): swap it in place. */
+  const upsert = useCallback((p: Problem): void => setGenerated((g) => (g.some((q) => q.id === p.id) ? g.map((q) => (q.id === p.id ? p : q)) : [...g, p])), [])
   const remove = useCallback(async (id: string): Promise<void> => {
     await api.deleteProblem(id)
     setGenerated((g) => g.filter((p) => p.id !== id))
   }, [])
 
-  return { all, byId, generated, add, remove, refresh }
+  return { all, byId, generated, add, upsert, remove, refresh }
 }

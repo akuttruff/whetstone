@@ -1,8 +1,18 @@
 import type { Primer, Track } from '../types.ts'
 import { PRIMERS_CODING } from './primers-coding.ts'
 import { PRIMERS_OTHER } from './primers-other.ts'
+import { PRIMER_TEMPLATES } from './primer-templates.ts'
 
-export const PRIMERS: Primer[] = [...PRIMERS_CODING, ...PRIMERS_OTHER]
+/** Coding templates pick up their Ruby and Java versions from primer-templates.ts. */
+const withTemplates = (p: Primer): Primer => ({
+  ...p,
+  techniques: p.techniques.map((t) => {
+    const ported = PRIMER_TEMPLATES[`${p.topic}::${t.name}`]
+    return t.template && ported ? { ...t, templates: ported } : t
+  }),
+})
+
+export const PRIMERS: Primer[] = [...PRIMERS_CODING.map(withTemplates), ...PRIMERS_OTHER]
 
 const key = (track: Track, topic: string): string => `${track}::${topic}`
 const byKey = new Map(PRIMERS.map((p) => [key(p.track, p.topic), p]))

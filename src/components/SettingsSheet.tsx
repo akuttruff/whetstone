@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Drawer } from 'vaul'
 import { toast } from 'sonner'
 import { api } from '../lib/api.ts'
-import type { ModelOption, PublicSettings, Settings } from '../types.ts'
+import { LANGUAGES } from '../types.ts'
+import type { Language, ModelOption, PublicSettings, Settings } from '../types.ts'
 
 interface Props {
   open: boolean
@@ -19,6 +20,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
   const [thinking, setThinking] = useState(settings.thinking)
   const [showTechniques, setShowTechniques] = useState(settings.showTechniques)
   const [models, setModels] = useState<ModelOption[]>([])
+  const [languages, setLanguages] = useState<Record<Language, boolean> | null>(null)
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -31,6 +33,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
     setThinking(settings.thinking)
     setShowTechniques(settings.showTechniques)
     void api.models().then((r) => { setModels(r.models); setModelsError(r.error) })
+    void api.languages().then(setLanguages).catch(() => {})
   }, [open, settings])
 
   const save = async (): Promise<void> => {
@@ -82,6 +85,15 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
               <input type="checkbox" checked={thinking} onChange={(e) => setThinking(e.target.checked)} />
               <span>Let the model think first (slower, sometimes sharper)</span>
             </label>
+            <div className="field">
+              <span>Languages on this machine</span>
+              <small className="field-hint">
+                {languages
+                  ? LANGUAGES.map((l) => `${l.label}: ${languages[l.id] ? 'ready' : l.id === 'ruby' ? 'not installed (brew install ruby)' : 'not installed (brew install openjdk)'}`).join(' · ')
+                  : 'Checking…'}
+                {' '}The toggle next to the title picks the language; code in a missing one can be written and reviewed but not run.
+              </small>
+            </div>
             <label className="field row">
               <input type="checkbox" checked={showTechniques} onChange={(e) => setShowTechniques(e.target.checked)} />
               <span>

@@ -1,4 +1,5 @@
-import type { Difficulty, Problem } from '../types.ts'
+import { portFor } from '../types.ts'
+import type { Difficulty, Language, Problem } from '../types.ts'
 
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 
@@ -28,7 +29,7 @@ export function elapsedLabel(startedAt: number | null, now: number): string {
 /** The rank of a difficulty for sorting within a topic. */
 export const difficultyRank = (p: Problem): number => ({ easy: 0, medium: 1, hard: 2 })[p.difficulty]
 
-/** The text a fresh attempt starts from: the starter for code, nothing for prose. */
-export function blankFor(p: Problem): string {
-  return p.track === 'coding' || p.track === 'practical' ? p.starter : ''
+/** The text a fresh attempt starts from: the starter in the language being worked in, nothing for prose or an unported problem. */
+export function blankFor(p: Problem, language: Language = 'typescript'): string {
+  return portFor(p, language)?.starter ?? ''
 }

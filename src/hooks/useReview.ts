@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api.ts'
-import type { Problem, Review, RunResult } from '../types.ts'
+import type { Language, Problem, Review, RunResult } from '../types.ts'
 
 export interface ReviewState {
   /** Text so far (streaming) or the saved review's text. */
@@ -19,7 +19,7 @@ const EMPTY: ReviewState = { text: '', streaming: false, review: null, error: nu
  * `autoDelayS` seconds without edits when `auto` is on. One review runs at a
  * time; an edit during a review queues one more once it finishes.
  */
-export default function useReview(problem: Problem, answer: string, blank: string, run: RunResult | null, auto: boolean, autoDelayS: number) {
+export default function useReview(problem: Problem, key: string, language: Language, answer: string, blank: string, run: RunResult | null, auto: boolean, autoDelayS: number) {
   const [state, setState] = useState<ReviewState>(EMPTY)
   /** The answer the last review was of; `stale` compares it with the current one. */
   const [lastReviewed, setLastReviewed] = useState<string | null>(null)
@@ -27,8 +27,8 @@ export default function useReview(problem: Problem, answer: string, blank: strin
   const reviewedAnswer = useRef<string | null>(null)
   const startRef = useRef<() => void>(() => {})
   const queued = useRef(false)
-  const latest = useRef({ answer, run, problem })
-  latest.current = { answer, run, problem }
+  const latest = useRef({ answer, run, problem, language })
+  latest.current = { answer, run, problem, language }
 
   // Fresh state per problem, with its earlier reviews.
   useEffect(() => {
@@ -39,27 +39,27 @@ export default function useReview(problem: Problem, answer: string, blank: strin
     setLastReviewed(null)
     setState(EMPTY)
     let cancelled = false
-    void api.reviews(problem.id).then((history) => {
+    void api.reviews(key).then((history) => {
       if (cancelled) return
       const last = history[0] ?? null
       setState((s) => ({ ...s, history, review: last, text: last?.text ?? '' }))
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [problem.id])
+  }, [key])
 
   const start = useCallback((): void => {
     if (abort.current) {
       queued.current = true
       return
     }
-    const { answer: a, run: r, problem: p } = latest.current
+    const { answer: a, run: r, problem: p, language: l } = latest.current
     const ac = new AbortController()
     abort.current = ac
     reviewedAnswer.current = a
     setLastReviewed(a)
     setState((s) => ({ ...s, text: '', streaming: true, error: null, review: null, startedAt: Date.now() }))
     void api
-      .review({ problem: p, answer: a, run: r }, (e) => {
+      .review({ problem: p, answer: a, run: r, language: l }, (e) => {
         if (ac.signal.aborted) return
         if (e.type === 'delta') setState((s) => ({ ...s, text: s.text + (e.text ?? '') }))
         else if (e.type === 'done' && e.review) {
