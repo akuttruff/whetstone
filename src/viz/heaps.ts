@@ -46,6 +46,8 @@ class Heap<T> {
   }
 }
 
+const ordinal = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+
 /** Kth largest with a min-heap that never grows past k. */
 export function boundedHeap(): Viz {
   const nums = [3, 2, 1, 5, 6, 4]
@@ -53,7 +55,7 @@ export function boundedHeap(): Viz {
   const heap = new Heap<number>((a, b) => a - b)
   const f: Frame[] = []
   const hl = (hot?: 'active' | 'bad') => list(`min-heap of size ≤ ${k} (top first)`, heap.a, (j) => (hot && j === 0 ? hot : undefined), 'the top is the smallest of the k largest seen')
-  f.push(A({ cells: cellsOf(nums), aux: [hl()], vars: { k }, caption: `Keep the ${k} largest seen so far in a min-heap. Its top is the smallest of them, which is exactly the ${k}th largest. Push each number; if the heap exceeds ${k}, pop the top.` }))
+  f.push(A({ cells: cellsOf(nums), aux: [hl()], vars: { k }, caption: `Keep the ${k} largest seen so far in a min-heap. Its top is the smallest of them, which is exactly the ${ordinal(k)} largest. Push each number; if the heap exceeds ${k}, pop the top.` }))
   for (let i = 0; i < nums.length; i++) {
     heap.push(nums[i]!)
     f.push(A({ cells: cellsOf(nums, (j) => (j === i ? 'active' : j < i ? 'dim' : undefined)), marks: [{ i, label: 'i' }], aux: [hl('active')], caption: `Push ${nums[i]}.${heap.size > k ? ` Size ${heap.size} > ${k}: pop the top.` : ''}` }))

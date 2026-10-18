@@ -51,7 +51,7 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(n)',
       },
     ],
-    pitfalls: ['Using an object as a map with numeric keys (keys become strings; order surprises); use Map', 'Forgetting that the same element cannot be used twice (check before insert)', 'Keying by a mutable or non-canonical value (arrays as keys compare by reference)', 'Reaching for sorting when a single pass with a map is asked for'],
+    pitfalls: ['In JavaScript, using a plain object as a map with numeric keys (keys become strings; order surprises); use Map, Hash or HashMap', 'Forgetting that the same element cannot be used twice (check before insert)', 'Keying by a mutable or non-canonical value (arrays as keys compare by reference)', 'Reaching for sorting when a single pass with a map is asked for'],
     checklist: ['State brute force first (O(n²)) and why it is too slow', 'Say what the map is keyed by and what it stores, before coding', 'Call out the space trade-off and whether duplicates/negatives/empty input change anything'],
   }),
   c({
@@ -138,14 +138,14 @@ export const PRIMERS_CODING: Primer[] = [
         template: `const dq: number[] = [] // indices, values decreasing\nfor (let i = 0; i < nums.length; i++) {\n  while (dq.length && nums[dq[dq.length - 1]] < nums[i]) dq.pop()\n  dq.push(i)\n  if (dq[0] <= i - k) dq.shift()\n  if (i >= k - 1) out.push(nums[dq[0]])\n}`,
       },
     ],
-    pitfalls: ['Using a window when values can be negative and the condition is not monotonic (use prefix sums + map instead)', 'Shrinking with if instead of while', 'Updating the answer before the window is valid again', 'Array.shift() on a plain array inside the loop is O(n); fine for a deque of indices in practice but say so'],
+    pitfalls: ['Using a window when values can be negative and the condition is not monotonic (use prefix sums + map instead)', 'Shrinking with if instead of while', 'Updating the answer before the window is valid again', 'JavaScript’s Array.shift() is O(n) (Ruby’s shift and Java’s ArrayDeque are not); fine for a deque of indices in practice but say so'],
     checklist: ['Name the invariant the window keeps', 'State why each element is processed at most twice', 'Check empty string, k larger than n, all identical'],
   }),
   c({
     topic: 'Stack & Queue',
     summary: "A stack is a pile where you only touch the top (last in, first out); a queue is a line where the first in is the first out. Stacks answer \"what is the most recent thing I have not dealt with yet\": matching brackets, evaluating expressions, and the \"next bigger element\" family. Queues drive breadth-first search, where you handle things in the order they were discovered.",
     terms: [
-      { term: "Stack", meaning: "Last in, first out: push on top, pop off the top. In JavaScript an array with push and pop." },
+      { term: "Stack", meaning: "Last in, first out: push on top, pop off the top. An array with push and pop in JavaScript or Ruby; ArrayDeque in Java." },
       { term: "Queue", meaning: "First in, first out: join at the back, leave from the front." },
       { term: "Monotonic stack", meaning: "A stack you keep sorted (always increasing or always decreasing) by popping anything that would break the order before pushing." },
       { term: "Amortised O(n)", meaning: "A single step can be slow, but over the whole run the total work is still proportional to the input, because each element is pushed and popped at most once." },
@@ -180,7 +180,7 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(V + E)',
       },
     ],
-    pitfalls: ['Popping from an empty stack (check length)', 'Choosing the wrong monotonic direction (increasing vs decreasing) for greater vs smaller', 'Marking visited on dequeue instead of enqueue in BFS (duplicates in the queue)', 'Using shift() on a huge array as a queue in hot loops; use an index or a deque when it matters'],
+    pitfalls: ['Popping from an empty stack (check length)', 'Choosing the wrong monotonic direction (increasing vs decreasing) for greater vs smaller', 'Marking visited on dequeue instead of enqueue in BFS (duplicates in the queue)', 'Using JavaScript’s shift() on a huge array as a queue in hot loops; use an index or a deque when it matters (Ruby’s shift and Java’s ArrayDeque are fine)'],
     checklist: ['Say what the stack holds and the invariant it keeps', 'Explain the amortised O(n) argument', 'Test with all-increasing and all-decreasing inputs'],
   }),
   c({
@@ -218,11 +218,11 @@ export const PRIMERS_CODING: Primer[] = [
       },
       {
         name: 'Custom comparators', when: 'Sort by multiple keys, largest number from digits, version strings.',
-        how: ['Write the comparator as "a before b iff …", test it on a 2-element case', 'Prefer numeric subtraction only for numbers; strings need localeCompare or explicit compare'],
+        how: ['Write the comparator as "a before b iff …", test it on a 2-element case', 'Prefer numeric subtraction only for numbers (Integer.compare in Java avoids overflow); strings need an explicit compare'],
         complexity: 'O(n log n)',
       },
     ],
-    pitfalls: ['Array.sort() without a comparator sorts numbers lexicographically', 'Touching endpoints: decide whether [1,2] and [2,3] overlap and be consistent', 'Mutating the input when the caller may not expect it', 'Confusing "sort by end" (keep most) with "sort by start" (merge)'],
+    pitfalls: ['JavaScript’s Array.sort() without a comparator sorts numbers lexicographically (Ruby and Java sort numbers numerically)', 'Touching endpoints: decide whether [1,2] and [2,3] overlap and be consistent', 'Mutating the input when the caller may not expect it', 'Confusing "sort by end" (keep most) with "sort by start" (merge)'],
     checklist: ['State the sort key and why', 'Give the exchange argument for the greedy', 'Mention O(n log n) and whether a linear-time alternative exists (bucket by time)'],
   }),
   c({
@@ -238,7 +238,7 @@ export const PRIMERS_CODING: Primer[] = [
     techniques: [
       {
         name: 'Dummy head', when: 'Any insertion/removal that could touch the first node.',
-        how: ['const dummy = { val: 0, next: head }; work from dummy; return dummy.next'],
+        how: ['dummy = a node whose next is head; work from dummy; return dummy.next'],
         complexity: '—',
       },
       {
@@ -306,7 +306,7 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(log(min(m, n)))',
       },
     ],
-    pitfalls: ['Mixing the two templates (lo <= hi with hi = mid loops forever)', 'Integer overflow in other languages; in JS (lo + hi) >> 1 is fine below 2^31', 'A predicate that is not monotonic; binary search gives garbage silently', 'Returning mid when the question asked for the boundary'],
+    pitfalls: ['Mixing the two templates (lo <= hi with hi = mid loops forever)', 'Integer overflow: in Java use lo + (hi - lo) / 2 or (lo + hi) >>> 1; JavaScript’s (lo + hi) >> 1 is fine below 2^31; Ruby integers do not overflow', 'A predicate that is not monotonic; binary search gives garbage silently', 'Returning mid when the question asked for the boundary'],
     checklist: ['State the invariant: the answer is always in [lo, hi]', 'Say which template you are using and why', 'Test with n = 0, 1, 2 and target at both ends'],
   }),
   c({
@@ -405,7 +405,7 @@ export const PRIMERS_CODING: Primer[] = [
       },
       {
         name: 'Dijkstra', when: 'Shortest paths with non-negative weights (network delay, cheapest path with weights).',
-        how: ['Min-heap of (distance, node); pop the closest; relax neighbours; skip stale entries', 'Write a small binary heap in TypeScript; know its push/pop'],
+        how: ['Min-heap of (distance, node); pop the closest; relax neighbours; skip stale entries', 'Java has PriorityQueue; in TypeScript or Ruby write a small binary heap and know its push/pop'],
         complexity: 'O(E log V)',
       },
       {
@@ -476,7 +476,7 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Heaps & Priority Queues',
-    summary: "A heap is a structure that always hands you the smallest (or largest) item quickly, even as you keep adding items. Use it whenever a problem repeatedly asks for \"the best so far\": top k, merging several sorted lists, scheduling, running medians. TypeScript has no built-in heap, so be able to write a small one, and know the cheaper alternatives when k is small.",
+    summary: "A heap is a structure that always hands you the smallest (or largest) item quickly, even as you keep adding items. Use it whenever a problem repeatedly asks for \"the best so far\": top k, merging several sorted lists, scheduling, running medians. Java has PriorityQueue; TypeScript and Ruby have no built-in heap, so be able to write a small one, and know the cheaper alternatives when k is small.",
     terms: [
       { term: "Heap", meaning: "An array arranged so the smallest (or largest) item is always at the front; adding or removing keeps that true in a few swaps." },
       { term: "Priority queue", meaning: "A queue where the \"most important\" item comes out first; a heap is the usual implementation." },
@@ -517,7 +517,7 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Bit Manipulation',
-    summary: "Numbers are stored as patterns of bits (0s and 1s), and a few bit operations have handy properties: XOR cancels out pairs, \"n AND (n minus 1)\" removes the lowest 1 bit, shifting left or right doubles or halves. These solve \"which number appears only once\" and \"count the 1 bits\" style questions with almost no memory. In JavaScript the bit operators work on 32-bit values, which has some gotchas.",
+    summary: "Numbers are stored as patterns of bits (0s and 1s), and a few bit operations have handy properties: XOR cancels out pairs, \"n AND (n minus 1)\" removes the lowest 1 bit, shifting left or right doubles or halves. These solve \"which number appears only once\" and \"count the 1 bits\" style questions with almost no memory. JavaScript’s bit operators and Java’s int work on 32-bit values, which has some gotchas; Ruby integers are arbitrary precision, so mask with 0xFFFFFFFF when 32 bits are meant.",
     terms: [
       { term: "Bit", meaning: "A single 0 or 1; numbers are strings of bits." },
       { term: "XOR (^)", meaning: "Combines two bits to 1 when they differ. A number XOR itself is 0, so XOR-ing a whole list cancels anything that appears twice." },
@@ -553,8 +553,8 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(2^n · n)',
       },
     ],
-    pitfalls: ['JS numbers above 2^31 - 1 go negative under bitwise ops; use >>> 0 or BigInt', '1 << 31 is negative; 2 ** 31 is not', 'Confusing >> (sign-propagating) with >>> (zero-fill)', 'Overusing tricks that hurt readability in non-interview code'],
-    checklist: ['Write the identity you are relying on', 'State the 32-bit caveat', 'Test with 0, 1, and the maximum value'],
+    pitfalls: ['32-bit values above 2^31 - 1 go negative under bitwise ops: use >>> 0 in JavaScript, long or Integer.toUnsignedLong in Java; Ruby needs a mask instead', '1 << 31 is negative in JavaScript and Java; 2 ** 31 is not', 'Confusing >> (sign-propagating) with >>> (zero-fill) in JavaScript and Java; Ruby has only >>', 'Overusing tricks that hurt readability in non-interview code'],
+    checklist: ['Write the identity you are relying on', 'State the 32-bit caveat for your language', 'Test with 0, 1, and the maximum value'],
   }),
   c({
     topic: 'Greedy',
@@ -597,12 +597,12 @@ export const PRIMERS_CODING: Primer[] = [
   }),
   c({
     topic: 'Strings',
-    summary: "Strings are arrays of characters with a few extra tools: counting letters, growing outward from the middle to find palindromes, scanning runs of repeated characters, and parsing. In JavaScript strings cannot be changed in place, and some characters (emoji) take two slots, which is worth mentioning.",
+    summary: "Strings are arrays of characters with a few extra tools: counting letters, growing outward from the middle to find palindromes, scanning runs of repeated characters, and parsing. In JavaScript and Java strings cannot be changed in place (Ruby strings can), and in those two some characters (emoji) take two slots, which is worth mentioning.",
     terms: [
       { term: "Substring", meaning: "A contiguous piece of a string." },
       { term: "Subsequence", meaning: "Characters in order but not necessarily adjacent." },
       { term: "Palindrome", meaning: "Reads the same forwards and backwards." },
-      { term: "Code unit", meaning: "One slot of a JavaScript string; most characters take one, some (emoji) take two." },
+      { term: "Code unit", meaning: "One slot of a JavaScript or Java string; most characters take one, some (emoji) take two. Ruby strings index by character." },
       { term: "O(n²)", meaning: "Work that grows with the square of the length; fine for a few thousand characters." },
     ], 
     recognize: ['Palindromes, anagrams, compression, parsing, pattern matching', 'Questions about "substring" (contiguous) vs "subsequence" (not contiguous)'],
@@ -620,7 +620,7 @@ export const PRIMERS_CODING: Primer[] = [
       },
       {
         name: 'Character arithmetic', when: 'Caesar shifts, counting letters in a fixed alphabet.',
-        how: ['charCodeAt(0) - 97 to index a 26-array; String.fromCharCode to go back'],
+        how: ['Character code minus the code of "a" (charCodeAt, ord, or ch - \'a\' in Java) to index a 26-array; the reverse to go back'],
         complexity: 'O(1) per char',
       },
       {
@@ -634,7 +634,7 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(n + m)',
       },
     ],
-    pitfalls: ['Indexing by UTF-16 code unit breaks on emoji/astral characters; mention it', 'Strings are immutable: in-place tricks need an array', 'Case and non-alphanumerics: clarify whether to normalise', 'Confusing substring and subsequence'],
+    pitfalls: ['Indexing by UTF-16 code unit (JavaScript, Java) breaks on emoji/astral characters; mention it', 'Strings are immutable in JavaScript and Java: in-place tricks need an array (Ruby strings are mutable)', 'Case and non-alphanumerics: clarify whether to normalise', 'Confusing substring and subsequence'],
     checklist: ['Clarify the alphabet and case sensitivity', 'State the complexity in terms of n and the alphabet size', 'Test with empty, single char, all same'],
   }),
   c({
@@ -674,18 +674,18 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: 'O(m + n)',
       },
     ],
-    pitfalls: ['Row/column swapped in indexing', 'Single-row or single-column inputs breaking the spiral loop', 'Creating [[]] copies with fill([]) that alias the same inner array', 'Forgetting m ≠ n for non-square inputs'],
+    pitfalls: ['Row/column swapped in indexing', 'Single-row or single-column inputs breaking the spiral loop', 'Creating a grid with fill([]) or Array.new(n, []) so every row is the same inner array', 'Forgetting m ≠ n for non-square inputs'],
     checklist: ['Draw a 3×3 and trace indices', 'Say whether in place is required and how you achieve it', 'Test 1×1, 1×n, n×1'],
   }),
   c({
     topic: 'Math & Geometry',
-    summary: "A small toolbox covers most math questions: fast exponentiation, greatest common divisor, modular arithmetic (keeping numbers small by taking remainders), prime sieves, and a couple of geometry formulas. The traps are precision (decimals are not exact) and numbers getting too big for JavaScript to represent exactly.",
+    summary: "A small toolbox covers most math questions: fast exponentiation, greatest common divisor, modular arithmetic (keeping numbers small by taking remainders), prime sieves, and a couple of geometry formulas. The traps are precision (decimals are not exact) and integers getting too big: JavaScript numbers lose exactness above 2^53 and Java’s long overflows at 2^63, while Ruby integers grow without limit.",
     terms: [
       { term: "Modular arithmetic", meaning: "Working with remainders, like clock time: 13 mod 12 is 1. Used to keep answers small." },
       { term: "GCD", meaning: "Greatest common divisor: the biggest number that divides both." },
       { term: "Exponentiation by squaring", meaning: "Computing a power in about log2(n) multiplications by squaring repeatedly." },
       { term: "Floating point", meaning: "How computers store decimals; small rounding errors mean 0.1 + 0.2 is not exactly 0.3." },
-      { term: "BigInt", meaning: "JavaScript integers of any size, for when normal numbers would lose precision above about 9 quadrillion." },
+      { term: "BigInt / BigInteger", meaning: "Integers of any size (JavaScript BigInt, Java BigInteger; every Ruby Integer) for when fixed-size numbers would overflow or lose precision." },
     ], 
     recognize: ['Powers, factorials, primes, gcd/lcm, "count the ways modulo 1e9+7"', 'Points, lines, areas, rotations'],
     techniques: [
@@ -706,7 +706,7 @@ export const PRIMERS_CODING: Primer[] = [
       },
       {
         name: 'Modular arithmetic', when: 'Answers "modulo 1e9+7".',
-        how: ['Reduce after every multiplication; use BigInt if products exceed 2^53; modular inverse via Fermat for division'],
+        how: ['Reduce after every multiplication; use BigInt or long (or BigInteger) if products would exceed the type; modular inverse via Fermat for division'],
         complexity: '—',
       },
       {
@@ -715,7 +715,7 @@ export const PRIMERS_CODING: Primer[] = [
         complexity: '—',
       },
     ],
-    pitfalls: ['Floating point equality; compare with an epsilon or use integers', 'Products beyond 2^53 lose precision in JS numbers', 'Math.floor vs Math.trunc for negatives', 'Division by zero in gcd/lcm edge cases'],
-    checklist: ['Say the numeric range and whether BigInt is needed', 'Name the identity you are using', 'Test 0, 1, negatives, large values'],
+    pitfalls: ['Floating point equality; compare with an epsilon or use integers', 'Products beyond 2^53 lose precision in JavaScript numbers; beyond 2^63 they overflow a Java long', 'Floor versus truncation for negatives: Math.floor vs Math.trunc, Ruby’s / floors, Java’s / truncates', 'Division by zero in gcd/lcm edge cases'],
+    checklist: ['Say the numeric range and whether an arbitrary-precision integer is needed', 'Name the identity you are using', 'Test 0, 1, negatives, large values'],
   }),
 ]

@@ -127,7 +127,7 @@ export const KNOWLEDGE_RUBY: PromptProblem[] = [
     'A Rails page is slow because of hundreds of small queries. Explain the N+1 problem, how `includes`, `preload` and `eager_load` differ, and the other ActiveRecord habits that keep a page fast. How do you catch regressions?',
     [
       'N+1: one query for the parents and one per parent for a child association; `includes` picks preload (separate query with `IN`) or eager_load (one JOIN) depending on conditions; `preload`/`eager_load` force one',
-      '`select` only needed columns, `pluck` for values, `find_each` for batches, `exists?` over `any?` on relations, counter caches, `size` vs `count` vs `length`',
+      '`select` only needed columns, `pluck` for values, `find_each` for batches, `exists?` over `present?` (which loads the records), counter caches, `size` vs `count` vs `length`',
       'Avoid loading records to compute aggregates: push `sum`/`group` into SQL; use `explain` and the query log',
       'Catching regressions: Bullet in development and test, `strict_loading` on associations or models, query count assertions in tests, APM traces with per-query timing',
       'Indexes for the foreign keys and the columns you filter and sort by; `EXPLAIN ANALYZE` for the slow ones',
@@ -157,7 +157,7 @@ export const KNOWLEDGE_RUBY: PromptProblem[] = [
     'A background job is CPU-bound and slow. Describe how you find out where the time goes, what YJIT changes, the common Ruby-level wins, and when the answer is not Ruby at all.',
     [
       'Measure first: `benchmark-ips` for micro-benchmarks, StackProf or Vernier for sampling profiles, `ruby-prof` for exact call counts; flame graphs show the hot path',
-      'YJIT (on by default in Ruby 3.3+ when enabled) compiles hot methods to machine code: real gains on method-heavy code, little on code that lives in C extensions or I/O',
+      'YJIT (shipped since 3.1, enabled with --yjit or RUBY_YJIT_ENABLE=1; Rails 7.2+ turns it on) compiles hot methods to machine code: real gains on method-heavy code, little on code that lives in C extensions or I/O',
       'Common wins: avoid allocations in loops (string building with `<<`, symbol keys, `frozen_string_literal`), use the right data structure (Set, Hash lookups), `each` over `map` when the result is unused, memoise expensive calls',
       'Algorithmic fixes beat micro-optimisation; move set operations into SQL or a native library when data is large',
       'Not Ruby: a C extension or a Rust gem for a hot kernel, or a different process shape (parallel jobs, batching)',

@@ -32,7 +32,7 @@ export function bfsLevels(): Viz {
     const level: number[] = []
     const next: TreeNode[] = []
     const L = levels.length
-    f.push(N({ nodes: paint(nodes, (id) => (queue.some((q) => String(q.v) === id) ? 'active' : done.has(id) ? 'done' : undefined), (id) => (levelOf.has(id) ? `L${levelOf.get(id)}` : undefined)), edges, height, aux: [list('queue', queue.map((q) => q.v))], vars: { level: L, 'queue length': size }, caption: `Queue holds level ${L}: [${queue.map((q) => q.v).join(', ')}]. Pop exactly ${size} nodes.` }))
+    f.push(N({ nodes: paint(nodes, (id) => (queue.some((q) => String(q.v) === id) ? 'active' : done.has(id) ? 'done' : undefined), (id) => (levelOf.has(id) ? `L${levelOf.get(id)}` : undefined)), edges, height, aux: [list('queue', queue.map((q) => q.v))], vars: { level: L, 'queue length': size }, caption: `Queue holds level ${L}: [${queue.map((q) => q.v).join(', ')}]. Pop exactly ${size} node${size === 1 ? '' : 's'}.` }))
     for (const n of queue) {
       level.push(n.v)
       done.add(String(n.v))
@@ -120,7 +120,7 @@ export function topoSort(): Viz {
         freed.push(b)
       }
     }
-    f.push(frame(queue, u, `Take ${u}. Its outgoing edges are removed${freed.length ? `; ${freed.join(', ')} drop to 0 and join the queue.` : '.'}`))
+    f.push(frame(queue, u, `Take ${u}. Its outgoing edges are removed${freed.length ? `; ${freed.join(', ')} drop${freed.length === 1 ? 's' : ''} to 0 and join${freed.length === 1 ? 's' : ''} the queue.` : '.'}`))
   }
   const cyclic = order.length < ids.length
   f.push(frame([], null, cyclic ? 'Some nodes never reached 0: there is a cycle, so no order exists.' : `Order: ${order.join(' → ')}. Every edge is removed once: O(V + E). If the order is shorter than V, there was a cycle.`))

@@ -529,8 +529,8 @@ export const TECHNIQUES: TechniqueDoc[] = [
   // ── practical ─────────────────────────────────────────────────────────
   {
     id: 'lru-map-order', name: 'Map insertion order as a recency list', topic: 'Caching',
-    summary: 'A JavaScript Map remembers insertion order, and deleting then re-inserting a key moves it to the end. So the first key is always the least recently used: an LRU cache needs no linked list.',
-    steps: ['get: if present, delete and re-set the key, return the value', 'put: delete if present; if at capacity, delete map.keys().next().value; set'],
+    summary: 'An insertion-ordered map (a JavaScript Map, a Ruby Hash, Java’s LinkedHashMap) remembers the order keys were added, and deleting then re-inserting a key moves it to the end. So the first key is always the least recently used: an LRU cache needs no hand-built linked list.',
+    steps: ['get: if present, delete and re-insert the key, return the value', 'put: delete if present; if at capacity, delete the first key; insert'],
     complexity: 'O(1) per operation', patterns: /map insertion order/i, viz: 'lru-map-order',
   },
   {
@@ -541,20 +541,20 @@ export const TECHNIQUES: TechniqueDoc[] = [
   },
   {
     id: 'memo-key', name: 'Cache keyed by serialised arguments', topic: 'Caching',
-    summary: 'Memoise by turning the argument list into a stable string key (JSON, or a custom resolver) and storing the result with a timestamp. On a hit, check the age against the TTL before returning; expired entries are recomputed.',
-    steps: ['key = resolver(args) ?? JSON.stringify(args)', 'Hit and fresh → return; else compute, store {value, at: now()}', 'Inject the clock so tests can control time'],
+    summary: 'Memoise by turning the argument list into a stable key (a JSON string, a Ruby array, a Java List: anything with value equality) and storing the result with a timestamp. On a hit, check the age against the TTL before returning; expired entries are recomputed.',
+    steps: ['key = a value-equal form of the arguments', 'Hit and fresh → return; else compute, store {value, expiresAt: now() + ttl}', 'Inject the clock so tests can control time'],
     complexity: 'O(1) per call plus the key cost', patterns: /cache keyed by serialised args/i,
   },
   {
     id: 'worker-pool', name: 'Worker pool over a shared index', topic: 'Async & Concurrency',
-    summary: 'To run tasks with at most n in flight, start n workers that each loop: take the next index from a shared counter, run that task, repeat until the tasks run out. Results go into a preallocated array by index, so order is preserved regardless of completion order.',
-    steps: ['next = 0; results = []', 'worker: while (i = next++) < tasks.length: results[i] = await tasks[i]()', 'await Promise.all(n workers); return results'],
+    summary: 'To run tasks with at most n in flight, start n workers (async functions, or threads) that each loop: take the next index from a shared counter, run that task, repeat until the tasks run out. Results go into a preallocated array by index, so order is preserved regardless of completion order.',
+    steps: ['next = 0; results = []', 'worker: while (i = next++) < tasks.length: results[i] = run tasks[i] (the counter is atomic or behind a lock when workers are threads)', 'Wait for all n workers; return results'],
     complexity: 'n in flight; O(tasks) total', patterns: /worker pool|queue with concurrency/i,
   },
   {
     id: 'timer-reset', name: 'Timer reset and leading-edge gate', topic: 'Async & Concurrency',
     summary: 'Debounce waits for quiet: every call clears the pending timer and starts a new one, so only the last call in a burst runs. Throttle lets a call through at once, then blocks for the interval, optionally remembering the latest blocked call to run at the end (trailing call).',
-    steps: ['Debounce: clearTimeout(t); t = setTimeout(fn, wait)', 'Throttle: if not blocked, run and block; else store the latest args; when the block ends, run them if any'],
+    steps: ['Debounce: cancel the pending timer; start a new one that runs fn after the wait (a timer, a scheduled executor, or a sleeping thread with a generation check)', 'Throttle: if not blocked, run and block; else store the latest args; when the block ends, run them if any'],
     complexity: 'O(1) per call', patterns: /timer reset|leading-edge gate/i,
   },
   {
@@ -565,8 +565,8 @@ export const TECHNIQUES: TechniqueDoc[] = [
   },
   {
     id: 'race-cleanup', name: 'Race with cleanup and AbortSignal', topic: 'Async & Concurrency',
-    summary: 'Run the work against a timer: whichever settles first wins. The loser must be cleaned up: clear the timer when the work finishes, and abort the work (via an AbortSignal it was given) when the timer fires. Without the cleanup, timers keep processes alive and work keeps running after it was abandoned.',
-    steps: ['const ac = new AbortController(); timer = setTimeout(() => { ac.abort(); reject(timeoutError) }, ms)', 'Promise.race([work(ac.signal), timeout]).finally(() => clearTimeout(timer))', 'Forward an outer signal too'],
+    summary: 'Run the work against a timer: whichever settles first wins. The loser must be cleaned up: clear the timer when the work finishes, and cancel the work (through an AbortSignal, or a cancel token in Ruby and Java) when the timer fires. Without the cleanup, timers keep processes alive and work keeps running after it was abandoned.',
+    steps: ['Create a cancel handle (AbortController, CancelToken) and a timer that cancels it and fails with "timeout"', 'Race the work against the timer (Promise.race, Thread#join with a limit, Future#get with a timeout); clear the timer in finally', 'Forward an outer cancellation too'],
     complexity: 'O(1)', patterns: /race with cleanup/i,
   },
   {
@@ -601,8 +601,8 @@ export const TECHNIQUES: TechniqueDoc[] = [
   },
   {
     id: 'reduce-keyed', name: 'Reduce into a keyed record', topic: 'Data Transformation',
-    summary: 'Grouping is a reduce: for each item compute its key, then push it under that key in an accumulator object (or Map), creating the bucket on first sight. Typing the key as a string union keeps the result strongly typed.',
-    steps: ['acc = {}; for item: (acc[key(item)] ??= []).push(item)', 'Use Map when keys are not strings'],
+    summary: 'Grouping is a reduce: for each item compute its key, then push it under that key in an accumulator map, creating the bucket on first sight. Keep the key type precise (a string union in TypeScript, a symbol or value object elsewhere) so the result stays strongly typed.',
+    steps: ['acc = empty map; for item: bucket for key(item), created on first sight, gets the item', 'Use an insertion-ordered map when group order matters'],
     complexity: 'O(n)', patterns: /reduce into a keyed record/i,
   },
   {

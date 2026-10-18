@@ -534,7 +534,7 @@ const added: DesignProblem[] = [
     difficulty: 'easy',
     prompt: [
       'Design the classes and interfaces for a multi-level parking garage: vehicles of different sizes, spots of different sizes, entry and exit gates that issue and settle tickets, and pricing that varies by duration and vehicle type.',
-      'This is a code-level design question: expect to write TypeScript interfaces and discuss where the invariants live.',
+      'This is a code-level design question: expect to write interfaces in your language and discuss where the invariants live.',
     ],
     functional: [
       'Park a vehicle in the nearest suitable spot; reject when full',

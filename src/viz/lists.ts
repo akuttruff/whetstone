@@ -152,7 +152,7 @@ export function lruMapOrder(): Viz {
   const f: Frame[] = []
   const frame = (caption: string, hot?: string, tone: Tone = 'active') =>
     A({ cells: cellsOf([...map].map(([k, v]) => `${k}:${v}`), (i) => ([...map.keys()][i] === hot ? tone : i === 0 ? 'dim' : undefined)), marks: map.size ? [{ i: 0, label: 'oldest' }, { i: map.size - 1, label: 'newest', tone: 'match' }] : [], vars: { capacity: cap }, caption })
-  f.push(frame('A JavaScript Map remembers insertion order. Deleting and re-inserting a key moves it to the end, so the first key is always the least recently used.'))
+  f.push(frame('An insertion-ordered map (a JavaScript Map, a Ruby Hash, Java’s LinkedHashMap) remembers the order keys were added. Deleting and re-inserting a key moves it to the end, so the first key is always the least recently used.'))
   for (const op of ops) {
     if (op[0] === 'get') {
       const v = map.get(op[1])

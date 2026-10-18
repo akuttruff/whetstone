@@ -48,7 +48,7 @@ export function prefixSumMap(): Viz {
       marks: [{ i, label: 'i' }],
       table: table(),
       vars: { prefix, 'prefix − k': prefix - k, count },
-      caption: `Running total is ${prefix}. Earlier totals equal to ${prefix - k}: ${hits}. ${hits ? `That is ${hits} stretch${hits === 1 ? '' : 'es'} ending here that sum to ${k}.` : 'No stretch ends here.'}`,
+      caption: `Running total is ${prefix}. Earlier totals equal to ${prefix - k}: ${hits}. ${hits ? `That is ${hits} stretch${hits === 1 ? '' : 'es'} ending here that sum${hits === 1 ? 's' : ''} to ${k}.` : 'No stretch ends here.'}`,
     }))
     seen.set(prefix, (seen.get(prefix) ?? 0) + 1)
   }
