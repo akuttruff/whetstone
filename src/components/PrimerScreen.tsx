@@ -22,9 +22,9 @@ interface Props {
 
 /** Everything someone needs before attempting a topic: how to recognise it, each technique with its template, the traps, and what to say out loud. */
 export default function PrimerScreen({ primer, count, wide, onBack, onStart, language = 'typescript' }: Props) {
-  const lang = primer.track === 'coding' ? language : 'typescript'
+  const lang = primer.track === 'coding' || primer.track === 'practical' ? language : 'typescript'
   const [openTemplates, setOpenTemplates] = useState<Set<number>>(() => new Set())
-  const chat = useChat(primerThreadId(primer.track, primer.topic), { primer: { track: primer.track, topic: primer.topic } })
+  const chat = useChat(primerThreadId(primer.track, primer.topic), { primer: { track: primer.track, topic: primer.topic }, language: lang })
   const first = primer.techniques[0]?.name ?? 'the first technique'
   const second = primer.techniques[1]?.name
   const toggle = (i: number): void => setOpenTemplates((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })

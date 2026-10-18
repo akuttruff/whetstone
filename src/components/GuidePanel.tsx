@@ -16,9 +16,13 @@ interface Props {
 
 export default function GuidePanel({ problem, guide, loaded, writing, error, onWrite, onReveal, onShowProblem }: Props) {
   const [seconds, setSeconds] = useState(0)
+  const [wasWriting, setWasWriting] = useState(writing)
+  if (writing !== wasWriting) {
+    setWasWriting(writing)
+    if (writing) setSeconds(0)
+  }
   useEffect(() => {
     if (!writing) return
-    setSeconds(0)
     const t = setInterval(() => setSeconds((s) => s + 1), 1000)
     return () => clearInterval(t)
   }, [writing])

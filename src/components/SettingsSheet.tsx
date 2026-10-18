@@ -24,17 +24,24 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // Opening the sheet starts from the saved settings (state adjusted during render).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setBaseUrl(settings.baseUrl)
+      setModel(settings.model)
+      setApiKey('')
+      setAutoDelayS(settings.autoDelayS)
+      setThinking(settings.thinking)
+      setShowTechniques(settings.showTechniques)
+    }
+  }
   useEffect(() => {
     if (!open) return
-    setBaseUrl(settings.baseUrl)
-    setModel(settings.model)
-    setApiKey('')
-    setAutoDelayS(settings.autoDelayS)
-    setThinking(settings.thinking)
-    setShowTechniques(settings.showTechniques)
     void api.models().then((r) => { setModels(r.models); setModelsError(r.error) })
     void api.languages().then(setLanguages).catch(() => {})
-  }, [open, settings])
+  }, [open])
 
   const save = async (): Promise<void> => {
     setBusy(true)

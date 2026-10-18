@@ -4,7 +4,10 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
-    "vitest/require-mock-type-parameters": "off"
+    "vitest/require-mock-type-parameters": "off",
+    "vitest/valid-expect": "off",
+    "vitest/no-conditional-expect": "off",
+    "unicorn/no-new-array": "off"
   },
   "ignorePatterns": ["dist", "coverage", ".data", ".data-dev", "node_modules"]
 }

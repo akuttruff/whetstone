@@ -175,15 +175,18 @@ export class Store {
          FROM reviews WHERE score IS NOT NULL GROUP BY track, topic, pattern ORDER BY avg ASC`,
       )
       .all() as { track: Track; topic: string; pattern: string; attempts: number; avg: number; last_at: string }[]
-    const patterns: PatternStat[] = rows.map((r) => {
-      const last = this.db
-        .prepare('SELECT score FROM reviews WHERE track = ? AND topic = ? AND pattern = ? AND score IS NOT NULL ORDER BY created_at DESC, rowid DESC LIMIT 1')
-        .get(r.track, r.topic, r.pattern) as { score: number } | undefined
-      return {
-        track: r.track, topic: r.topic, pattern: r.pattern, attempts: r.attempts,
-        avg: Math.round(r.avg * 10) / 10, last: last?.score ?? null, lastAt: r.last_at,
-      }
-    })
+    // The latest scored review per pattern, in one pass.
+    const lastRows = this.db
+      .prepare(
+        `SELECT track, topic, pattern, score FROM reviews
+         WHERE score IS NOT NULL AND rowid IN (SELECT MAX(rowid) FROM reviews WHERE score IS NOT NULL GROUP BY track, topic, pattern)`,
+      )
+      .all() as { track: string; topic: string; pattern: string; score: number }[]
+    const lastBy = new Map(lastRows.map((r) => [`${r.track}\u0000${r.topic}\u0000${r.pattern}`, r.score]))
+    const patterns: PatternStat[] = rows.map((r) => ({
+      track: r.track, topic: r.topic, pattern: r.pattern, attempts: r.attempts,
+      avg: Math.round(r.avg * 10) / 10, last: lastBy.get(`${r.track}\u0000${r.topic}\u0000${r.pattern}`) ?? null, lastAt: r.last_at,
+    }))
     const latestRows = this.db
       .prepare(
         'SELECT problem_id, score FROM reviews WHERE rowid IN (SELECT MAX(rowid) FROM reviews GROUP BY problem_id)',
@@ -231,7 +234,7 @@ export class Store {
     if (!row) throw new ValidationError('no such generated problem')
     const p = JSON.parse(row.json) as Problem
     if (!('tests' in p)) throw new ValidationError('not a code problem')
-    const next = { ...p, ports: { ...(p.ports ?? {}), [language]: port } }
+    const next = { ...p, ports: { ...p.ports, [language]: port } }
     this.db.prepare('UPDATE problems SET json = ? WHERE id = ?').run(JSON.stringify(next), id)
     return next
   }

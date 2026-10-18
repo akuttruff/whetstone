@@ -28,16 +28,20 @@ export default function useReview(problem: Problem, key: string, language: Langu
   const startRef = useRef<() => void>(() => {})
   const queued = useRef(false)
   const latest = useRef({ answer, run, problem, language })
-  latest.current = { answer, run, problem, language }
+  useEffect(() => { latest.current = { answer, run, problem, language } })
 
-  // Fresh state per problem, with its earlier reviews.
+  // Fresh state per attempt (adjusted during render), then its earlier reviews are loaded.
+  const [shownKey, setShownKey] = useState(key)
+  if (shownKey !== key) {
+    setShownKey(key)
+    setLastReviewed(null)
+    setState(EMPTY)
+  }
   useEffect(() => {
     abort.current?.abort()
     abort.current = null
     reviewedAnswer.current = null
     queued.current = false
-    setLastReviewed(null)
-    setState(EMPTY)
     let cancelled = false
     void api.reviews(key).then((history) => {
       if (cancelled) return
@@ -80,7 +84,7 @@ export default function useReview(problem: Problem, key: string, language: Langu
         }
       })
   }, [])
-  startRef.current = start
+  useEffect(() => { startRef.current = start }, [start])
 
   const cancel = useCallback((): void => {
     abort.current?.abort()

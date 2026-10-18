@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import Markdown from 'react-markdown'
 import CodeEditor from './CodeEditor.tsx'
 import DocLinks from './DocLinks.tsx'
@@ -19,8 +19,8 @@ interface Props {
   language?: Language
 }
 
-/** The statement, prompt or question, with its spoilers behind disclosure. */
-export default function ProblemBody({ problem, onPrimer, techniques = [], onTechnique, language = 'typescript' }: Props) {
+/** The statement, prompt or question, with its spoilers behind disclosure. Memoised: it sits beside the editor and must not re-render per keystroke. */
+function ProblemBody({ problem, onPrimer, techniques = [], onTechnique, language = 'typescript' }: Props) {
   const [solutionOpen, setSolutionOpen] = useState(false)
   const lang = langFor(problem, language)
   const port = portFor(problem, lang)
@@ -128,3 +128,5 @@ export default function ProblemBody({ problem, onPrimer, techniques = [], onTech
     </div>
   )
 }
+
+export default memo(ProblemBody)

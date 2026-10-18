@@ -4,7 +4,7 @@ import type { ChatMessage, Language, Problem, RunResult, Track } from '../types.
 
 export type ChatContext =
   | { problem: Problem; answer: string; run: RunResult | null; language: Language }
-  | { primer: { track: Track; topic: string } }
+  | { primer: { track: Track; topic: string }; language: Language }
   | { about: true; problem: Problem; language: Language }
 
 export interface ChatState {
@@ -31,12 +31,18 @@ export default function useChat(id: string, context: ChatContext) {
   const [state, setState] = useState<ChatState>(EMPTY)
   const abort = useRef<AbortController | null>(null)
   const latest = useRef(context)
-  latest.current = context
+  useEffect(() => { latest.current = context })
+
+  // A different thread starts empty (adjusted during render; the effect below then loads it).
+  const [shownId, setShownId] = useState(id)
+  if (shownId !== id) {
+    setShownId(id)
+    setState(EMPTY)
+  }
 
   useEffect(() => {
     abort.current?.abort()
     abort.current = null
-    setState(EMPTY)
     let cancelled = false
     void api.chat(id).then((messages) => { if (!cancelled) setState((s) => ({ ...s, messages })) }).catch(() => {})
     return () => { cancelled = true }

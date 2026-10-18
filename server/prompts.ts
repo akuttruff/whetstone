@@ -7,6 +7,8 @@ import { ValidationError } from './store.ts'
 // ── review ─────────────────────────────────────────────────────────────
 
 export const REVIEW_MAX_TOKENS = 900
+/** Extra completion budget when the model thinks first: the thinking counts against max_tokens, and must not crowd out the answer or the VERDICT line. */
+export const THINKING_EXTRA_TOKENS = 4000
 
 const VERDICT_RULE =
   'Finish with exactly one last line of the form\n' +
@@ -408,14 +410,14 @@ export function aboutPrompt(problem: Problem, language: Language = 'typescript')
 }
 
 /** The tutor for a topic primer: explains, gives examples and code freely, relates everything back to the primer's techniques. */
-export function primerChatPrompt(primer: Primer): string {
+export function primerChatPrompt(primer: Primer, language: Language = 'typescript'): string {
   const techniques = primer.techniques
     .map((t) => `${t.name}\n  When: ${t.when}\n  How: ${t.how.join(' / ')}${t.complexity ? `\n  Complexity: ${t.complexity}` : ''}${t.template ? `\n  Template:\n${t.template}` : ''}`)
     .join('\n\n')
   return (
     `You are a senior engineer tutoring a candidate on the interview topic "${primer.topic}" (${primer.track} track). ` +
     'They are reading the primer below and asking questions about it. Answer directly and concretely in markdown, under 300 words. ' +
-    'Give examples freely, including short TypeScript snippets when they help; walk through a technique step by step on a small input when asked; compare techniques when asked which to use. ' +
+    `Give examples freely, including short ${label(language)} snippets when they help; walk through a technique step by step on a small input when asked; compare techniques when asked which to use. ` +
     'Relate answers back to the primer\'s techniques and pitfalls by name. If they ask something outside this topic, answer briefly and steer back.\n\n' +
     `Primer summary: ${primer.summary}\n\nRecognise it by:\n${primer.recognize.map((r) => `- ${r}`).join('\n')}\n\nTechniques:\n${techniques}\n\n` +
     `Pitfalls:\n${primer.pitfalls.map((x) => `- ${x}`).join('\n')}\n\nInterview checklist:\n${primer.checklist.map((x) => `- ${x}`).join('\n')}`

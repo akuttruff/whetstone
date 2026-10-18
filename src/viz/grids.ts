@@ -109,7 +109,7 @@ export function multiSourceBfs(): Viz {
 
 /** Word search: DFS from each start, marking a cell on the way in and restoring it on the way out. */
 export function gridBacktracking(): Viz {
-  const board = ['ABC', 'SFC', 'ADE'].map((r) => [...r])
+  const board = ['ABCE', 'SFCS', 'ADEE'].map((r) => [...r])
   const word = 'SEE'
   const R = board.length
   const C = board[0]!.length

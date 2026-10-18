@@ -1,9 +1,6 @@
 import type { Problem, Track } from '../types.ts'
+import type { Language, Port } from '../types.ts'
 import { normaliseTests } from '../lib/tests.ts'
-import { RUBY_PORTS } from './ports-ruby.ts'
-import { JAVA_PORTS } from './ports-java.ts'
-import { RUBY_PRACTICAL } from './ports-practical-ruby.ts'
-import { JAVA_PRACTICAL } from './ports-practical-java.ts'
 import { PRACTICAL_DRIVERS } from './practical-drivers.ts'
 import { CODING_PROBLEMS } from './coding.ts'
 import { CODING_ARRAYS } from './coding-arrays.ts'
@@ -20,20 +17,36 @@ import { BEHAVIORAL_MORE } from './behavioral-more.ts'
 
 /**
  * Test calls written as TypeScript expressions become function + JSON
- * arguments, so every language can run them; coding problems pick up their
- * Ruby and Java versions (hand-written in ports-*.ts, verified by the content test).
+ * arguments, so every language can run them. Practical problems get their
+ * test driver appended to the starter and the solution, and the tests that
+ * call it. The Ruby and Java ports are not attached here: the browser loads
+ * them on demand (see ports.ts, `withPorts`) and the server uses full.ts.
  */
 const neutral = (ps: Problem[]): Problem[] =>
   ps.map((p) => {
     if (!('tests' in p)) return p
-    const ruby = (p.track === 'coding' ? RUBY_PORTS : RUBY_PRACTICAL)[p.id]
-    const java = (p.track === 'coding' ? JAVA_PORTS : JAVA_PRACTICAL)[p.id]
-    const ports = ruby || java ? { ...(ruby ? { ruby } : {}), ...(java ? { java } : {}) } : undefined
-    // Practical problems: the test driver rides along in the starter and the solution, and the tests call it.
     const drivers = p.track === 'practical' ? PRACTICAL_DRIVERS[p.id] : undefined
     const withDriver = drivers?.driver ? { starter: p.starter.trimEnd() + '\n\n' + drivers.driver, solution: p.solution.trimEnd() + '\n\n' + drivers.driver } : {}
-    return { ...p, ...withDriver, tests: normaliseTests(drivers?.tests ?? p.tests), ...(ports ? { ports } : {}) }
+    return { ...p, ...withDriver, tests: normaliseTests(drivers?.tests ?? p.tests) }
   })
+
+export type PortTable = Record<string, Port>
+export type PortTables = Partial<Record<Exclude<Language, 'typescript'>, PortTable>>
+
+/** Problems with the given ports attached; a problem that already carries a port (a generated one) keeps it. */
+export function withPorts(problems: Problem[], tables: PortTables): Problem[] {
+  const langs = (Object.keys(tables) as (keyof PortTables)[]).filter((l) => tables[l])
+  if (langs.length === 0) return problems
+  return problems.map((p) => {
+    if (!('tests' in p)) return p
+    let ports = p.ports
+    for (const l of langs) {
+      const port = tables[l]![p.id]
+      if (port && !ports?.[l]) ports = { ...ports, [l]: port }
+    }
+    return ports === p.ports ? p : { ...p, ports }
+  })
+}
 
 export const BUILTIN_PROBLEMS: Problem[] = neutral([
   ...CODING_PROBLEMS,

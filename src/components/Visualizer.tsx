@@ -11,10 +11,13 @@ export default function Visualizer({ viz }: { viz: Viz }) {
   const last = viz.frames.length - 1
   const box = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  // A different run starts from its first frame (state adjusted during render, not in an effect).
+  const [shown, setShown] = useState(viz)
+  if (shown !== viz) {
+    setShown(viz)
     setI(0)
     setPlaying(false)
-  }, [viz])
+  }
 
   useEffect(() => {
     if (!playing) return

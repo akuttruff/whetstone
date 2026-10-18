@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Drawer } from 'vaul'
 import { ChevronsDown, ChevronsUp, Repeat } from 'lucide-react'
 import { DIFFICULTY_LABEL } from '../lib/format.ts'
@@ -23,9 +23,8 @@ const LEVELS: { direction: Direction; name: string; blurb: string; icon: typeof 
 
 /** A bottom sheet for generating the next problem: an optional steer, then the level. */
 export default function GenerateSheet({ open, problem, busy, onClose, onGenerate }: Props) {
+  // A fresh sheet per problem (the parent keys this component by problem id), so a steer never carries to the next.
   const [request, setRequest] = useState('')
-  // A fresh sheet per problem: the steer written for one problem should not quietly carry to the next.
-  useEffect(() => { setRequest('') }, [problem.id])
   return (
     <Drawer.Root open={open} onOpenChange={(o) => { if (!o && !busy) onClose() }}>
       <Drawer.Portal>

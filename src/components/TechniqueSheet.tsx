@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { Suspense, lazy, useMemo } from 'react'
 import { Drawer } from 'vaul'
 import { BookOpen } from 'lucide-react'
 import CodeEditor from './CodeEditor.tsx'
-import Visualizer from './Visualizer.tsx'
 import { BUILTIN_PROBLEMS } from '../data/index.ts'
 import { primerFor } from '../data/primers.ts'
-import { vizFor } from '../viz/index.ts'
+
+const TechniqueViz = lazy(() => import('./TechniqueViz.tsx'))
 import type { TechniqueDoc } from '../data/techniques.ts'
 import { LANGUAGE_LABEL } from '../types.ts'
 import type { Language, Problem } from '../types.ts'
@@ -20,7 +20,6 @@ interface Props {
 
 /** A technique explained: what it is, the moves, the invariant, a step-through visualisation, and the primer's template. */
 export default function TechniqueSheet({ technique, problem, onClose, onPrimer, language = 'typescript' }: Props) {
-  const viz = useMemo(() => (technique?.viz ? vizFor(technique.viz) : undefined), [technique])
   const primer = technique ? primerFor(problem.track, technique.topic) : undefined
   const card = technique?.primerTechnique && primer ? primer.techniques.find((t) => t.name === technique.primerTechnique) : undefined
   const alsoIn = useMemo(() => (technique ? BUILTIN_PROBLEMS.filter((p) => p.id !== problem.id && (p.track === 'coding' || p.track === 'practical') && technique.patterns.test(p.pattern)) : []), [technique, problem.id])
@@ -36,7 +35,11 @@ export default function TechniqueSheet({ technique, problem, onClose, onPrimer, 
               <div className="sheet-body technique-body">
                 <p className="technique-topic">{technique.topic} · <span className="technique-complexity">{technique.complexity}</span></p>
                 <p className="technique-summary">{technique.summary}</p>
-                {viz && <Visualizer viz={viz} />}
+                {technique.viz && (
+                  <Suspense fallback={<div className="viz viz-loading">Loading the visualisation…</div>}>
+                    <TechniqueViz id={technique.viz} />
+                  </Suspense>
+                )}
                 <h3>The moves</h3>
                 <ol className="technique-steps">{technique.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
                 {technique.invariant && (

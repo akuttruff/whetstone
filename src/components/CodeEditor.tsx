@@ -1,18 +1,7 @@
-import CodeMirror from '@uiw/react-codemirror'
-import { javascript } from '@codemirror/lang-javascript'
-import { java } from '@codemirror/lang-java'
-import { StreamLanguage } from '@codemirror/language'
-import { ruby } from '@codemirror/legacy-modes/mode/ruby'
-import type { Extension } from '@codemirror/state'
-import { oneDark } from '@codemirror/theme-one-dark'
-import { syntaxCheck } from '../lib/syntaxCheck.ts'
+import { Suspense, lazy } from 'react'
 import type { Language } from '../types.ts'
 
-const MODES: Record<Language, Extension[]> = {
-  typescript: [javascript({ typescript: true })],
-  ruby: [StreamLanguage.define(ruby)],
-  java: [java()],
-}
+const Inner = lazy(() => import('./CodeEditorInner.tsx'))
 
 interface Props {
   value: string
@@ -22,22 +11,15 @@ interface Props {
   language?: Language
 }
 
-export default function CodeEditor({ value, onChange, readOnly = false, height = '100%', language = 'typescript' }: Props) {
-  // Live syntax feedback only where the candidate is typing; shown solutions
-  // and templates are already known-good and the extra strip would be noise.
-  // It reads the parse tree's error nodes, which the Ruby mode (a stream
-  // tokenizer, not a parser) never produces, so it stays off there.
-  const checked = !readOnly && language !== 'ruby'
+/**
+ * The code editor, loaded on first use: CodeMirror is the largest thing in
+ * the bundle and the list screen does not need it. Until it arrives the
+ * text shows as plain monospace, so nothing jumps.
+ */
+export default function CodeEditor(props: Props) {
   return (
-    <CodeMirror
-      value={value}
-      onChange={onChange}
-      readOnly={readOnly}
-      editable={!readOnly}
-      height={height}
-      theme={oneDark}
-      extensions={checked ? [...MODES[language], syntaxCheck] : MODES[language]}
-      basicSetup={{ foldGutter: false, highlightActiveLine: !readOnly, autocompletion: false }}
-    />
+    <Suspense fallback={<pre className="editor-fallback" style={{ height: props.height === 'auto' ? undefined : props.height }}>{props.value}</pre>}>
+      <Inner {...props} />
+    </Suspense>
   )
 }

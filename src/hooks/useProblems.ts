@@ -1,16 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api.ts'
-import { BUILTIN_PROBLEMS } from '../data/index.ts'
-import type { Problem } from '../types.ts'
+import { BUILTIN_PROBLEMS, withPorts } from '../data/index.ts'
+import type { PortTables } from '../data/index.ts'
+import { loadPorts } from '../data/ports.ts'
+import type { Language, Problem } from '../types.ts'
 
-/** Built-in problems from the bundle plus generated variants from the server, as one list. */
-export default function useProblems() {
+/**
+ * Built-in problems from the bundle plus generated variants from the server,
+ * as one list, with the Ruby or Java ports attached once that language is
+ * selected (they are fetched as their own chunk on first use).
+ */
+export default function useProblems(language: Language) {
   const [generated, setGenerated] = useState<Problem[]>([])
+  const [ports, setPorts] = useState<PortTables>({})
   const refresh = useCallback((): Promise<void> => api.generated().then(setGenerated).catch(() => {}), [])
   useEffect(() => { void refresh() }, [refresh])
 
-  const all = useMemo(() => [...BUILTIN_PROBLEMS, ...generated], [generated])
+  useEffect(() => {
+    if (language === 'typescript' || ports[language]) return
+    let cancelled = false
+    void loadPorts(language).then((table) => { if (!cancelled) setPorts((p) => ({ ...p, [language]: table })) })
+    return () => { cancelled = true }
+  }, [language, ports])
+
+  const all = useMemo(() => withPorts([...BUILTIN_PROBLEMS, ...generated], ports), [generated, ports])
   const byId = useMemo(() => new Map(all.map((p) => [p.id, p])), [all])
+  /** False while the selected language's ports are still arriving. */
+  const ready = language === 'typescript' || Boolean(ports[language])
 
   const add = useCallback((p: Problem): void => setGenerated((g) => [...g, p]), [])
   /** A generated problem changed on the server (a port was added): swap it in place. */
@@ -20,5 +36,5 @@ export default function useProblems() {
     setGenerated((g) => g.filter((p) => p.id !== id))
   }, [])
 
-  return { all, byId, generated, add, upsert, remove, refresh }
+  return { all, byId, generated, ready, add, upsert, remove, refresh }
 }

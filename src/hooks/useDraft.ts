@@ -23,9 +23,14 @@ export default function useDraft(problemId: string, initial: string) {
     }
   }, [problemId])
 
+  // A different attempt starts unloaded (adjusted during render); the effect then fetches it.
+  const [shownId, setShownId] = useState(problemId)
+  if (shownId !== problemId) {
+    setShownId(problemId)
+    setLoaded(false)
+  }
   useEffect(() => {
     let cancelled = false
-    setLoaded(false)
     void api
       .draft(problemId)
       .then(({ draft }) => { if (!cancelled) setTextState(draft?.text ?? initial) })

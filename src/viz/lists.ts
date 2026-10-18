@@ -77,6 +77,8 @@ export function dummyHeadMerge(): Viz {
   return { title: `a = ${a.join(' → ')}, b = ${b.join(' → ')}`, frames: f }
 }
 
+const ordinal = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+
 /** Remove the nth node from the end with two pointers kept n apart. */
 export function gapPointers(): Viz {
   const vals = [1, 2, 3, 4, 5]
@@ -98,7 +100,7 @@ export function gapPointers(): Viz {
     trail++
     f.push(frame(`Both advance; the gap stays ${n + 1}.`))
   }
-  f.push(frame(`Lead is at the last node, so trail.next (${vals[trail]}) is the ${n}th from the end. Unlink it: trail.next = trail.next.next. One pass, O(1) space.`, true))
+  f.push(frame(`Lead is at the last node, so trail.next (${vals[trail]}) is the ${ordinal(n)} from the end. Unlink it: trail.next = trail.next.next. One pass, O(1) space.`, true))
   return { title: `1 → 2 → 3 → 4 → 5, n = ${n}`, frames: f }
 }
 

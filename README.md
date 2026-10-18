@@ -140,6 +140,10 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
   under their parent.
 - **Drafts** and settings live server-side, so the phone and the desktop share
   them.
+- **Loading.** The list screen ships without the editor: CodeMirror, the Java
+  and Ruby grammars, the technique visualiser and the Ruby and Java ports are
+  separate chunks fetched on first use, and the hashed assets are served as
+  immutable. The Java test harness is compiled once per server and reused.
 
 ## Layout
 

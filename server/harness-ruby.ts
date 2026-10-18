@@ -82,16 +82,18 @@ def plain(v, seen = {})
       return v.to_a.map { |x| plain(x, seen) }
     end
     raise 'result is a cyclic structure' if seen[v.object_id]
-    seen[v.object_id] = true
-    if v.respond_to?(:val) && v.respond_to?(:next)
-      { 'val' => plain(v.val, seen), 'next' => plain(v.next, seen) }
-    elsif v.respond_to?(:val) && v.respond_to?(:left) && v.respond_to?(:right)
-      { 'val' => plain(v.val, seen), 'left' => plain(v.left, seen), 'right' => plain(v.right, seen) }
-    elsif v.instance_variables.any?
-      v.instance_variables.each_with_object({}) { |iv, h| h[iv.to_s.delete('@')] = plain(v.instance_variable_get(iv), seen) }
-    else
-      v.to_s
-    end
+    seen[v.object_id] = true # only the objects on the current path: a shared reference is fine
+    out = if v.respond_to?(:val) && v.respond_to?(:next)
+            { 'val' => plain(v.val, seen), 'next' => plain(v.next, seen) }
+          elsif v.respond_to?(:val) && v.respond_to?(:left) && v.respond_to?(:right)
+            { 'val' => plain(v.val, seen), 'left' => plain(v.left, seen), 'right' => plain(v.right, seen) }
+          elsif v.instance_variables.any?
+            v.instance_variables.each_with_object({}) { |iv, h| h[iv.to_s.delete('@')] = plain(v.instance_variable_get(iv), seen) }
+          else
+            v.to_s
+          end
+    seen.delete(v.object_id)
+    out
   end
 end
 

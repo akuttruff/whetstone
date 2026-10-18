@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
-import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, PORT_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, portFromModel, portPrompt, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
+import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, PORT_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, THINKING_EXTRA_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, portFromModel, portPrompt, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
 import { availability } from './langs.ts'
 import { DIRECTIONS, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, langFor, portFor, workKey } from '../src/types.ts'
@@ -80,6 +80,8 @@ function languageFromBody(v: unknown): Language {
 export function createApi(options: ApiOptions = {}) {
   const store = new Store({ dir: options.dir })
   const fetchImpl = options.fetchImpl ?? fetch
+  /** A completion budget with room for thinking when that setting is on. */
+  const budget = (base: number): number => base + (store.getSettings().thinking ? THINKING_EXTRA_TOKENS : 0)
   const runDir = options.runDir ?? path.join(options.dir ?? path.resolve(process.cwd(), '.data'), 'runs')
 
   const route = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -155,7 +157,7 @@ export function createApi(options: ApiOptions = {}) {
         const { system, user } = reviewPrompt(problem, answer, run, language)
         const { text, model } = await chatStream(
           settings,
-          { system, user, maxTokens: REVIEW_MAX_TOKENS, temperature: 0.3, signal: ac.signal },
+          { system, user, maxTokens: budget(REVIEW_MAX_TOKENS), temperature: 0.3, signal: ac.signal },
           (delta) => send({ type: 'delta', text: delta }),
           fetchImpl,
         )
@@ -193,7 +195,7 @@ export function createApi(options: ApiOptions = {}) {
       // to another technique names it the way the technique catalogue does.
       const known = [...new Set(all.filter((q) => q.track === parent.track).map((q) => q.pattern))]
       const { system, user, schema } = variantPrompt(parent, direction, avoid, request, known, language)
-      const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: VARIANT_MAX_TOKENS, temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
+      const { data } = await chatJson<unknown>(settings, { system, user, maxTokens: budget(VARIANT_MAX_TOKENS), temperature: 0.7, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
       let problem = variantFromModel(data, parent, direction, (id) => store.hasProblem(id), request, known, language)
       let verified: { passed: number; total: number } | null = null
       if (isCode(problem) && problem.tests.length > 0) {
@@ -218,7 +220,7 @@ export function createApi(options: ApiOptions = {}) {
       if (!store.hasProblem(problem.id)) throw new ValidationError('built-in problems are ported by hand; this is for generated ones')
       if (portFor(problem, language)) throw new ValidationError(`already available in ${LANGUAGE_LABEL[language]}`)
       const { system, user, schema } = portPrompt(problem, language)
-      const { data } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: PORT_MAX_TOKENS, temperature: 0.3, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
+      const { data } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: budget(PORT_MAX_TOKENS), temperature: 0.3, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
       const port = portFromModel(data)
       const run = problem.tests.length > 0 ? await runTests(port.solution, problem.tests, { dir: runDir, language }) : null
       if (run && !run.ok) {
@@ -257,7 +259,7 @@ export function createApi(options: ApiOptions = {}) {
           const primer = track ? primerFor(track, topic) : undefined
           if (!primer) throw new ValidationError('no such primer')
           if (id !== `primer:${track}:${topic}`) throw new ValidationError('primer id mismatch')
-          system = primerChatPrompt(primer)
+          system = primerChatPrompt(primer, primer.track === 'coding' || primer.track === 'practical' ? languageFromBody(body.language) : 'typescript')
         } else {
           const problem = problemFromBody(body.problem)
           const language = langFor(problem, languageFromBody(body.language))
@@ -276,7 +278,7 @@ export function createApi(options: ApiOptions = {}) {
         try {
           const { text } = await chatStream(
             store.getSettings(),
-            { system, history, user: message, maxTokens: CHAT_MAX_TOKENS, temperature: 0.4, signal: ac.signal },
+            { system, history, user: message, maxTokens: budget(CHAT_MAX_TOKENS), temperature: 0.4, signal: ac.signal },
             (delta) => send({ type: 'delta', text: delta }),
             fetchImpl,
           )
@@ -303,7 +305,7 @@ export function createApi(options: ApiOptions = {}) {
         const answer = typeof body.answer === 'string' ? body.answer.slice(0, 60_000) : ''
         const run = body.run && typeof body.run === 'object' ? (body.run as RunResult) : null
         const { system, user, schema } = guidePrompt(problem, answer, run, language)
-        const { data, model } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: GUIDE_MAX_TOKENS, temperature: 0.5, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
+        const { data, model } = await chatJson<unknown>(store.getSettings(), { system, user, maxTokens: budget(GUIDE_MAX_TOKENS), temperature: 0.5, signal: AbortSignal.timeout(600_000) }, schema, fetchImpl)
         return json(res, 201, { guide: store.saveGuide(id, guideFromModel(data), model) })
       }
       if (method === 'PUT') {
@@ -333,9 +335,17 @@ export function createApi(options: ApiOptions = {}) {
 
 export default function api(options: ApiOptions = {}): Plugin {
   const { middleware } = createApi(options)
+  // Built assets carry a content hash in their name, so they can be cached for good; index.html keeps the default revalidation.
+  const immutableAssets: Middleware = (req, res, next) => {
+    if ((req.url || '').startsWith('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    next()
+  }
   return {
     name: 'whetstone-api',
     configureServer(server) { server.middlewares.use(middleware) },
-    configurePreviewServer(server) { server.middlewares.use(middleware) },
+    configurePreviewServer(server) {
+      server.middlewares.use(immutableAssets)
+      server.middlewares.use(middleware)
+    },
   }
 }

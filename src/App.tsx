@@ -38,8 +38,8 @@ function remember(key: string, v: string | null): void {
 
 export default function App() {
   const wide = useMediaQuery('(min-width: 900px)')
-  const { settings, save } = useSettings()
-  const problems = useProblems()
+  const { settings, loaded: settingsLoaded, save } = useSettings()
+  const problems = useProblems(settings.language)
   const { progress, refresh: refreshProgress } = useProgress()
   const [track, setTrack] = useState<Track>(() => remembered<Track>(TRACK_KEY, (v) => TRACKS.some((t) => t.id === v)) ?? 'coding')
   const [selectedId, setSelectedId] = useState<string | null>(() => remembered(SELECTED_KEY, () => true))
@@ -52,6 +52,8 @@ export default function App() {
     void api.languages().then(setAvailable).catch(() => {})
   }, [])
   const language = settings.language
+  /** The detail pane waits for the saved language and its ports, so a Java user never sees a TypeScript flash. */
+  const ready = settingsLoaded && problems.ready
 
   const selected = selectedId ? problems.byId.get(selectedId) ?? null : null
   const inTrack = useMemo(() => problems.all.filter((p) => p.track === track), [problems.all, track])
@@ -136,7 +138,7 @@ export default function App() {
         if (first) setSelectedId(first.id)
       }}
     />
-  ) : selected ? (
+  ) : selected && ready ? (
     <ProblemScreen
       key={selected.id}
       problem={selected}
@@ -151,7 +153,7 @@ export default function App() {
     />
   ) : (
     <div className="empty-detail">
-      <p>Pick a problem.</p>
+      <p>{selected ? 'Loading…' : 'Pick a problem.'}</p>
     </div>
   )
 

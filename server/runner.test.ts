@@ -126,6 +126,11 @@ end
     expect(r.output).toBe('hi\n')
   }, 30_000)
 
+  it('accepts a result that shares an object without a cycle', async () => {
+    const r = await runTests('class ListNode; attr_accessor :val, :next; def initialize(v = 0, n = nil); @val = v; @next = n; end; end\ndef pair; n = ListNode.new(1); [n, n]; end', [{ fn: 'pair', args: [], expected: [{ val: 1, next: null }, { val: 1, next: null }] }], { dir, language: 'ruby' })
+    expect(r.results[0]).toMatchObject({ pass: true })
+  }, 30_000)
+
   it('reports load errors, thrown errors, missing methods and timeouts', async () => {
     let r = await runTests('def f(\n', [{ fn: 'f', args: [], expected: 1 }], { dir, language: 'ruby' })
     expect(r.error).toMatch(/could not be loaded: SyntaxError/)

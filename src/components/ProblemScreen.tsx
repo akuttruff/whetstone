@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Lightbulb, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
 import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
@@ -66,10 +66,17 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
   const techniques = useMemo(() => (settings.showTechniques ? techniquesFor(problem) : []), [problem, settings.showTechniques])
   const [technique, setTechnique] = useState<TechniqueDoc | null>(null)
 
-  useEffect(() => {
+  // A new attempt (another problem or language) or a layout change starts on its default tab with no stale run.
+  const [prevLayout, setPrevLayout] = useState({ key, wide })
+  if (prevLayout.key !== key || prevLayout.wide !== wide) {
+    setPrevLayout({ key, wide })
     setTab(wide ? 'work' : 'problem')
     setRun(null)
-  }, [key, wide])
+  }
+  const { clear: chatClear } = chat
+  const { clear: aboutClear } = about
+  const clearChat = useCallback((): void => { void chatClear() }, [chatClear])
+  const clearAbout = useCallback((): void => { void aboutClear() }, [aboutClear])
 
   useEffect(() => {
     if (review.review) onReviewed()
@@ -193,7 +200,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         suggestions={['How would I implement that suggestion?', 'What would the syntax look like?', 'Why is that better than what I wrote?', 'What edge case am I missing?']}
         onAsk={chat.ask}
         onStop={chat.stop}
-        onClear={() => void chat.clear()}
+        onClear={clearChat}
       />
     </>
   )
@@ -238,7 +245,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
           </button>
         </div>
       </div>
-      <GenerateSheet open={generateOpen} problem={problem} busy={variantBusy} onClose={() => setGenerateOpen(false)} onGenerate={(d, r) => void makeVariant(d, r)} />
+      <GenerateSheet key={problem.id} open={generateOpen} problem={problem} busy={variantBusy} onClose={() => setGenerateOpen(false)} onGenerate={(d, r) => void makeVariant(d, r)} />
 
       <div className="ptabs" role="tablist">
         {!wide && <button role="tab" aria-selected={tab === 'problem'} className={tab === 'problem' ? 'active' : ''} onClick={() => setTab('problem')}>Problem</button>}
@@ -263,7 +270,7 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
               suggestions={ABOUT_SUGGESTIONS[problem.track]}
               onAsk={about.ask}
               onStop={about.stop}
-              onClear={() => void about.clear()}
+              onClear={clearAbout}
             />
           </div>
         )}

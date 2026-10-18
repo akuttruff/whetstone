@@ -1,7 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
+import { BUILTIN_PROBLEMS } from '../src/data/full.ts'
 import { languageNeutral } from '../src/lib/tests.ts'
 import { isCode } from '../src/types.ts'
 import type { Language } from '../src/types.ts'

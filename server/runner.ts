@@ -112,6 +112,32 @@ function compare(tests: TestCase[], raw: RawResult, language: Language, ms: numb
 
 const failed = (tests: TestCase[], error: string, ms: number, output = ''): RunResult => ({ ok: false, passed: 0, total: tests.length, results: [], output, error, ms })
 
+/**
+ * The Java harness never changes, so it is compiled once per server into a
+ * shared directory and every run only compiles the solution against it. The
+ * promise is dropped on failure or when the directory has gone, so the next
+ * run tries again.
+ */
+let harnessClasses: Promise<string> | null = null
+let harnessDone = false
+function compiledHarness(javac: string, root: string): Promise<string> {
+  const dir = path.join(root, 'java-harness')
+  // Reuse a compile in flight; once done, reuse it as long as the classes are still there.
+  if (harnessClasses && (!harnessDone || fs.existsSync(path.join(dir, 'Harness.class')))) return harnessClasses
+  harnessDone = false
+  harnessClasses = (async () => {
+    fs.rmSync(dir, { recursive: true, force: true })
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, 'Harness.java'), JAVA_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+    const r = await run(javac, ['-d', '.', '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', 'Harness.java'], dir, COMPILE_TIMEOUT_MS)
+    if (r.code !== 0) throw new Error('the Java harness did not compile: ' + tidy(r.stderr))
+    harnessDone = true
+    return dir
+  })()
+  harnessClasses.catch(() => { harnessClasses = null })
+  return harnessClasses
+}
+
 export async function runTests(code: string, input: TestCase[], opts: RunOptions): Promise<RunResult> {
   const language = opts.language ?? 'typescript'
   const tests = normaliseTests(input)
@@ -136,11 +162,16 @@ export async function runTests(code: string, input: TestCase[], opts: RunOptions
       const bins = javaBins()
       if (!bins) return failed(tests, missingMessage('java'), 0)
       fs.writeFileSync(path.join(dir, 'Solution.java'), code)
-      fs.writeFileSync(path.join(dir, 'Harness.java'), JAVA_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
-      const compiled = await run(bins.javac, ['-d', 'out', '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', '-Xdiags:compact', 'Solution.java', 'Harness.java'], dir, COMPILE_TIMEOUT_MS)
+      let harnessDir: string
+      try {
+        harnessDir = await compiledHarness(bins.javac, opts.dir)
+      } catch (e) {
+        return failed(tests, (e as Error).message, Date.now() - started)
+      }
+      const compiled = await run(bins.javac, ['-d', 'out', '-cp', harnessDir, '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', '-Xdiags:compact', 'Solution.java'], dir, COMPILE_TIMEOUT_MS)
       if (compiled.timedOut) return failed(tests, 'Compiling took too long.', Date.now() - started)
       if (compiled.code !== 0) return failed(tests, 'Your code could not be compiled:\n' + tidyJavac(compiled.stderr || compiled.stdout), Date.now() - started)
-      proc = await run(bins.java, ['-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', 'out', 'Harness'], dir, timeoutMs)
+      proc = await run(bins.java, ['-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', `out${path.delimiter}${harnessDir}`, 'Harness'], dir, timeoutMs)
     } else {
       fs.writeFileSync(path.join(dir, 'solution.ts'), code)
       fs.writeFileSync(path.join(dir, 'harness.mjs'), TS_HARNESS(MARK, PER_TEST_TIMEOUT_MS))

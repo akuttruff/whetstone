@@ -12,11 +12,16 @@ export default function useGuide(problem: Problem, key: string, language: Langua
   const [writing, setWriting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
+  // A different attempt starts empty (adjusted during render); the effect then fetches its ladder.
+  const [shownKey, setShownKey] = useState(key)
+  if (shownKey !== key) {
+    setShownKey(key)
     setGuide(null)
     setLoaded(false)
     setError(null)
+  }
+  useEffect(() => {
+    let cancelled = false
     void api.guide(key)
       .then(({ guide: g }) => { if (!cancelled) setGuide(g) })
       .catch(() => {})

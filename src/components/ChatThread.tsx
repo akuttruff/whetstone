@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { Send, Square, Trash2 } from 'lucide-react'
 import Markdown from 'react-markdown'
 import type { ChatState } from '../hooks/useChat.ts'
@@ -15,8 +15,8 @@ interface Props extends ChatState {
   onClear: () => void
 }
 
-/** A question thread with streaming replies: under a review, or on a primer. */
-export default function ChatThread({ messages, pending, streaming, error, enabled, title, placeholder, disabledPlaceholder, suggestions, onAsk, onStop, onClear }: Props) {
+/** A question thread with streaming replies: under a review, or on a primer. Memoised: its markdown must not re-render per keystroke in the editor. */
+function ChatThread({ messages, pending, streaming, error, enabled, title, placeholder, disabledPlaceholder, suggestions, onAsk, onStop, onClear }: Props) {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -76,3 +76,5 @@ export default function ChatThread({ messages, pending, streaming, error, enable
     </div>
   )
 }
+
+export default memo(ChatThread)
