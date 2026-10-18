@@ -1,186 +1,276 @@
 # Whetstone
 
-Interview practice for senior software engineers, reviewed by a local model.
-Five tracks (coding and practical utilities, each in TypeScript, Ruby or
-Java; system design; knowledge questions; behavioral), a primer per topic distilling the
-techniques before you start, a live editor with sandboxed tests, streaming
-model feedback with an optional auto mode, a hint ladder when you are stuck,
-and a steerable easier/similar/harder variant generation on the same pattern.
-Mobile-first (iPhone 13 mini), with a split view on desktop.
+Interview practice for senior engineers, reviewed by a model that runs on
+your own machine. Write a solution in the editor, run it against real
+tests, get a scored review, and ask follow-up questions in a thread. When
+you are stuck there is a hint ladder, and when you want more of the same
+pattern the model writes a new problem for you.
 
-Same stack as cairn and lm-chat: Vite 8 + React 19 + TypeScript 7, a Vite
-plugin server (`server/api.ts`) with SQLite (`node:sqlite`), Vitest, oxlint.
-The model is any OpenAI-compatible server; by default oMLX on `:8000` with
-`Qwen3.8-27B-MLX-8bit`.
+Phone first (iPhone 13 mini), with a split view on desktop. Nothing leaves
+the machine.
+
+## What it looks like
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
+    <td width="33%"><img src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
+    <td width="33%"><img src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
+  </tr>
+  <tr>
+    <td><b>The list.</b> Tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
+    <td><b>A problem.</b> The statement, the technique it exercises, examples, hints and a reference solution. A tutor thread sits underneath.</td>
+    <td><b>Code.</b> Your draft runs against real tests in a sandbox. Here one of three fails.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
+    <td><img src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
+    <td><img src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
+  </tr>
+  <tr>
+    <td><b>Review.</b> The model scores the draft out of 10 and names one thing to focus on. You can ask why.</td>
+    <td><b>Guide.</b> A hint ladder written for your current draft, revealed one rung at a time.</td>
+    <td><b>Technique.</b> Every technique has a plain-words explanation and, for most, a step-through visualisation.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
+    <td><img src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
+    <td><img src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
+  </tr>
+  <tr>
+    <td><b>Primer.</b> One per topic: how to recognise the problem type and which techniques apply.</td>
+    <td><b>Knowledge.</b> Questions you answer in prose, with key points, follow-ups and links to the reference docs.</td>
+    <td><b>Languages.</b> Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" /></td>
+    <td width="50%"><img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" /></td>
+  </tr>
+  <tr>
+    <td><b>Desktop.</b> List, statement and editor side by side, here in Java.</td>
+    <td><b>Ruby.</b> The same problem in Ruby, with all tests passing.</td>
+  </tr>
+</table>
+
+The screenshots use demo data. To regenerate them:
+
+```bash
+npm run seed:demo && npm run dev   # one terminal
+npm run screenshots                # another; needs Google Chrome
+```
+
+## The five tracks
+
+- **Coding.** Algorithms and data structures, grouped by pattern.
+- **Practical.** Everyday utilities: debounce, an LRU cache, a promise pool.
+- **Design.** System design prompts, reviewed against talking points.
+- **Knowledge.** Questions you answer in prose, with key points to hit.
+- **Behavioral.** STAR-format stories, reviewed for structure and specifics.
+
+Coding and Practical come in TypeScript, Ruby and Java. The toggle next to
+the title picks the language.
 
 ## Run
 
 ```bash
 npm install
-npm run dev        # http://localhost:8300, scratch database in .data-dev/
-npm run check      # typecheck + lint + tests
-npm run deploy     # build and restart the persistent instance on :8310
+npm run dev          # http://localhost:8300, scratch database in .data-dev/
+npm run check        # typecheck + lint + tests
+npm run deploy       # build and restart the persistent instance on :8310
+npm run seed:demo    # fill the dev database with demo data
+npm run screenshots  # regenerate docs/screenshots/ from the dev server
 ```
 
-The persistent instance is a launchd job (`com.amie.whetstone`, plist in
-`scripts/`) that runs `vite preview` on :8310. To reach it from a phone, put it
-behind Tailscale Serve (`tailscale serve --bg --https=8444 http://127.0.0.1:8310`)
-and open `https://<your-machine>.<your-tailnet>.ts.net:8444`. Its data lives in
-`.data/`.
+Ruby and Java problems need their toolchains on the machine running the
+server: `brew install ruby openjdk`. Settings shows which languages are
+available. `server/langs.ts` lists where it looks; `WHETSTONE_RUBY` and
+`WHETSTONE_JAVA_HOME` override that.
 
-Install the launch agent once. Edit the three paths in the plist first (the
-`npm` binary, this checkout, and the log file), then:
+### Keeping it running
+
+The persistent instance is a launchd job (`com.amie.whetstone`) that runs
+`vite preview` on :8310. Its data lives in `.data/`.
+
+Install it once. Edit the three paths in `scripts/com.amie.whetstone.plist`
+first (the `npm` binary, this checkout, and the log file), then:
 
 ```bash
 cp scripts/com.amie.whetstone.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.amie.whetstone.plist
+```
+
+To reach it from a phone, put it behind Tailscale Serve and open
+`https://<your-machine>.<your-tailnet>.ts.net:8444`:
+
+```bash
 /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --https=8444 http://127.0.0.1:8310
 ```
 
 ## Local models
 
-Every review, hint ladder, tutor thread and generated variant is written by
-a model on this machine. Whetstone speaks the OpenAI chat API
-(`POST <server>/chat/completions`, streamed), so it works with any local
-server that does.
+Every review, hint ladder, tutor thread and generated problem is written by
+a model on this machine. Whetstone speaks the OpenAI chat API, streamed, so
+any local server that does will work.
 
 - **oMLX** is the default: `http://127.0.0.1:8000/v1` with
-  `Qwen3.8-27B-MLX-8bit`, which is what the prompts are tuned on. Start
-  oMLX with that model loaded and nothing needs setting.
+  `Qwen3.8-27B-MLX-8bit`, which the prompts are tuned on. Start oMLX with
+  that model loaded and nothing needs setting.
 - **LM Studio** works too. Start its server in the **Developer** tab, set
-  *Model server* in Settings to `http://127.0.0.1:1234/v1`, pick the model
-  by its LM Studio name (for example `qwen/qwen3.8-27b`), and paste an API
-  token if **Require Authentication** is on. The token stays on the server.
-- **Thinking.** "Let the model think first" in Settings turns the model's
-  reasoning on (`enable_thinking` through `chat_template_kwargs`, which
-  Qwen models honour). Off is faster; on is sometimes sharper on reviews
-  and design critiques. `<think>` blocks are stripped either way.
-- **Structured output.** Variants and ports ask for a JSON schema
-  (`response_format: json_schema`, strict), so the server must support it;
-  oMLX and LM Studio both do.
-- **What runs where.** The model only reads and writes text. Your code runs
-  in Whetstone's own sandbox on this machine (Node, `ruby`, `javac`), and
-  the test results go to the model with the draft.
+  *Model server* in Settings to `http://127.0.0.1:1234/v1`, and pick the
+  model by its LM Studio name (for example `qwen/qwen3.8-27b`). If
+  **Require Authentication** is on, paste the token; it stays on the server.
 
-Settings are stored server-side, so the phone and the desktop share the
-same model and server.
+Two things to know:
+
+- **Thinking.** "Let the model think first" in Settings turns on the model's
+  reasoning. Off is faster. On is sometimes sharper on reviews and design
+  critiques.
+- **Structured output.** Generating problems asks for a JSON schema, so the
+  server must support `response_format: json_schema`. oMLX and LM Studio
+  both do.
+
+The model only reads and writes text. Your code runs in Whetstone's own
+sandbox, and the test results go to the model along with the draft.
+
+Settings, drafts, reviews and threads are stored server-side, so the phone
+and the desktop see the same thing.
 
 ## How it works
 
-- **Content** is plain data in `src/data/*.ts`. Every problem has a `topic`
-  (list grouping), a `pattern` (the skill it exercises; variants keep it), a
-  difficulty, and track-specific fields. Code problems carry `tests`: each
-  names the function (`fn`) and gives its arguments as JSON (`args`), with an
-  `expected` JSON value, so the same checks run in every language (linked
-  lists travel as `{ val, next }` objects, trees as `{ val, left, right }`).
-  Practical problems are about closures, timers and promises, which JSON
-  cannot carry, so each has a test driver (`src/data/practical-drivers.ts`):
-  a function in the starter that replays a plain-data script against the
-  candidate's code and returns plain data. `server/content.test.ts` runs
-  every reference solution through the real sandbox, so content cannot drift.
-- **Languages.** Every coding and practical problem exists in TypeScript,
-  Ruby and Java: `src/data/ports-*.ts` hold a starter and a reference
-  solution per problem, written by hand to mirror the TypeScript ones
-  (promises become threads or executors, AbortSignal a small CancelToken),
-  and the content test runs each through its own sandbox (and checks each
-  starter loads or compiles). The toggle next to the title picks the language; it is
-  a setting, so the phone and the desktop agree. Drafts, reviews, hint
-  ladders and threads are kept per language (`<id>@ruby`, `<id>@java`; plain
-  id for TypeScript), and the review, tutor and hint prompts all speak that
-  language. Primer templates come in all three too, and the Knowledge track
-  has a language topic per language (TypeScript & JavaScript, Ruby, Java),
-  listed only for the selected one; the other knowledge topics are shared.
-  Ruby and Java need their toolchains on the machine running
-  the server (`brew install ruby openjdk`; see `server/langs.ts` for where it
-  looks, or set `WHETSTONE_RUBY` / `WHETSTONE_JAVA_HOME`); `GET /api/languages`
-  says what is available and Settings shows it.
-- **Run** (`POST /api/run`, body `{ code, tests, language }`) writes the draft
-  to a scratch directory and runs it under a per-language harness: a child
-  Node process with native TypeScript support, `ruby`, or `javac` + `java`.
-  Each harness calls the tested function by name (`twoSum` or `two_sum` both
-  resolve), converts the JSON arguments to that language's values (Java by
-  reflection on the method signature: `int[]`, `List<List<Integer>>`,
-  `char[][]`, `ListNode`, …), and reports raw results; the comparison with the
-  expected values happens once, in `server/runner.ts`. A per-test and overall
-  timeout and captured console output apply in every language. It is a
-  convenience, not a security boundary.
-- **Review** (`POST /api/review`) streams the model's review as server-sent
-  events. The prompt is per track (code with test results, design notes against
-  talking points, STAR for behavioral) and ends with a `VERDICT` line carrying a
-  0-10 score, correctness and a focus phrase. Reviews are saved and aggregated
-  per pattern into the progress shown on the list screen.
-- **Auto review** debounces N seconds after the last edit (Settings), skips
-  unchanged or starter text, and queues one more review if you keep typing
-  during one.
-- **Reading** (`src/data/docs.ts`): each Knowledge question on the web side of
-  the track (JavaScript, HTTP, performance, testing) links the reference page
-  behind it, MDN where MDN covers it and the tool's own documentation where
-  not; its primer links where the topic's reading starts. A test checks every
-  key names a built-in question or topic.
-- **Primers** (`src/data/primers-*.ts`) are one per topic in every track: how
-  to recognise the problem type, each technique with when/how/complexity and a
-  TypeScript template, pitfalls, and what to say out loud. They open from the
-  topic header on the list and from a link at the top of every problem. A test
-  checks that every topic has one.
-- **Guide** (`POST /api/guides/:id`) writes a hint ladder for the current
-  draft: five to seven rungs from the gentlest nudge to a full plan, each with
-  one thing to try, never the code. Rungs are revealed one at a time and the
-  position is saved server-side; "Rewrite for my draft" makes a new ladder
-  from where you are now.
-- **Ask about it** (`POST /api/chat/:id`) is a conversation thread, streamed
-  like a review and saved per problem. Under a review the model has the
-  problem, your current code, test results and its latest review, and it may
-  show code snippets ("what would the syntax look like?"). On a primer the
-  thread id is `primer:<track>:<topic>` and the model tutors from the primer's
-  content. The last 12 turns ride along with each question.
-- **Ask about the problem** is a third thread, under the problem statement
-  (thread id `about:<problem id>`, body `{ about: true, problem }`). It is an
-  open tutor for studying the problem: what it means, the edge cases, which
-  technique applies and why, a walkthrough on an example, the complexity, a
-  snippet, or the whole solution if you ask. It has the reference solution,
-  hints, talking points or key points to explain from.
-- **Techniques** (`src/data/techniques.ts`) is a catalogue of the techniques
-  the coding and practical problems exercise, matched to a problem by its
-  `pattern` string. Chips under
-  the statement open a sheet with a plain-words explanation, the moves, the
-  invariant, the primer's template, and for most techniques a step-through
-  visualisation (`src/viz/*`): the real algorithm runs on a small fixed
-  example and records one frame per step, drawn as a row of cells, a grid or
-  a graph with a caption. Settings → "Show the techniques each problem uses"
-  hides the chips for interview-style practice.
-- **Variants** (`POST /api/variants`) ask the model for an easier, similar or
-  harder problem on the same pattern using a JSON schema. The "New problem"
-  button on a problem opens a sheet: an optional free-text steer (for example
-  "keep practising hash lookups but focus on counting") and then the level.
-  "Similar" keeps the difficulty and the core technique but changes the
-  scenario, so you can drill one pattern by repetition. Easier and similar
-  variants are saved under the parent's pattern; a harder one may name its
-  own (the model is given the track's pattern vocabulary) when its twist
-  moves the core technique, so the technique chips and progress stay right.
-  The steer rides along
-  in the prompt (max 600 characters) and is saved on the generated problem,
-  which shows it under its statement. The request also lists the titles
-  already on that pattern (built-in and generated) so repeated drills stay
-  distinct. For code, the model's own
-  solution is run against the tests it wrote; failing tests are dropped and the
-  result says how many were verified. A variant is written in the language
-  currently selected; opening it in another language shows a "Write it in …"
-  button that asks the model for a port (`POST /api/port`), saved only once
-  the ported solution passes the same tests. Variants are stored in SQLite
-  under their parent.
-- **Drafts** and settings live server-side, so the phone and the desktop share
-  them.
-- **Loading.** The list screen ships without the editor: CodeMirror, the Java
-  and Ruby grammars, the technique visualiser and the Ruby and Java ports are
-  separate chunks fetched on first use, and the hashed assets are served as
-  immutable. The Java test harness is compiled once per server and reused.
+### Content
 
-## Layout
+Problems are plain data in `src/data/*.ts`. Every problem has a topic (how
+the list groups it), a pattern (the skill it exercises), a difficulty and
+the fields its track needs.
+
+Code problems carry tests that name a function and give its arguments and
+expected result as JSON. The same tests run in every language. Linked lists
+travel as `{ val, next }` objects and trees as `{ val, left, right }`.
+
+Practical problems are about closures, timers and promises, which JSON
+cannot carry. Each one has a small driver in the starter that replays a
+script against your code and returns plain data.
+
+A test runs every reference solution, in every language, through the real
+sandbox, so the content cannot drift.
+
+### Languages
+
+Every coding and practical problem has a hand-written Ruby and Java version
+in `src/data/ports-*.ts`: a starter and a reference solution each. The ports
+mirror the TypeScript ones; promises become threads or executors, and
+AbortSignal becomes a small cancel token.
+
+Your work is kept per language. Switching from TypeScript to Ruby on a
+problem shows a fresh Ruby draft, with its own reviews, hints and threads.
+The review, tutor and hint prompts all speak the selected language.
+
+The Knowledge track has one language topic per language (TypeScript &
+JavaScript, Ruby, Java). You see the one for the selected language; the
+other topics are shared.
+
+### Running code
+
+Run writes your draft to a scratch directory and executes it under a
+harness for that language: a child Node process for TypeScript, `ruby`, or
+`javac` and `java`.
+
+The harness finds the function by name (`twoSum` and `two_sum` both
+resolve), converts the JSON arguments into that language's values, and
+reports the raw results. Java does this by reflection on the method
+signature, so `int[]`, `List<List<Integer>>`, `char[][]` and `ListNode` all
+work. The comparison with the expected values happens once, on the server.
+
+Every language gets a per-test and overall timeout and captured console
+output. The sandbox is a convenience, not a security boundary.
+
+### Reviews
+
+A review streams from the model as you watch. The prompt depends on the
+track: code with its test results, design notes against the talking points,
+STAR for behavioral. It ends with a verdict line carrying a score out of 10,
+whether the answer is correct, and a focus phrase.
+
+Reviews are saved and aggregated per pattern into the progress shown on the
+list.
+
+**Auto** reviews a few seconds after you stop typing. It skips unchanged or
+starter text, and queues one more review if you keep typing during one.
+
+### Hints and tutoring
+
+There are three ways to get help, all written by the model and all saved.
+
+- **Guide** writes a hint ladder for your current draft: five to seven rungs,
+  from the gentlest nudge to a full plan, each with one thing to try and
+  never the code. Rungs are revealed one at a time. "Rewrite for my draft"
+  makes a new ladder from where you are now.
+- **Ask about it**, under a review, is a thread where the model has your
+  code, the test results and its latest review. It may show snippets.
+- **Ask about the problem**, under the statement, is an open tutor for
+  studying the problem: what it means, the edge cases, which technique
+  applies and why, a walkthrough, the complexity, or the whole solution if
+  you ask.
+
+Primers have a thread too, tutoring from the primer's content. The last 12
+turns ride along with each question.
+
+### Primers and techniques
+
+Each topic has a primer: how to recognise the problem type, each technique
+with when, how and complexity, a code template, pitfalls, and what to say
+out loud. Primers open from the topic header on the list and from a link
+at the top of every problem.
+
+Techniques are a catalogue, matched to a problem by its pattern. The chips
+under a statement open a sheet with a plain-words explanation, the moves,
+the invariant, the template, and for most techniques a step-through
+visualisation: the real algorithm runs on a small example and records one
+frame per step. Hide the chips in Settings for interview-style practice.
+
+Knowledge questions link the reference page behind them: MDN where MDN
+covers it, the tool's own documentation where not.
+
+### New problems
+
+"New problem" asks the model for an easier, similar or harder problem on the
+same pattern. You can steer it in free text, for example "keep practising
+hash lookups but focus on counting".
+
+- **Similar** keeps the difficulty and the core technique but changes the
+  scenario, so you can drill one pattern by repetition.
+- **Easier** and **similar** stay under the parent's pattern. **Harder** may
+  name its own pattern when the twist changes the core technique, so the
+  chips and progress stay right.
+- For code, the model's own solution is run against the tests it wrote.
+  Failing tests are dropped and the result says how many were verified.
+- The request lists the titles already on that pattern, so repeated drills
+  stay distinct.
+
+A generated problem is written in the selected language. Opening it in
+another language shows a "Write it in …" button; the port is saved once its
+solution passes the same tests.
+
+### Loading
+
+The list screen ships without the editor. CodeMirror, the Ruby and Java
+grammars, the visualiser and the ports are separate chunks fetched on first
+use, and hashed assets are served as immutable. The Java harness is
+compiled once per server and reused.
+
+## Stack and layout
+
+Vite 8 + React 19 + TypeScript, a Vite plugin server with SQLite
+(`node:sqlite`), Vitest and oxlint. Same stack as cairn and lm-chat.
 
 ```
 server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
-          prompts.ts (review + variant + port prompts, validation),
-          runner.ts (sandbox) with harness-ts/ruby/java.ts and langs.ts
-src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), types.ts
-scripts/  deploy.sh, com.amie.whetstone.plist
+          prompts.ts (review, variant and port prompts), runner.ts (sandbox)
+          with harness-ts/ruby/java.ts and langs.ts
+src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), viz/
+scripts/  deploy.sh, com.amie.whetstone.plist, seed-demo.ts, screenshots.mjs
+docs/     screenshots/ for this README
 ```

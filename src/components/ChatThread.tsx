@@ -19,8 +19,14 @@ interface Props extends ChatState {
 function ChatThread({ messages, pending, streaming, error, enabled, title, placeholder, disabledPlaceholder, suggestions, onAsk, onStop, onClear }: Props) {
   const [draft, setDraft] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  // Keep the newest turn in view while a conversation is happening, but not on
+  // first paint: opening a problem must not scroll its statement away to show
+  // an (often empty) thread underneath it.
+  const seen = useRef<number | null>(null)
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: 'nearest' })
+    const grew = seen.current !== null && (messages.length > seen.current || pending.length > 0)
+    seen.current = messages.length
+    if (grew) endRef.current?.scrollIntoView?.({ block: 'nearest' })
   }, [messages.length, pending])
 
   const submit = (): void => {

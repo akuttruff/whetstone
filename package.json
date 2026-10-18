@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "check": "tsc --noEmit && oxlint && vitest run",
-    "deploy": "sh scripts/deploy.sh"
+    "deploy": "sh scripts/deploy.sh",
+    "seed:demo": "node --experimental-strip-types --no-warnings scripts/seed-demo.ts",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@codemirror/lang-java": "^6.0.2",
