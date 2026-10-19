@@ -6,10 +6,21 @@ tests, get a scored review, and ask follow-up questions in a thread. When
 you are stuck there is a hint ladder, and when you want more of the same
 pattern the model writes a new problem for you.
 
-Phone first (iPhone 13 mini), with a split view on desktop. Nothing leaves
+A split view on desktop, and phone first on an iPhone 13 mini. Nothing leaves
 the machine.
 
 ## What it looks like
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" /></td>
+    <td width="50%"><img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" /></td>
+  </tr>
+  <tr>
+    <td><b>Desktop.</b> List, statement and editor side by side, here in Java.</td>
+    <td><b>Ruby.</b> The same problem in Ruby, with all tests passing.</td>
+  </tr>
+</table>
 
 <table>
   <tr>
@@ -41,17 +52,6 @@ the machine.
     <td><b>Primer.</b> One per topic: how to recognise the problem type and which techniques apply.</td>
     <td><b>Knowledge.</b> Questions you answer in prose, with key points, follow-ups and links to the reference docs.</td>
     <td><b>Languages.</b> Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" /></td>
-    <td width="50%"><img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" /></td>
-  </tr>
-  <tr>
-    <td><b>Desktop.</b> List, statement and editor side by side, here in Java.</td>
-    <td><b>Ruby.</b> The same problem in Ruby, with all tests passing.</td>
   </tr>
 </table>
 
