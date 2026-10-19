@@ -1,5 +1,7 @@
+import { noReply, reachFetch } from './reach.ts'
 import type { ChatMessage, Direction, Guide, Language, ModelOption, Problem, Progress, PublicSettings, Review, RunResult, Settings, Track } from '../types.ts'
 
+/** The server answered with an error; status 0 when it gave no answer at all (see lib/reach.ts). */
 export class ApiError extends Error {
   readonly status: number
   constructor(message: string, status: number) {
@@ -9,10 +11,16 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
-  })
+  let res: Response
+  try {
+    res = await reachFetch(path, {
+      ...init,
+      headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
+    })
+  } catch (err) {
+    if (!noReply(err)) throw err
+    throw new ApiError("Can't reach Whetstone. Check that Tailscale is connected, then try again.", 0)
+  }
   if (!res.ok) {
     let message = `HTTP ${res.status}`
     try {

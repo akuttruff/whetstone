@@ -8,6 +8,7 @@ import ProgressCard from './components/ProgressCard.tsx'
 import LanguageToggle from './components/LanguageToggle.tsx'
 import SettingsSheet from './components/SettingsSheet.tsx'
 import TrackTabs from './components/TrackTabs.tsx'
+import Unreachable from './components/Unreachable.tsx'
 import useMediaQuery from './hooks/useMediaQuery.ts'
 import useProblems from './hooks/useProblems.ts'
 import useProgress from './hooks/useProgress.ts'
@@ -38,9 +39,16 @@ function remember(key: string, v: string | null): void {
 
 export default function App() {
   const wide = useMediaQuery('(min-width: 900px)')
-  const { settings, loaded: settingsLoaded, save } = useSettings()
+  const { settings, loaded: settingsLoaded, save, reload: reloadSettings } = useSettings()
   const problems = useProblems(settings.language)
+  const { refresh: refreshProblems } = problems
   const { progress, refresh: refreshProgress } = useProgress()
+  /** The server is answering again after a launch it missed: fetch what that launch could not. */
+  const onBack = useCallback((): void => {
+    void reloadSettings()
+    void refreshProblems()
+    void refreshProgress()
+  }, [reloadSettings, refreshProblems, refreshProgress])
   const [track, setTrack] = useState<Track>(() => remembered<Track>(TRACK_KEY, (v) => TRACKS.some((t) => t.id === v)) ?? 'coding')
   const [selectedId, setSelectedId] = useState<string | null>(() => remembered(SELECTED_KEY, () => true))
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -161,6 +169,7 @@ export default function App() {
 
   return (
     <div className={`app${wide ? ' wide' : ''}`}>
+      <Unreachable app="Whetstone" onBack={onBack} />
       {wide ? (
         <>
           <aside className="side">{list}</aside>

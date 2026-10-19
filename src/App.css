@@ -317,6 +317,27 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 
 .empty-detail { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--faint); }
 
+/* The server is out of reach (components/Unreachable.tsx): a strip over the top of the screen. */
+.unreachable {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 350; /* above CodeMirror's panels (300), below the sheets (400) */
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
+  background: var(--raised);
+  border-bottom: 1px solid var(--red);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.unreachable strong { color: var(--red); }
+.unreachable button { flex: none; background: none; border: 1px solid var(--red); border-radius: 8px; padding: 6px 12px; color: var(--red); }
+
 /* ====== settings sheet ====== */
 .sheet-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 400; } /* above CodeMirror's panels (300) */
 .sheet {
