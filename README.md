@@ -82,47 +82,64 @@ the title picks the language.
 
 ## Before you start
 
-Whetstone is a Node server that you run on one computer and open from a
-browser there or on your phone. Reading problems, writing code and running
-the TypeScript tests need only Node. Everything the model does, reviews,
-hints, tutoring and new problems, needs a model served on the same
-computer, and the Ruby and Java tracks need their toolchains.
+### How it fits together
 
-| You want to | You need |
+```
+your phone or desktop browser
+        │  http, over your own network
+        ▼
+Whetstone ── one Node process on one computer ── .data/ (SQLite)
+        │
+        ├──▶ a sandbox on that computer            (runs your code: node, ruby, javac/java)
+        └──▶ a model server on the same computer   (reviews, hints, tutoring, new problems)
+```
+
+Whetstone is one Node process that serves the app to any browser on your
+network and keeps your drafts, reviews and threads in SQLite on that
+computer, so the phone and the desktop see the same thing. Your code runs
+in Whetstone's own sandbox on that computer; the model only reads and
+writes text, and gets the test results along with the draft. Your phone
+talks only to Whetstone.
+
+### What you need
+
+| For | You need |
 |---|---|
-| Browse problems, primers and techniques; write and run TypeScript | Node 24 or newer |
-| Run Ruby or Java solutions | `ruby`, or a JDK (`javac` and `java`), on the server machine |
-| Reviews, hint ladders, tutor threads and new problems | A local model server that speaks the OpenAI chat API, streamed (below) |
-| Open it on your phone | The phone on the same Wi-Fi, or [Tailscale](https://tailscale.com) on both devices (see *Keeping it running*) |
+| Browsing problems, primers and techniques; writing and running TypeScript | Node 24 or newer |
+| Running Ruby or Java solutions | `ruby`, or a JDK (`javac` and `java`), on the same computer |
+| Reviews, hint ladders, tutor threads and new problems | A model server that speaks the OpenAI chat API (below) |
+| Opening it on your phone | The phone on the same Wi-Fi, or [Tailscale](https://tailscale.com) on both devices (see *Keeping it running*) |
 
-**Node.** Drafts, reviews and settings are stored with `node:sqlite`,
-which arrived in Node 24. Check with `node --version`.
+Node 24 is the floor because drafts and reviews are stored with
+`node:sqlite`, which arrived in that version. Check with `node --version`.
 
 **Ruby and Java.** `brew install ruby openjdk` on a Mac. Settings shows
-which languages the server machine can run; `server/langs.ts` lists where
-it looks, and `WHETSTONE_RUBY` and `WHETSTONE_JAVA_HOME` override that.
+which languages the computer can run; `server/langs.ts` lists where it
+looks, and `WHETSTONE_RUBY` and `WHETSTONE_JAVA_HOME` override that.
 Without a toolchain the problems can still be written, just not run.
 
-**Serving a model.** Any server that speaks the OpenAI chat API will do.
-Generating problems asks for a JSON schema, so it must also support
-`response_format: json_schema`. Both of these do:
+### A model server
 
-- **[oMLX](https://github.com/jundot/omlx)** is the default: Whetstone
-  looks for it at `http://127.0.0.1:8000/v1` with `Qwen3.8-27B-MLX-8bit`,
-  which the prompts are tuned on. Start oMLX with that model loaded and
-  nothing needs setting.
-- **[LM Studio](https://lmstudio.ai)** works too. Download a model in its
-  Discover tab, start the server in the **Developer** tab, then in
-  Whetstone's Settings set *Model server* to `http://127.0.0.1:1234/v1`
-  and pick the model by its LM Studio name (for example
-  `qwen/qwen3.8-27b`). If **Require Authentication** is on, paste the
-  token; it stays on the server.
+Whetstone talks to the model through the OpenAI chat API
+(`/v1/chat/completions`), streamed, so any local server that offers it
+works. Generating problems asks for a JSON schema, so the server must also
+support `response_format: json_schema`. oMLX, LM Studio and llama.cpp's
+server all do.
+
+- **[oMLX](https://github.com/jundot/omlx)** is the default. Whetstone looks
+  for it at `http://127.0.0.1:8000/v1` with `Qwen3.8-27B-MLX-8bit`, which
+  the prompts are tuned on. Start oMLX with that model loaded and nothing
+  needs setting.
+- **[LM Studio](https://lmstudio.ai)**, as the example of any other server:
+  download a model in its Discover tab and start the server in the
+  **Developer** tab. In Whetstone's Settings set *Model server* to
+  `http://127.0.0.1:1234/v1` and pick the model by the name the server
+  uses (for example `qwen/qwen3.8-27b`). If the server asks for a token
+  (in LM Studio, **Require Authentication**), paste it; it stays on the
+  Whetstone server.
 
 "Let the model think first" in Settings turns on the model's reasoning.
 Off is faster. On is sometimes sharper on reviews and design critiques.
-
-The model only reads and writes text. Your code runs in Whetstone's own
-sandbox, and the test results go to the model along with the draft.
 
 ## Run
 
