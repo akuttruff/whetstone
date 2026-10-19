@@ -305,7 +305,7 @@ compiled once per server and reused.
 ## Stack and layout
 
 Vite 8 + React 19 + TypeScript, a Vite plugin server with SQLite
-(`node:sqlite`), Vitest and oxlint. Same stack as cairn and lm-chat.
+(`node:sqlite`), Vitest and oxlint.
 
 ```
 server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
