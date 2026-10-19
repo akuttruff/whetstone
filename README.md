@@ -11,47 +11,54 @@ the machine.
 
 ## What it looks like
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" /></td>
-    <td width="50%"><img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" /></td>
-  </tr>
-  <tr>
-    <td><b>Desktop.</b> List, statement and editor side by side, here in Java.</td>
-    <td><b>Ruby.</b> The same problem in Ruby, with all tests passing.</td>
-  </tr>
-</table>
+<img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" />
+
+**On a desktop.** List, statement and editor side by side, here in Java.
+
+<img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" />
+
+**Ruby.** The same problem in Ruby, with all tests passing.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
-    <td width="33%"><img src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
-    <td width="33%"><img src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
+    <td width="50%"><img src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
+    <td width="50%"><img src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
   </tr>
   <tr>
     <td><b>The list.</b> Tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
     <td><b>A problem.</b> The statement, the technique it exercises, examples, hints and a reference solution. A tutor thread sits underneath.</td>
-    <td><b>Code.</b> Your draft runs against real tests in a sandbox. Here one of three fails.</td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
     <td><img src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
+  </tr>
+  <tr>
+    <td><b>Code.</b> Your draft runs against real tests in a sandbox. Here one of three fails.</td>
+    <td><b>Review.</b> The model scores the draft out of 10 and names one thing to focus on. You can ask why.</td>
+  </tr>
+  <tr>
     <td><img src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
     <td><img src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
   </tr>
   <tr>
-    <td><b>Review.</b> The model scores the draft out of 10 and names one thing to focus on. You can ask why.</td>
     <td><b>Guide.</b> A hint ladder written for your current draft, revealed one rung at a time.</td>
     <td><b>Technique.</b> Every technique has a plain-words explanation and, for most, a step-through visualisation.</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
     <td><img src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
-    <td><img src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
   </tr>
   <tr>
     <td><b>Primer.</b> One per topic: how to recognise the problem type and which techniques apply.</td>
     <td><b>Knowledge.</b> Questions you answer in prose, with key points, follow-ups and links to the reference docs.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
+    <td></td>
+  </tr>
+  <tr>
     <td><b>Languages.</b> Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
+    <td></td>
   </tr>
 </table>
 
@@ -73,6 +80,50 @@ npm run screenshots                # another; needs Google Chrome
 Coding and Practical come in TypeScript, Ruby and Java. The toggle next to
 the title picks the language.
 
+## Before you start
+
+Whetstone is a Node server that you run on one computer and open from a
+browser there or on your phone. Reading problems, writing code and running
+the TypeScript tests need only Node. Everything the model does, reviews,
+hints, tutoring and new problems, needs a model served on the same
+computer, and the Ruby and Java tracks need their toolchains.
+
+| You want to | You need |
+|---|---|
+| Browse problems, primers and techniques; write and run TypeScript | Node 24 or newer |
+| Run Ruby or Java solutions | `ruby`, or a JDK (`javac` and `java`), on the server machine |
+| Reviews, hint ladders, tutor threads and new problems | A local model server that speaks the OpenAI chat API, streamed (below) |
+| Open it on your phone | The phone on the same Wi-Fi, or [Tailscale](https://tailscale.com) on both devices (see *Keeping it running*) |
+
+**Node.** Drafts, reviews and settings are stored with `node:sqlite`,
+which arrived in Node 24. Check with `node --version`.
+
+**Ruby and Java.** `brew install ruby openjdk` on a Mac. Settings shows
+which languages the server machine can run; `server/langs.ts` lists where
+it looks, and `WHETSTONE_RUBY` and `WHETSTONE_JAVA_HOME` override that.
+Without a toolchain the problems can still be written, just not run.
+
+**Serving a model.** Any server that speaks the OpenAI chat API will do.
+Generating problems asks for a JSON schema, so it must also support
+`response_format: json_schema`. Both of these do:
+
+- **[oMLX](https://github.com/jundot/omlx)** is the default: Whetstone
+  looks for it at `http://127.0.0.1:8000/v1` with `Qwen3.8-27B-MLX-8bit`,
+  which the prompts are tuned on. Start oMLX with that model loaded and
+  nothing needs setting.
+- **[LM Studio](https://lmstudio.ai)** works too. Download a model in its
+  Discover tab, start the server in the **Developer** tab, then in
+  Whetstone's Settings set *Model server* to `http://127.0.0.1:1234/v1`
+  and pick the model by its LM Studio name (for example
+  `qwen/qwen3.8-27b`). If **Require Authentication** is on, paste the
+  token; it stays on the server.
+
+"Let the model think first" in Settings turns on the model's reasoning.
+Off is faster. On is sometimes sharper on reviews and design critiques.
+
+The model only reads and writes text. Your code runs in Whetstone's own
+sandbox, and the test results go to the model along with the draft.
+
 ## Run
 
 ```bash
@@ -84,10 +135,9 @@ npm run seed:demo    # fill the dev database with demo data
 npm run screenshots  # regenerate docs/screenshots/ from the dev server
 ```
 
-Ruby and Java problems need their toolchains on the machine running the
-server: `brew install ruby openjdk`. Settings shows which languages are
-available. `server/langs.ts` lists where it looks; `WHETSTONE_RUBY` and
-`WHETSTONE_JAVA_HOME` override that.
+On your phone, open the **Network** address that Vite prints (for example
+`http://192.168.1.50:8300/`). Settings, drafts, reviews and threads are
+stored server-side, so the phone and the desktop see the same thing.
 
 ### Keeping it running
 
@@ -109,34 +159,8 @@ To reach it from a phone, put it behind Tailscale Serve and open
 /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg --https=8444 http://127.0.0.1:8310
 ```
 
-## Local models
-
-Every review, hint ladder, tutor thread and generated problem is written by
-a model on this machine. Whetstone speaks the OpenAI chat API, streamed, so
-any local server that does will work.
-
-- **oMLX** is the default: `http://127.0.0.1:8000/v1` with
-  `Qwen3.8-27B-MLX-8bit`, which the prompts are tuned on. Start oMLX with
-  that model loaded and nothing needs setting.
-- **LM Studio** works too. Start its server in the **Developer** tab, set
-  *Model server* in Settings to `http://127.0.0.1:1234/v1`, and pick the
-  model by its LM Studio name (for example `qwen/qwen3.8-27b`). If
-  **Require Authentication** is on, paste the token; it stays on the server.
-
-Two things to know:
-
-- **Thinking.** "Let the model think first" in Settings turns on the model's
-  reasoning. Off is faster. On is sometimes sharper on reviews and design
-  critiques.
-- **Structured output.** Generating problems asks for a JSON schema, so the
-  server must support `response_format: json_schema`. oMLX and LM Studio
-  both do.
-
-The model only reads and writes text. Your code runs in Whetstone's own
-sandbox, and the test results go to the model along with the draft.
-
-Settings, drafts, reviews and threads are stored server-side, so the phone
-and the desktop see the same thing.
+The page is served from the browser's cache on every launch, so it opens
+at once on the phone and says so if the server cannot be reached.
 
 ## How it works
 
@@ -271,6 +295,7 @@ server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
           prompts.ts (review, variant and port prompts), runner.ts (sandbox)
           with harness-ts/ruby/java.ts and langs.ts
 src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), viz/
+public/   sw.js, the app shell cache
 scripts/  deploy.sh, com.amie.whetstone.plist, seed-demo.ts, screenshots.mjs
 docs/     screenshots/ for this README
 ```
