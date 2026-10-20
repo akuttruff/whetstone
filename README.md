@@ -1,4 +1,4 @@
-# <img src="public/icon-180.png" width="40" alt=""> Whetstone
+# <img src="public/icon-180.png" width="36" align="absmiddle" alt=""> Whetstone
 
 Interview practice for senior engineers, reviewed by a model that runs on
 your own machine. Write a solution in the editor, run it against real
