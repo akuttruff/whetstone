@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Lightbulb, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
+import { ArrowLeft, Lightbulb, MessageCircleQuestionMark, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
 import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
@@ -185,6 +185,17 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
         </button>
       </div>
       {code && <RunPanel run={run} running={running} />}
+      {/* With room beside the problem, the review reads under the draft it is about; the thread stays on its tab. */}
+      {wide && (review.review || review.streaming) && (
+        <div className="work-review">
+          <ReviewPanel {...review} onStart={review.start} onCancel={review.cancel} canReview={canReview} />
+          {review.review && !review.streaming && (
+            <button className="btn small work-review-ask" onClick={() => setTab('review')}>
+              <MessageCircleQuestionMark size={14} /> Ask about it
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 

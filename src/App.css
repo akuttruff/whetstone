@@ -236,6 +236,10 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .run-output summary { color: var(--dim); cursor: pointer; font-size: 12px; margin-top: 4px; }
 .run-output pre { font-size: 12px; white-space: pre-wrap; background: var(--raised); padding: 8px; border-radius: 8px; }
 
+/* The review under the editor, in the wide layout: its own scroll, never more than the editor's share. */
+.work-review { flex: 0 1 auto; max-height: 45%; overflow-y: auto; border-top: 1px solid var(--line); padding: 10px 12px 12px; background: var(--raised); }
+.work-review-ask { margin-top: 10px; }
+
 /* ====== review ====== */
 .review { display: flex; flex-direction: column; gap: 10px; }
 .review-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px; }

@@ -13,7 +13,7 @@ the machine.
 
 <img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" />
 
-**On a desktop.** List, statement and editor side by side, here in Java.
+**On a desktop.** List, statement and editor side by side, here in Java, with the latest review under the draft it is about.
 
 <img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" />
 
