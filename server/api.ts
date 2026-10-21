@@ -2,6 +2,7 @@ import path from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { Store, ValidationError } from './store.ts'
+import { HealthCheck } from './health.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
 import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, PORT_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, THINKING_EXTRA_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, portFromModel, portPrompt, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
 import { runTests } from './runner.ts'
@@ -83,6 +84,19 @@ export function createApi(options: ApiOptions = {}) {
   /** A completion budget with room for thinking when that setting is on. */
   const budget = (base: number): number => base + (store.getSettings().thinking ? THINKING_EXTRA_TOKENS : 0)
   const runDir = options.runDir ?? path.join(options.dir ?? path.resolve(process.cwd(), '.data'), 'runs')
+  /** Reviews and tutor replies being streamed right now: what a restart would cut off. */
+  let streaming = 0
+  /** `GET /api/health`: the process, its data file, the model server and the language runtimes. */
+  const health = new HealthCheck({
+    app: 'whetstone',
+    dataFile: path.join(options.dir ?? path.resolve(process.cwd(), '.data'), 'whetstone.sqlite'),
+    busy: () => ({ streams: streaming }),
+    deps: {
+      model: () => listModels(store.getSettings(), fetchImpl),
+      ruby: async () => { if (!availability().ruby) throw new Error('not installed') },
+      java: async () => { if (!availability().java) throw new Error('not installed') },
+    },
+  })
 
   const route = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url || '/', 'http://local')
@@ -94,6 +108,8 @@ export function createApi(options: ApiOptions = {}) {
       if (method === 'GET') return json(res, 200, store.getPublicSettings())
       if (method === 'PUT') return json(res, 200, store.setSettings(await readBody(req)))
     }
+
+    if (p === '/api/health' && method === 'GET') return json(res, 200, await health.report())
 
     if (p === '/api/models' && method === 'GET') {
       try {
@@ -153,6 +169,7 @@ export function createApi(options: ApiOptions = {}) {
       const send = (event: unknown): void => { res.write(`data: ${JSON.stringify(event)}\n\n`) }
       const ac = new AbortController()
       req.on('close', () => ac.abort())
+      streaming++
       try {
         const { system, user } = reviewPrompt(problem, answer, run, language)
         const { text, model } = await chatStream(
@@ -169,6 +186,8 @@ export function createApi(options: ApiOptions = {}) {
         send({ type: 'done', review })
       } catch (err) {
         if (!ac.signal.aborted) send({ type: 'error', message: (err as Error).message })
+      } finally {
+        streaming--
       }
       res.end()
       return
@@ -275,6 +294,7 @@ export function createApi(options: ApiOptions = {}) {
         send({ type: 'user', message: userTurn })
         const ac = new AbortController()
         req.on('close', () => ac.abort())
+        streaming++
         try {
           const { text } = await chatStream(
             store.getSettings(),
@@ -286,6 +306,8 @@ export function createApi(options: ApiOptions = {}) {
           send({ type: 'done', message: reply })
         } catch (err) {
           if (!ac.signal.aborted) send({ type: 'error', message: (err as Error).message })
+        } finally {
+          streaming--
         }
         res.end()
         return

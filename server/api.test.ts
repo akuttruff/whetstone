@@ -61,6 +61,14 @@ const post = (p: string, body: unknown, headers: Record<string, string> = {}): P
   realFetch(base + p, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) })
 
 describe('api', () => {
+  it('reports its health: the process, its data file, the streams in flight, the model server and the runtimes', async () => {
+    const h = await (await realFetch(`${base}/api/health`)).json() as Record<string, unknown>
+    expect(h).toMatchObject({ ok: true, app: 'whetstone', busy: { streams: 0 }, deps: { model: 'ok' } })
+    for (const lang of ['ruby', 'java']) expect(['ok', 'down']).toContain((h.deps as Record<string, string>)[lang])
+    expect(h.data).toMatchObject({ file: 'whetstone.sqlite' })
+    expect(typeof h.version).toBe('string')
+  })
+
   it('refuses cross-origin writes', async () => {
     const res = await post('/api/drafts/x', { text: 'a' }, { Origin: 'http://evil.example' })
     expect(res.status).toBe(403)
