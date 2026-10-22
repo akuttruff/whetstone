@@ -11,58 +11,20 @@ the machine.
 
 ## What it looks like
 
-<img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" />
-
-On a desktop the list, statement and editor sit side by side, here in Java, with the latest review under the draft it is about.
-
-<img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" />
-
-The same problem in Ruby, with all tests passing.
-
 <img src="docs/screenshots/demo-desktop.gif" alt="Whetstone in use on a desktop" />
 
-<p>On a desktop, a problem opens beside the editor, its code runs against the tests, and the review lands under it.</p>
-
-<p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use on a phone" /></p>
-
-<p align="center">The same flow on a phone.</p>
+<sub>On a desktop: a problem beside the editor, its code run against the tests, and the review under it.</sub>
 
 <table>
   <tr>
-    <td width="260"><img width="260" src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
-    <td>The list shows the tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
+    <td align="center" width="33%"><img src="docs/screenshots/list-phone.png" width="200" alt="The problem list" /><br /><b>List</b><br /><sub>Tracks, patterns and your scores</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/problem-phone.png" width="200" alt="A problem statement" /><br /><b>Problem</b><br /><sub>Statement, hints and a tutor thread</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/code-phone.png" width="200" alt="The editor with test results" /><br /><b>Code</b><br /><sub>Your draft against real tests</sub></td>
   </tr>
   <tr>
-    <td width="260"><img width="260" src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
-    <td>A problem opens with its statement, the technique it exercises, examples, hints and a reference solution, with a tutor thread underneath.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
-    <td>Your draft runs against real tests in a sandbox; here one of three fails.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
-    <td>The model scores the draft out of 10 and names one thing to focus on, and you can ask why.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
-    <td>The guide writes a hint ladder for your current draft and reveals it one rung at a time.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
-    <td>Every technique comes with a plain-words explanation and, for most, a step-through visualisation.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
-    <td>Each topic has a primer on how to recognise the problem type and which techniques apply.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
-    <td>Knowledge questions are answered in prose, with key points, follow-ups and links to the reference docs.</td>
-  </tr>
-  <tr>
-    <td width="260"><img width="260" src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
-    <td>Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
+    <td align="center" width="33%"><img src="docs/screenshots/review-phone.png" width="200" alt="A model review with a follow-up thread" /><br /><b>Review</b><br /><sub>Scored out of 10, one thing to fix</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/guide-phone.png" width="200" alt="The hint ladder" /><br /><b>Guide</b><br /><sub>A hint ladder, one rung at a time</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/technique-phone.png" width="200" alt="A technique sheet with its visualisation" /><br /><b>Technique</b><br /><sub>Explained, then stepped through</sub></td>
   </tr>
 </table>
 
