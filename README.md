@@ -19,6 +19,10 @@ the machine.
 
 **Ruby.** The same problem in Ruby, with all tests passing.
 
+<p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use" /></p>
+
+<p align="center"><b>In use.</b> A problem, its code run against the tests, the review and the guide.</p>
+
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
