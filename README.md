@@ -13,19 +13,19 @@ the machine.
 
 <img src="docs/screenshots/desktop.png" alt="Desktop split view in Java" />
 
-**On a desktop.** List, statement and editor side by side, here in Java, with the latest review under the draft it is about.
+On a desktop the list, statement and editor sit side by side, here in Java, with the latest review under the draft it is about.
 
 <img src="docs/screenshots/desktop-ruby.png" alt="Desktop split view in Ruby with all tests passing" />
 
-**Ruby.** The same problem in Ruby, with all tests passing.
+The same problem in Ruby, with all tests passing.
 
 <img src="docs/screenshots/demo-desktop.gif" alt="Whetstone in use on a desktop" />
 
-<p><b>In use.</b> On a desktop: a problem beside the editor, its code run against the tests, and the review under it.</p>
+<p>On a desktop, a problem opens beside the editor, its code runs against the tests, and the review lands under it.</p>
 
 <p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use on a phone" /></p>
 
-<p align="center">The same, on a phone.</p>
+<p align="center">The same flow on a phone.</p>
 
 <table>
   <tr>
@@ -33,39 +33,39 @@ the machine.
     <td width="50%"><img src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
   </tr>
   <tr>
-    <td><b>The list.</b> Tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
-    <td><b>A problem.</b> The statement, the technique it exercises, examples, hints and a reference solution. A tutor thread sits underneath.</td>
+    <td>The list shows the tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
+    <td>A problem opens with its statement, the technique it exercises, examples, hints and a reference solution, with a tutor thread underneath.</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
     <td><img src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
   </tr>
   <tr>
-    <td><b>Code.</b> Your draft runs against real tests in a sandbox. Here one of three fails.</td>
-    <td><b>Review.</b> The model scores the draft out of 10 and names one thing to focus on. You can ask why.</td>
+    <td>Your draft runs against real tests in a sandbox; here one of three fails.</td>
+    <td>The model scores the draft out of 10 and names one thing to focus on, and you can ask why.</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
     <td><img src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
   </tr>
   <tr>
-    <td><b>Guide.</b> A hint ladder written for your current draft, revealed one rung at a time.</td>
-    <td><b>Technique.</b> Every technique has a plain-words explanation and, for most, a step-through visualisation.</td>
+    <td>The guide writes a hint ladder for your current draft and reveals it one rung at a time.</td>
+    <td>Every technique comes with a plain-words explanation and, for most, a step-through visualisation.</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
     <td><img src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
   </tr>
   <tr>
-    <td><b>Primer.</b> One per topic: how to recognise the problem type and which techniques apply.</td>
-    <td><b>Knowledge.</b> Questions you answer in prose, with key points, follow-ups and links to the reference docs.</td>
+    <td>Each topic has a primer on how to recognise the problem type and which techniques apply.</td>
+    <td>Knowledge questions are answered in prose, with key points, follow-ups and links to the reference docs.</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
     <td></td>
   </tr>
   <tr>
-    <td><b>Languages.</b> Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
+    <td>Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
     <td></td>
   </tr>
 </table>
@@ -79,11 +79,11 @@ npm run screenshots                # another; needs Google Chrome
 
 ## The five tracks
 
-- **Coding.** Algorithms and data structures, grouped by pattern.
-- **Practical.** Everyday utilities: debounce, an LRU cache, a promise pool.
-- **Design.** System design prompts, reviewed against talking points.
-- **Knowledge.** Questions you answer in prose, with key points to hit.
-- **Behavioral.** STAR-format stories, reviewed for structure and specifics.
+- **Coding** covers algorithms and data structures, grouped by pattern.
+- **Practical** is everyday utilities: debounce, an LRU cache, a promise pool.
+- **Design** poses system design prompts, reviewed against talking points.
+- **Knowledge** asks questions you answer in prose, with key points to hit.
+- **Behavioral** takes STAR-format stories, reviewed for structure and specifics.
 
 Coding and Practical come in TypeScript, Ruby and Java. The toggle next to
 the title picks the language.
@@ -121,8 +121,8 @@ talks only to Whetstone.
 Node 24 is the floor because drafts and reviews are stored with
 `node:sqlite`, which arrived in that version. Check with `node --version`.
 
-**Ruby and Java.** `brew install ruby openjdk` on a Mac. Settings shows
-which languages the computer can run; `server/langs.ts` lists where it
+Ruby and Java problems need their toolchains: `brew install ruby openjdk`
+on a Mac. Settings shows which languages the computer can run; `server/langs.ts` lists where it
 looks, and `WHETSTONE_RUBY` and `WHETSTONE_JAVA_HOME` override that.
 Without a toolchain the problems can still be written, just not run.
 
