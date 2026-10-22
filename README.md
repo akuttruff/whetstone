@@ -17,14 +17,14 @@ the machine.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/list-phone.png" width="200" alt="The problem list" /><br /><b>List</b><br /><sub>Tracks, patterns and your scores</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/problem-phone.png" width="200" alt="A problem statement" /><br /><b>Problem</b><br /><sub>Statement, hints and a tutor thread</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/code-phone.png" width="200" alt="The editor with test results" /><br /><b>Code</b><br /><sub>Your draft against real tests</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/list-phone.png" width="200" alt="The problem list" /><br /><b>List</b><br /><sub>Tracks, patterns and your scores</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/problem-phone.png" width="200" alt="A problem statement" /><br /><b>Problem</b><br /><sub>Statement, hints and a tutor thread</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/code-phone.png" width="200" alt="The editor with test results" /><br /><b>Code</b><br /><sub>Your draft against real tests</sub></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/review-phone.png" width="200" alt="A model review with a follow-up thread" /><br /><b>Review</b><br /><sub>Scored out of 10, one thing to fix</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/guide-phone.png" width="200" alt="The hint ladder" /><br /><b>Guide</b><br /><sub>A hint ladder, one rung at a time</sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/technique-phone.png" width="200" alt="A technique sheet with its visualisation" /><br /><b>Technique</b><br /><sub>Explained, then stepped through</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/review-phone.png" width="200" alt="A model review with a follow-up thread" /><br /><b>Review</b><br /><sub>Scored out of 10, one thing to fix</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/guide-phone.png" width="200" alt="The hint ladder" /><br /><b>Guide</b><br /><sub>A hint ladder, one rung at a time</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/technique-phone.png" width="200" alt="A technique sheet with its visualisation" /><br /><b>Technique</b><br /><sub>Explained, then stepped through</sub></td>
   </tr>
 </table>
 
