@@ -36,13 +36,14 @@ const scenarios = [
   { name: 'review-phone', view: PHONE, steps: [['click', 'Sliding Window Maximum'], ['tab', 'Review'], ['wait', 800]] },
   { name: 'guide-phone', view: PHONE, steps: [['click', 'Sliding Window Maximum'], ['tab', 'Guide'], ['wait', 800]] },
   { name: 'technique-phone', view: PHONE, steps: [['click', 'Sliding Window Maximum'], ['sel', 'button.technique-chip'], ['wait', 1500], ['next', 9], ['wait', 300]] },
-  // A walkthrough, recorded: a problem, its code run against the tests, the review and the guide.
-  { name: 'demo-phone', view: PHONE, record: true, steps: [['wait', 900], ['click', 'Sliding Window Maximum'], ['wait', 1500], ['glide', '.pane-problem', 500, 1000], ['wait', 600], ['tab', 'Code'], ['wait', 1500], ['run'], ['wait', 4500], ['tab', 'Review'], ['wait', 1500], ['glide', '.pane-review', 500, 1000], ['wait', 700], ['tab', 'Guide'], ['wait', 1800]] },
   { name: 'primer-phone', view: PHONE, steps: [['track', 'Coding'], ['sel', '.plist-group:nth-of-type(3) .primer-btn'], ['wait', 800]] },
   { name: 'knowledge-phone', view: PHONE, steps: [['track', 'Knowledge'], ['click', 'HTTP caching'], ['wait', 600]] },
   { name: 'java-phone', view: PHONE, steps: [['lang', 'Java'], ['wait', 600], ['click', 'Two Sum'], ['tab', 'Code'], ['wait', 2500]] },
   { name: 'desktop', view: DESKTOP, steps: [['click', 'Sliding Window Maximum'], ['wait', 1500]] },
   { name: 'desktop-ruby', view: DESKTOP, steps: [['lang', 'Ruby'], ['wait', 600], ['click', 'Sliding Window Maximum'], ['wait', 1500], ['run'], ['wait', 3000]] },
+  // Walkthroughs, recorded (see recording.mjs): the phone's and the desktop's.
+  { name: 'demo-phone', view: PHONE, record: true, steps: [['wait', 1000], ['click', 'Sliding Window Maximum'], ['wait', 1600], ['glide', '.pane-problem', 500, 1600], ['wait', 700], ['tab', 'Code'], ['wait', 1600], ['run'], ['wait', 4500], ['tab', 'Review'], ['wait', 1600], ['glide', '.pane-review', 500, 1600], ['wait', 800], ['tab', 'Guide'], ['wait', 2000]] },
+  { name: 'demo-desktop', view: DESKTOP, record: true, steps: [['wait', 1000], ['click', 'Sliding Window Maximum'], ['wait', 1900], ['glide', '.pane-problem', 400, 1600], ['wait', 800], ['run'], ['wait', 4500], ['glide', '.work-review', 260, 1600], ['wait', 1800]] },
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -105,7 +106,7 @@ async function run(scenario) {
     }
     if (recording) {
       const frames = await recording.stop()
-      const made = encodeRecording(frames, { out: OUT, name: scenario.name })
+      const made = encodeRecording(frames, { out: OUT, name: scenario.name, wide: !scenario.view.mobile })
       console.log(`wrote ${made.gif} and ${made.mp4} (${made.seconds} s, ${made.frames} frames)`)
       return
     }

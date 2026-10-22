@@ -19,9 +19,13 @@ the machine.
 
 **Ruby.** The same problem in Ruby, with all tests passing.
 
-<p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use" /></p>
+<img src="docs/screenshots/demo-desktop.gif" alt="Whetstone in use on a desktop" />
 
-<p align="center"><b>In use.</b> A problem, its code run against the tests, the review and the guide.</p>
+<p><b>In use.</b> On a desktop: a problem beside the editor, its code run against the tests, and the review under it.</p>
+
+<p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use on a phone" /></p>
+
+<p align="center">The same, on a phone.</p>
 
 <table>
   <tr>
