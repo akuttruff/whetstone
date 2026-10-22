@@ -29,44 +29,40 @@ The same problem in Ruby, with all tests passing.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
-    <td width="50%"><img src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
+    <td width="260"><img width="260" src="docs/screenshots/list-phone.png" alt="The problem list" /></td>
+    <td>The list shows the tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
   </tr>
   <tr>
-    <td>The list shows the tracks across the top, progress per pattern, your scores, and a generated variant nested under its parent.</td>
+    <td width="260"><img width="260" src="docs/screenshots/problem-phone.png" alt="A problem statement" /></td>
     <td>A problem opens with its statement, the technique it exercises, examples, hints and a reference solution, with a tutor thread underneath.</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
-    <td><img src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
+    <td width="260"><img width="260" src="docs/screenshots/code-phone.png" alt="The editor with test results" /></td>
+    <td>Your draft runs against real tests in a sandbox; here one of three fails.</td>
   </tr>
   <tr>
-    <td>Your draft runs against real tests in a sandbox; here one of three fails.</td>
+    <td width="260"><img width="260" src="docs/screenshots/review-phone.png" alt="A model review with a follow-up thread" /></td>
     <td>The model scores the draft out of 10 and names one thing to focus on, and you can ask why.</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
-    <td><img src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
+    <td width="260"><img width="260" src="docs/screenshots/guide-phone.png" alt="The hint ladder" /></td>
+    <td>The guide writes a hint ladder for your current draft and reveals it one rung at a time.</td>
   </tr>
   <tr>
-    <td>The guide writes a hint ladder for your current draft and reveals it one rung at a time.</td>
+    <td width="260"><img width="260" src="docs/screenshots/technique-phone.png" alt="A technique sheet with its visualisation" /></td>
     <td>Every technique comes with a plain-words explanation and, for most, a step-through visualisation.</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
-    <td><img src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
+    <td width="260"><img width="260" src="docs/screenshots/primer-phone.png" alt="A topic primer" /></td>
+    <td>Each topic has a primer on how to recognise the problem type and which techniques apply.</td>
   </tr>
   <tr>
-    <td>Each topic has a primer on how to recognise the problem type and which techniques apply.</td>
+    <td width="260"><img width="260" src="docs/screenshots/knowledge-phone.png" alt="A knowledge question" /></td>
     <td>Knowledge questions are answered in prose, with key points, follow-ups and links to the reference docs.</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
-    <td></td>
-  </tr>
-  <tr>
+    <td width="260"><img width="260" src="docs/screenshots/java-phone.png" alt="The Java starter for Two Sum" /></td>
     <td>Every coding problem exists in TypeScript, Ruby and Java, starters included.</td>
-    <td></td>
   </tr>
 </table>
 
