@@ -17,14 +17,17 @@ export default defineConfig(({ command, isPreview }) => {
   return {
     plugins: [react(), api({ dir })],
     server: {
-      host: true,
+      // Loopback only: `tailscale serve` proxies to 127.0.0.1, and the API
+      // runs code without a login, so nothing else on the LAN may reach it.
+      host: '127.0.0.1',
       port: 8300,
       strictPort: true,
       allowedHosts: [TAILNET],
       watch: { ignored: ['**/coverage/**', '**/.data/**', '**/.data-dev/**'] },
     },
     // A separate port from `server` above: the persistent, built instance
-    // Tailscale points at, so it can run alongside `npm run dev`.
-    preview: { host: true, port: 8310, strictPort: true, allowedHosts: [TAILNET] },
+    // Tailscale points at, so it can run alongside `npm run dev`. Loopback
+    // only, like `server`.
+    preview: { host: '127.0.0.1', port: 8310, strictPort: true, allowedHosts: [TAILNET] },
   }
 })
