@@ -5,7 +5,7 @@ import { Store, ValidationError } from './store.ts'
 import { HealthCheck } from './health.ts'
 import { LlmError, chatJson, chatStream, listModels } from './llm.ts'
 import { CHAT_HISTORY, CHAT_MAX_TOKENS, GUIDE_MAX_TOKENS, PORT_MAX_TOKENS, REQUEST_MAX_CHARS, REVIEW_MAX_TOKENS, THINKING_EXTRA_TOKENS, chatPrompt, aboutPrompt, aboutThreadId, primerChatPrompt, VARIANT_MAX_TOKENS, guideFromModel, guidePrompt, parseVerdict, portFromModel, portPrompt, reviewPrompt, validateProblem, variantFromModel, variantPrompt } from './prompts.ts'
-import { runTests } from './runner.ts'
+import { runTests, sweepRuns } from './runner.ts'
 import { availability } from './langs.ts'
 import { DIRECTIONS, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, langFor, portFor, workKey } from '../src/types.ts'
 import { BUILTIN_PROBLEMS } from '../src/data/index.ts'
@@ -84,6 +84,8 @@ export function createApi(options: ApiOptions = {}) {
   /** A completion budget with room for thinking when that setting is on. */
   const budget = (base: number): number => base + (store.getSettings().thinking ? THINKING_EXTRA_TOKENS : 0)
   const runDir = options.runDir ?? path.join(options.dir ?? path.resolve(process.cwd(), '.data'), 'runs')
+  // Scratch directories a previous server left behind when it stopped mid-run.
+  sweepRuns(runDir)
   /** Reviews and tutor replies being streamed right now: what a restart would cut off. */
   let streaming = 0
   /** `GET /api/health`: the process, its data file, the model server and the language runtimes. */
@@ -168,7 +170,9 @@ export function createApi(options: ApiOptions = {}) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' })
       const send = (event: unknown): void => { res.write(`data: ${JSON.stringify(event)}\n\n`) }
       const ac = new AbortController()
-      req.on('close', () => ac.abort())
+      // The request body is already read, so its 'close' has come and gone;
+      // the response closing before it finished is what a disconnect looks like.
+      res.on('close', () => { if (!res.writableFinished) ac.abort() })
       streaming++
       try {
         const { system, user } = reviewPrompt(problem, answer, run, language)
@@ -178,6 +182,8 @@ export function createApi(options: ApiOptions = {}) {
           (delta) => send({ type: 'delta', text: delta }),
           fetchImpl,
         )
+        // Thinking can use up the whole budget and leave nothing to show: not a review worth saving.
+        if (!text.trim()) throw new LlmError('The model returned no review (its thinking may have used up the token budget). Try again.')
         const verdict = parseVerdict(text)
         const review = store.addReview({
           problemId: workKey(problem, language), track: problem.track, topic: problem.topic, pattern: problem.pattern,
@@ -293,7 +299,7 @@ export function createApi(options: ApiOptions = {}) {
         const send = (event: unknown): void => { res.write(`data: ${JSON.stringify(event)}\n\n`) }
         send({ type: 'user', message: userTurn })
         const ac = new AbortController()
-        req.on('close', () => ac.abort())
+        res.on('close', () => { if (!res.writableFinished) ac.abort() }) // a disconnect, as for /api/review
         streaming++
         try {
           const { text } = await chatStream(

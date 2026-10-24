@@ -11,6 +11,8 @@ const realFetch = globalThis.fetch
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whetstone-api-'))
 let base = ''
 let lastVariantPrompt = ''
+/** The signal the model call got for a review that never finishes. */
+let hungSignal: AbortSignal | null = null
 let server: http.Server
 
 /** A fake model server: streams a fixed review for chat, lists one model. */
@@ -31,6 +33,15 @@ const fakeFetch = vi.fn(async (url: string | URL | Request, init?: RequestInit):
   if (body.stream) {
     const messages = (body as { messages: { role: string; content: string }[] }).messages
     const system = messages[0]!.content
+    const last = messages.at(-1)!.content
+    // All of the budget spent thinking: nothing visible is left.
+    if (last.includes('EMPTY_REVIEW')) return sse(['<think>on and on</think>', '  '])
+    // One piece, then silence: a reply still being written when the client goes away.
+    if (last.includes('HANG_REVIEW')) {
+      hungSignal = init?.signal ?? null
+      const body = new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ choices: [{ delta: { content: 'Partial' } }] })}\n\n`)) } })
+      return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
+    }
     if (system.includes('follow-up questions') || system.includes('tutoring a candidate on the interview topic')) {
       return sse(['Use `for (const x of nums)`', ' like this.'])
     }
@@ -98,6 +109,29 @@ describe('api', () => {
     expect(progress.latest['two-sum']).toBe(7)
     const reviews = await (await realFetch(base + '/api/reviews?problem=two-sum')).json()
     expect(reviews).toHaveLength(1)
+  })
+
+  it('saves no review when the model returns nothing visible', async () => {
+    const problem = BUILTIN_PROBLEMS.find((p) => p.id === 'valid-anagram')!
+    const events = (await (await post('/api/review', { problem, answer: 'EMPTY_REVIEW', run: null })).text()).split('\n\n').filter(Boolean).map((f) => JSON.parse(f.slice(5)))
+    expect(events.find((e) => e.type === 'error')?.message).toMatch(/no review/)
+    expect(events.find((e) => e.type === 'done')).toBeUndefined()
+    expect(await (await realFetch(base + '/api/reviews?problem=valid-anagram')).json()).toEqual([])
+  })
+
+  it('stops the model when the client disconnects mid-review', async () => {
+    const problem = BUILTIN_PROBLEMS.find((p) => p.id === 'valid-anagram')!
+    hungSignal = null
+    const ac = new AbortController()
+    const res = await realFetch(base + '/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ problem, answer: 'HANG_REVIEW', run: null }), signal: ac.signal })
+    const reader = res.body!.getReader()
+    await reader.read() // the first delta: the model call is under way
+    expect(hungSignal).not.toBeNull()
+    expect(hungSignal!.aborted).toBe(false)
+    ac.abort()
+    await vi.waitFor(() => expect(hungSignal!.aborted).toBe(true), { timeout: 2000 })
+    await vi.waitFor(async () => expect((await (await realFetch(`${base}/api/health`)).json()).busy.streams).toBe(0), { timeout: 2000 })
+    expect(await (await realFetch(base + '/api/reviews?problem=valid-anagram')).json()).toEqual([])
   })
 
   it('creates and deletes a variant', async () => {
