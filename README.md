@@ -115,16 +115,17 @@ Off is faster. On is sometimes sharper on reviews and design critiques.
 
 ```bash
 npm install
-npm run dev          # http://localhost:8300, scratch database in .data-dev/
+npm run dev          # http://127.0.0.1:8300, scratch database in .data-dev/
 npm run check        # typecheck + lint + tests
 npm run deploy       # build and restart the persistent instance on :8310
 npm run seed:demo    # fill the dev database with demo data
 npm run screenshots  # regenerate docs/screenshots/ from the dev server
 ```
 
-On your phone, open the **Network** address that Vite prints (for example
-`http://192.168.1.50:8300/`). Settings, drafts, reviews and threads are
-stored server-side, so the phone and the desktop see the same thing.
+Both servers listen on 127.0.0.1 only (the API runs code and has no login),
+so on your phone open the app through Tailscale (below). Settings, drafts,
+reviews and threads are stored server-side, so the phone and the desktop see
+the same thing.
 
 ### Keeping it running
 
