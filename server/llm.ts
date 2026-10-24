@@ -3,7 +3,8 @@ import type { ModelOption, Settings } from '../src/types.ts'
 /**
  * A thin client for any OpenAI-compatible chat server: oMLX on :8000 by
  * default, LM Studio on :1234 with a token. Streams text or asks for a JSON
- * schema; strips a model's <think> blocks either way.
+ * schema; strips a model's <think> blocks either way. On LM Studio a
+ * `preferredModel` that is already loaded stands in for `model`.
  */
 
 export class LlmError extends Error {}
@@ -35,6 +36,58 @@ function headers(settings: Settings): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' }
   if (settings.apiKey) h.Authorization = `Bearer ${settings.apiKey}`
   return h
+}
+
+/** How long a "loaded or not" answer from LM Studio is trusted. */
+export const LOADED_CACHE_MS = 10_000
+
+const loadedCache = new Map<string, { at: number; loaded: Promise<boolean> }>()
+
+/** Forget cached load states (tests, or anyone who needs a fresh answer). */
+export function clearModelCache(): void {
+  loadedCache.clear()
+}
+
+/**
+ * Ask LM Studio's native API whether `id` is loaded right now. Anything that
+ * is not a clear yes (another server, a 404, a timeout, an odd body) is a no,
+ * so a call goes on to `settings.model` exactly as before. Only reads: it
+ * never asks the server to load anything.
+ */
+async function isLoaded(settings: Settings, id: string, fetchImpl: typeof fetch): Promise<boolean> {
+  const origin = settings.baseUrl.replace(/\/v1$/, '')
+  try {
+    const res = await fetchImpl(`${origin}/api/v1/models`, { headers: headers(settings), signal: AbortSignal.timeout(3000) })
+    if (!res.ok) return false
+    const json = (await res.json()) as { models?: { key?: string; loaded_instances?: { id?: string }[] }[] }
+    const entry = (json.models ?? []).find((m) => m.key === id || (m.loaded_instances ?? []).some((i) => i.id === id))
+    return (entry?.loaded_instances?.length ?? 0) > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The model a call should name: `preferredModel` while LM Studio has it
+ * loaded, `settings.model` otherwise. Answers are cached per server, token and
+ * model for LOADED_CACHE_MS, so a burst of calls asks once.
+ */
+export async function resolveModel(settings: Settings, fetchImpl: typeof fetch): Promise<string> {
+  const preferred = settings.preferredModel?.trim() ?? ''
+  if (!preferred || preferred === settings.model) return settings.model
+  const key = `${settings.baseUrl}\n${settings.apiKey}\n${preferred}`
+  let hit = loadedCache.get(key)
+  if (!hit || Date.now() - hit.at > LOADED_CACHE_MS) {
+    hit = { at: Date.now(), loaded: isLoaded(settings, preferred, fetchImpl) }
+    loadedCache.set(key, hit)
+  }
+  return (await hit.loaded) ? preferred : settings.model
+}
+
+/** `settings` with `model` swapped for the one this call will actually use. */
+async function resolved(settings: Settings, fetchImpl: typeof fetch): Promise<Settings> {
+  const model = await resolveModel(settings, fetchImpl)
+  return model === settings.model ? settings : { ...settings, model }
 }
 
 async function post(settings: Settings, body: Record<string, unknown>, fetchImpl: typeof fetch, signal?: AbortSignal): Promise<Response> {
@@ -82,7 +135,8 @@ export function stripThinking(text: string): string {
   return (open >= 0 ? closed.slice(0, open) : closed).replace(/^\s+/, '')
 }
 
-export async function chatJson<T>(settings: Settings, input: ChatInput, schema: JsonSchemaSpec, fetchImpl: typeof fetch): Promise<{ data: T; model: string }> {
+export async function chatJson<T>(saved: Settings, input: ChatInput, schema: JsonSchemaSpec, fetchImpl: typeof fetch): Promise<{ data: T; model: string }> {
+  const settings = await resolved(saved, fetchImpl)
   const body = {
     ...baseBody(settings, input),
     response_format: { type: 'json_schema', json_schema: { name: schema.name, schema: schema.schema, strict: true } },
@@ -121,7 +175,7 @@ export async function chatStream(
   const signal = input.signal ? AbortSignal.any([input.signal, idle.signal]) : idle.signal
   arm()
   try {
-    return await readStream(settings, input, signal, arm, onDelta, fetchImpl)
+    return await readStream(await resolved(settings, fetchImpl), input, signal, arm, onDelta, fetchImpl)
   } catch (err) {
     if (idle.signal.aborted && !input.signal?.aborted) throw new LlmError(`The model server sent nothing for ${Math.round(idleMs / 1000)} s, so the reply was stopped. Try again.`)
     throw err

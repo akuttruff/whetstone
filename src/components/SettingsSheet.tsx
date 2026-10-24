@@ -15,6 +15,7 @@ interface Props {
 export default function SettingsSheet({ open, settings, onClose, onSave }: Props) {
   const [baseUrl, setBaseUrl] = useState(settings.baseUrl)
   const [model, setModel] = useState(settings.model)
+  const [preferredModel, setPreferredModel] = useState(settings.preferredModel)
   const [apiKey, setApiKey] = useState('')
   const [autoDelayS, setAutoDelayS] = useState(settings.autoDelayS)
   const [thinking, setThinking] = useState(settings.thinking)
@@ -31,6 +32,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
     if (open) {
       setBaseUrl(settings.baseUrl)
       setModel(settings.model)
+      setPreferredModel(settings.preferredModel)
       setApiKey('')
       setAutoDelayS(settings.autoDelayS)
       setThinking(settings.thinking)
@@ -46,7 +48,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
   const save = async (): Promise<void> => {
     setBusy(true)
     try {
-      const patch: Partial<Settings> = { baseUrl, model, autoDelayS, thinking, showTechniques }
+      const patch: Partial<Settings> = { baseUrl, model, preferredModel, autoDelayS, thinking, showTechniques }
       if (apiKey) patch.apiKey = apiKey
       await onSave(patch)
       const r = await api.models()
@@ -79,6 +81,11 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
               <input value={model} onChange={(e) => setModel(e.target.value)} list="models" autoCapitalize="off" autoCorrect="off" />
               <datalist id="models">{models.map((m) => <option key={m.id} value={m.id} />)}</datalist>
               <small>{modelsError ? modelsError : models.length ? `${models.length} available: ${models.slice(0, 4).map((m) => m.id).join(', ')}${models.length > 4 ? '…' : ''}` : ''}</small>
+            </label>
+            <label className="field">
+              <span>Use when loaded</span>
+              <input value={preferredModel} onChange={(e) => setPreferredModel(e.target.value)} list="models" placeholder="optional" autoCapitalize="off" autoCorrect="off" />
+              <small>When this model is loaded in LM Studio, Whetstone uses it instead and leaves the other alone.</small>
             </label>
             <label className="field">
               <span>API token {settings.hasApiKey && <em>(set)</em>}</span>

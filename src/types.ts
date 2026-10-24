@@ -243,6 +243,8 @@ export interface Settings {
   /** OpenAI-compatible base, e.g. http://127.0.0.1:8000/v1 (oMLX) or http://127.0.0.1:1234/v1 (LM Studio). */
   baseUrl: string
   model: string
+  /** Used instead of `model` while LM Studio reports it loaded; '' for never. Whetstone never loads it. */
+  preferredModel: string
   apiKey: string
   /** Review automatically while working, after `autoDelayS` seconds of quiet. */
   autoFeedback: boolean
@@ -260,6 +262,7 @@ export type PublicSettings = Omit<Settings, 'apiKey'> & { hasApiKey: boolean }
 export const DEFAULT_SETTINGS: Settings = {
   baseUrl: 'http://127.0.0.1:8000/v1',
   model: 'Qwen3.8-27B-MLX-8bit',
+  preferredModel: '',
   apiKey: '',
   autoFeedback: false,
   autoDelayS: 8,

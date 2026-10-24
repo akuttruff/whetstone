@@ -33,6 +33,22 @@ describe('settings', () => {
     s.setSettings({ baseUrl: 'http://c:1/v1', apiKey: 'for-c' })
     expect(s.getSettings().apiKey).toBe('for-c')
   })
+
+  it('round-trips the preferred model without touching the key', () => {
+    const s = mem()
+    expect(s.getPublicSettings().preferredModel).toBe('')
+    s.setSettings({ apiKey: 'secret' })
+    s.setSettings({ preferredModel: '  small  ' })
+    expect(s.getPublicSettings()).toMatchObject({ preferredModel: 'small', hasApiKey: true })
+    expect(s.getPublicSettings()).not.toHaveProperty('apiKey')
+    expect(s.getSettings().apiKey).toBe('secret')
+    s.setSettings({ preferredModel: 'x'.repeat(300) })
+    expect(s.getSettings().preferredModel).toHaveLength(200)
+    s.setSettings({ preferredModel: '' }) // clearing it is allowed, unlike `model`
+    expect(s.getSettings().preferredModel).toBe('')
+    expect(() => s.setSettings({ preferredModel: 5 })).toThrow(ValidationError)
+    expect(s.getSettings().apiKey).toBe('secret')
+  })
 })
 
 describe('drafts', () => {

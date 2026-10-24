@@ -5,7 +5,7 @@ import ProblemScreen from './ProblemScreen.tsx'
 import { BUILTIN_PROBLEMS } from '../data/index.ts'
 import type { PublicSettings, RunResult } from '../types.ts'
 
-const settings: PublicSettings = { baseUrl: 'http://x/v1', model: 'm', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: false, language: 'typescript', hasApiKey: false }
+const settings: PublicSettings = { baseUrl: 'http://x/v1', model: 'm', preferredModel: '', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: false, language: 'typescript', hasApiKey: false }
 const passed: RunResult = { ok: true, passed: 1, total: 1, results: [], output: '', ms: 1 }
 
 describe('ProblemScreen', () => {

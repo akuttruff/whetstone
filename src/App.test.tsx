@@ -8,7 +8,7 @@ function stubServer(language = 'typescript'): void {
   vi.stubGlobal('fetch', vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const u = String(url)
     const method = init?.method ?? 'GET'
-    if (u.startsWith('/api/settings')) return Response.json({ baseUrl: 'http://x/v1', model: 'm', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: true, language, hasApiKey: false })
+    if (u.startsWith('/api/settings')) return Response.json({ baseUrl: 'http://x/v1', model: 'm', preferredModel: '', autoFeedback: false, autoDelayS: 8, thinking: false, showTechniques: true, language, hasApiKey: false })
     if (u.startsWith('/api/languages')) return Response.json({ typescript: true, ruby: true, java: true })
     if (u.startsWith('/api/problems')) return Response.json([])
     if (u.startsWith('/api/progress')) return Response.json({ patterns: [], latest: { 'two-sum': 9 } })

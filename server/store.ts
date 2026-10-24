@@ -98,6 +98,10 @@ export class Store {
       if (!s) throw new ValidationError('model is required')
       next.model = s.slice(0, 200)
     }
+    if (p.preferredModel !== undefined) {
+      if (typeof p.preferredModel !== 'string') throw new ValidationError('preferredModel must be a string')
+      next.preferredModel = p.preferredModel.trim().slice(0, 200)
+    }
     if (p.apiKey !== undefined) {
       if (typeof p.apiKey !== 'string') throw new ValidationError('apiKey must be a string')
       next.apiKey = p.apiKey.trim().slice(0, 500)
