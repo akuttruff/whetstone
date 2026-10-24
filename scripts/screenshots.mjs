@@ -86,8 +86,8 @@ const scenarios = [
   { name: 'desktop-ruby', view: DESKTOP, steps: [['lang', 'Ruby'], ['wait', 600], ['click', 'Sliding Window Maximum'], ['wait', 1500], ['run'], ['wait', 3000]] },
   // Walkthroughs, recorded (see recording.mjs): the phone's and the desktop's.
   // A solution typed in, its tests run, and the model's review of it, written as it streams.
-  { name: 'demo-phone', view: PHONE, record: true, speed: 1.3, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1500], ['tab', 'Code'], ['wait', 1600], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['wait', 300], ['tab', 'Review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-review', 99999, 1800], ['wait', 1600]] },
-  { name: 'demo-desktop', view: DESKTOP, record: true, speed: 1.3, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1700], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-work', 99999, 1800], ['wait', 1600]] },
+  { name: 'demo-phone', view: PHONE, record: true, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1500], ['tab', 'Code'], ['wait', 1600], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['wait', 300], ['tab', 'Review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-review', 99999, 1800], ['wait', 1600]] },
+  { name: 'demo-desktop', view: DESKTOP, record: true, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1700], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-work', 99999, 1800], ['wait', 1600]] },
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
