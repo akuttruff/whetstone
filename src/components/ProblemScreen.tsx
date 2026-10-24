@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Lightbulb, MessageCircleQuestionMark, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
 import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
@@ -73,6 +73,9 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
     setTab(wide ? 'work' : 'problem')
     setRun(null)
   }
+  // The attempt on screen now, for async work to check before it lands.
+  const keyRef = useRef(key)
+  useEffect(() => { keyRef.current = key }, [key])
   const { clear: chatClear } = chat
   const { clear: aboutClear } = about
   const clearChat = useCallback((): void => { void chatClear() }, [chatClear])
@@ -84,11 +87,14 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
 
   const runTests = async (): Promise<void> => {
     if (!code) return
+    const startedOn = key
     setRunning(true)
     try {
-      setRun(await api.run(draft.text, problem.tests, language))
+      const result = await api.run(draft.text, problem.tests, language)
+      // Another problem or language came up while this ran: its result belongs to nothing on screen.
+      if (keyRef.current === startedOn) setRun(result)
     } catch (err) {
-      toast.error((err as Error).message)
+      if (keyRef.current === startedOn) toast.error((err as Error).message)
     } finally {
       setRunning(false)
     }
