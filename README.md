@@ -21,14 +21,9 @@ the machine.
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/list-phone.png" width="200" alt="The problem list" /><br /><b>List</b><br /><sub>Tracks, patterns and your scores</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/problem-phone.png" width="200" alt="A problem statement" /><br /><b>Problem</b><br /><sub>Statement, hints and a tutor thread</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/code-phone.png" width="200" alt="The editor with test results" /><br /><b>Code</b><br /><sub>Your draft against real tests</sub></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/review-phone.png" width="200" alt="A model review with a follow-up thread" /><br /><b>Review</b><br /><sub>Scored out of 10, one thing to fix</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/guide-phone.png" width="200" alt="The hint ladder" /><br /><b>Guide</b><br /><sub>A hint ladder, one rung at a time</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/screenshots/technique-phone.png" width="200" alt="A technique sheet with its visualisation" /><br /><b>Technique</b><br /><sub>Explained, then stepped through</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/list-phone.png" width="200" alt="The problem list" /><br /><b>Problems</b><br /><sub>Five tracks, grouped by pattern, with your scores</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/guide-phone.png" width="200" alt="The hint ladder" /><br /><b>Hints</b><br /><sub>A hint ladder, one rung at a time, when you're stuck</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/screenshots/technique-phone.png" width="200" alt="A technique sheet with its visualisation" /><br /><b>Techniques</b><br /><sub>Each pattern explained, then stepped through</sub></td>
   </tr>
 </table>
 
@@ -56,7 +51,7 @@ the title picks the language.
 
 ```
 your phone or desktop browser
-        │  http, over your own network
+        │  https, through Tailscale Serve
         ▼
 Whetstone ── one Node process on one computer ── .data/ (SQLite)
         │
@@ -64,8 +59,7 @@ Whetstone ── one Node process on one computer ── .data/ (SQLite)
         └──▶ a model server on the same computer   (reviews, hints, tutoring, new problems)
 ```
 
-Whetstone is one Node process that serves the app to any browser on your
-network and keeps your drafts, reviews and threads in SQLite on that
+Whetstone is one Node process that serves the app and keeps your drafts, reviews and threads in SQLite on that
 computer, so the phone and the desktop see the same thing. Your code runs
 in Whetstone's own sandbox on that computer; the model only reads and
 writes text, and gets the test results along with the draft. Your phone
@@ -78,7 +72,7 @@ talks only to Whetstone.
 | Browsing problems, primers and techniques; writing and running TypeScript | Node 24 or newer |
 | Running Ruby or Java solutions | `ruby`, or a JDK (`javac` and `java`), on the same computer |
 | Reviews, hint ladders, tutor threads and new problems | A model server that speaks the OpenAI chat API (below) |
-| Opening it on your phone | The phone on the same Wi-Fi, or [Tailscale](https://tailscale.com) on both devices (see *Keeping it running*) |
+| Opening it on your phone | [Tailscale](https://tailscale.com) on both devices, with Tailscale Serve in front of Whetstone (see *Keeping it running*) |
 
 Node 24 is the floor because drafts and reviews are stored with
 `node:sqlite`, which arrived in that version. Check with `node --version`.
