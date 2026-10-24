@@ -13,10 +13,11 @@ import type { Language, RunResult, TestCase, TestResult } from '../src/types.ts'
  * Runs a draft against its problem's tests in a separate process: Node with
  * its own TypeScript support, Ruby, or a javac + java pair. Each language has
  * a harness that calls the tested function with the JSON arguments and
- * prints one line of raw outcomes; the comparison with the expected values
- * is done here, once, the same way for every language. This is the user's
- * own code on their own machine, so the sandboxing is a timeout and a
- * scratch directory, not a security boundary.
+ * writes its raw outcomes to a result file; the comparison with the
+ * expected values is done here, once, the same way for every language. This
+ * is the user's own code on their own machine, so the sandboxing is a
+ * timeout, a heap limit, capped output and a scratch directory, not a
+ * security boundary.
  */
 
 export const RUN_TIMEOUT_MS = 15_000
@@ -24,7 +25,18 @@ export const PER_TEST_TIMEOUT_MS = 3_000
 /** Compiling Java is slow to start; it gets its own budget before the run. */
 export const COMPILE_TIMEOUT_MS = 30_000
 export const CODE_MAX = 200_000
-const MARK = '__WHETSTONE_RESULT__'
+/**
+ * Where a harness writes its outcomes, in the run's scratch directory. Not
+ * stdout: a solution that prints a lot straight to stdout would push a
+ * result line past the capture cap.
+ */
+const RESULT_FILE = 'result.json'
+/** Runs at once; more wait their turn, so a burst of runs cannot swamp the machine. */
+export const MAX_CONCURRENT_RUNS = 2
+/** A run directory this old is left over from a server that died mid-run. */
+export const STALE_RUN_MS = 10 * 60_000
+/** Heap ceilings for the solution's process, in MB. */
+const HEAP_MB = 512
 
 export interface RunOptions {
   /** Where scratch directories go; one per run, removed afterwards. */
@@ -128,7 +140,7 @@ function compiledHarness(javac: string, root: string): Promise<string> {
   harnessClasses = (async () => {
     fs.rmSync(dir, { recursive: true, force: true })
     fs.mkdirSync(dir, { recursive: true })
-    fs.writeFileSync(path.join(dir, 'Harness.java'), JAVA_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+    fs.writeFileSync(path.join(dir, 'Harness.java'), JAVA_HARNESS(RESULT_FILE, PER_TEST_TIMEOUT_MS))
     const r = await run(javac, ['-d', '.', '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', 'Harness.java'], dir, COMPILE_TIMEOUT_MS)
     if (r.code !== 0) throw new Error('the Java harness did not compile: ' + tidy(r.stderr))
     harnessDone = true
@@ -138,7 +150,48 @@ function compiledHarness(javac: string, root: string): Promise<string> {
   return harnessClasses
 }
 
-export async function runTests(code: string, input: TestCase[], opts: RunOptions): Promise<RunResult> {
+/** A small queue in front of the runs: at most MAX_CONCURRENT_RUNS at a time, the rest in arrival order. */
+let active = 0
+const waiting: (() => void)[] = []
+async function slot<T>(work: () => Promise<T>): Promise<T> {
+  if (active >= MAX_CONCURRENT_RUNS) await new Promise<void>((resolve) => waiting.push(resolve))
+  else active++
+  try {
+    return await work()
+  } finally {
+    // Hand the slot straight to the next run, or give it back.
+    const next = waiting.shift()
+    if (next) next()
+    else active--
+  }
+}
+
+/**
+ * Remove run directories left behind by a server that stopped mid-run (the
+ * finally below never ran). Only old ones: a run in flight in another
+ * process sharing the directory keeps its own.
+ */
+export function sweepRuns(dir: string, olderThanMs = STALE_RUN_MS): number {
+  let names: string[]
+  try { names = fs.readdirSync(dir) } catch { return 0 }
+  let removed = 0
+  for (const name of names) {
+    if (!name.startsWith('run-')) continue
+    const p = path.join(dir, name)
+    try {
+      if (Date.now() - fs.statSync(p).mtimeMs < olderThanMs) continue
+      fs.rmSync(p, { recursive: true, force: true })
+      removed++
+    } catch { /* gone already, or not ours to remove */ }
+  }
+  return removed
+}
+
+export function runTests(code: string, input: TestCase[], opts: RunOptions): Promise<RunResult> {
+  return slot(() => runOnce(code, input, opts))
+}
+
+async function runOnce(code: string, input: TestCase[], opts: RunOptions): Promise<RunResult> {
   const language = opts.language ?? 'typescript'
   const tests = normaliseTests(input)
   if (typeof code !== 'string' || code.length > CODE_MAX) return failed(tests, 'code is missing or too long', 0)
@@ -156,7 +209,10 @@ export async function runTests(code: string, input: TestCase[], opts: RunOptions
       const ruby = rubyBin()
       if (!ruby) return failed(tests, missingMessage('ruby'), 0)
       fs.writeFileSync(path.join(dir, 'solution.rb'), code)
-      fs.writeFileSync(path.join(dir, 'harness.rb'), RUBY_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
+      fs.writeFileSync(path.join(dir, 'harness.rb'), RUBY_HARNESS(RESULT_FILE, PER_TEST_TIMEOUT_MS))
+      // No heap limit for Ruby: macOS refuses setrlimit for RLIMIT_AS, DATA
+      // and RSS (EINVAL), and Ruby has no heap ceiling flag, so a runaway
+      // allocation is bounded only by the run timeout.
       proc = await run(ruby, ['-W0', 'harness.rb'], dir, timeoutMs)
     } else if (language === 'java') {
       const bins = javaBins()
@@ -171,26 +227,24 @@ export async function runTests(code: string, input: TestCase[], opts: RunOptions
       const compiled = await run(bins.javac, ['-d', 'out', '-cp', harnessDir, '-encoding', 'UTF-8', '-nowarn', '-Xlint:none', '-Xdiags:compact', 'Solution.java'], dir, COMPILE_TIMEOUT_MS)
       if (compiled.timedOut) return failed(tests, 'Compiling took too long.', Date.now() - started)
       if (compiled.code !== 0) return failed(tests, 'Your code could not be compiled:\n' + tidyJavac(compiled.stderr || compiled.stdout), Date.now() - started)
-      proc = await run(bins.java, ['-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', `out${path.delimiter}${harnessDir}`, 'Harness'], dir, timeoutMs)
+      proc = await run(bins.java, [`-Xmx${HEAP_MB}m`, '-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', `out${path.delimiter}${harnessDir}`, 'Harness'], dir, timeoutMs)
     } else {
       fs.writeFileSync(path.join(dir, 'solution.ts'), code)
-      fs.writeFileSync(path.join(dir, 'harness.mjs'), TS_HARNESS(MARK, PER_TEST_TIMEOUT_MS))
-      proc = await run(process.execPath, ['--no-warnings', '--experimental-transform-types', 'harness.mjs'], dir, timeoutMs, { NODE_OPTIONS: '' })
+      fs.writeFileSync(path.join(dir, 'harness.mjs'), TS_HARNESS(RESULT_FILE, PER_TEST_TIMEOUT_MS, HEAP_MB))
+      proc = await run(process.execPath, [`--max-old-space-size=${HEAP_MB}`, '--no-warnings', '--experimental-transform-types', 'harness.mjs'], dir, timeoutMs, { NODE_OPTIONS: '' })
     }
     const ms = Date.now() - started
-    const at = proc.stdout.lastIndexOf(MARK)
-    if (at >= 0) {
-      const line = proc.stdout.slice(at + MARK.length).split('\n')[0]!
-      try {
-        return compare(tests, JSON.parse(line) as RawResult, language, ms)
-      } catch {
-        /* fall through to the generic error */
-      }
+    let raw: RawResult | null = null
+    try {
+      raw = JSON.parse(fs.readFileSync(path.join(dir, RESULT_FILE), 'utf8')) as RawResult
+    } catch {
+      /* no result file, or a partial one: fall through to the generic error */
     }
+    if (raw && Array.isArray(raw.results)) return compare(tests, raw, language, ms)
     const error = proc.timedOut
       ? `Timed out after ${Math.round(timeoutMs / 1000)} s (an infinite loop?)`
       : `The run failed (exit ${proc.code}): ${tidy(proc.stderr) || tidy(proc.stdout) || 'no output'}`
-    return failed(tests, error, ms, tidy(proc.stdout.replace(MARK, '')))
+    return failed(tests, error, ms, tidy(proc.stdout))
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
@@ -223,29 +277,57 @@ interface Spawned {
   code: number | null
 }
 
+/** How long to keep reading output after the process exits, before the pipes are cut. */
+const EXIT_GRACE_MS = 200
+
+/**
+ * Run a command in its own process group, so that on a timeout, and after
+ * it exits, anything it started goes too: a grandchild that inherited the
+ * pipes would otherwise keep them open, and the run with them.
+ */
 function run(cmd: string, args: string[], cwd: string, timeoutMs: number, env: Record<string, string> = {}): Promise<Spawned> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       cwd,
       env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', LANG: 'en_US.UTF-8', ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
     })
     let stdout = ''
     let stderr = ''
     let timedOut = false
+    let settled = false
+    let grace: NodeJS.Timeout | undefined
+    const killGroup = (): void => {
+      if (child.pid === undefined) return
+      try { process.kill(-child.pid, 'SIGKILL') } catch { /* the group is already gone */ }
+    }
+    const settle = (result: Spawned): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      clearTimeout(grace)
+      resolve(result)
+    }
     const timer = setTimeout(() => {
       timedOut = true
-      child.kill('SIGKILL')
+      killGroup()
     }, timeoutMs)
     child.stdout.on('data', (d: Buffer) => { if (stdout.length < 1_000_000) stdout += d.toString() })
     child.stderr.on('data', (d: Buffer) => { if (stderr.length < 100_000) stderr += d.toString() })
     child.on('error', (err) => {
-      clearTimeout(timer)
-      resolve({ stdout, stderr: stderr + err.message, timedOut, code: null })
+      killGroup()
+      settle({ stdout, stderr: stderr + err.message, timedOut, code: null })
     })
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ stdout, stderr, timedOut, code })
+    child.on('exit', (code) => {
+      // The process is done; whatever it left running in its group is not wanted.
+      killGroup()
+      grace = setTimeout(() => {
+        child.stdout.destroy()
+        child.stderr.destroy()
+        settle({ stdout, stderr, timedOut, code })
+      }, EXIT_GRACE_MS)
     })
+    child.on('close', (code) => settle({ stdout, stderr, timedOut, code }))
   })
 }

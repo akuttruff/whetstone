@@ -5,10 +5,15 @@
  * or in camelCase. JSON arguments are coerced to the method's parameter
  * types (int[], List<Integer>, char[][], String, ListNode, …) and the result
  * is turned back into JSON by walking arrays, collections, maps and the
- * fields of any other object. One JSON line with the raw outcome per test is
- * printed; comparison happens in runner.ts.
+ * fields of any other object. The raw outcome per test goes to the result
+ * file; comparison happens in runner.ts.
+ *
+ * Each test gets a fresh Solution, like Ruby, so one test's fields cannot
+ * leak into the next, and its own thread. Java cannot kill a thread, only
+ * interrupt it, so once a test is stuck past its time the remaining tests
+ * are not run: they would share the JVM with a loop still spinning.
  */
-export const JAVA_HARNESS = (mark: string, perTestMs: number): string => String.raw`
+export const JAVA_HARNESS = (resultFile: string, perTestMs: number): string => String.raw`
 import java.io.*;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
@@ -17,12 +22,21 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class Harness {
-  static final String MARK = "${mark}";
+  static final String RESULT_FILE = "${resultFile}";
   static final long PER_TEST_MS = ${perTestMs};
+  static final int OUTPUT_MAX = 64_000;
+
+  /** Captured output that stops growing at the cap, so printing in a loop cannot exhaust the heap. */
+  static class CappedBuffer extends ByteArrayOutputStream {
+    @Override public synchronized void write(int b) { if (count < OUTPUT_MAX) super.write(b); }
+    @Override public synchronized void write(byte[] b, int off, int len) {
+      int room = OUTPUT_MAX - count;
+      if (room > 0) super.write(b, off, Math.min(len, room));
+    }
+  }
 
   public static void main(String[] argv) throws Exception {
-    PrintStream real = System.out;
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+    ByteArrayOutputStream buf = new CappedBuffer();
     PrintStream capture = new PrintStream(buf, true, "UTF-8");
     System.setOut(capture);
     System.setErr(capture);
@@ -30,15 +44,13 @@ public class Harness {
     Map<String, Object> result = new LinkedHashMap<>();
     List<Object> results = new ArrayList<>();
     Class<?> cls = null;
-    Object instance = null;
     try {
       cls = Class.forName("Solution");
-      instance = construct(cls);
     } catch (Throwable e) {
       result.put("error", "Your code could not be loaded: " + describe(unwrap(e)));
     }
-    ExecutorService pool = Executors.newCachedThreadPool(r -> { Thread t = new Thread(r); t.setDaemon(true); return t; });
     if (cls != null) {
+      boolean stuck = false;
       for (Object to : tests) {
         Map<String, Object> t = asMap(to);
         Map<String, Object> entry = new LinkedHashMap<>();
@@ -47,26 +59,36 @@ public class Harness {
         try {
           String fn = (String) t.get("fn");
           List<Object> args = asList(t.get("args"));
+          final Class<?> c = cls;
           final Method m = find(cls, fn, args.size());
           final Object[] coerced = coerceArgs(m, args);
-          final Object target = instance;
-          Future<Object> f = pool.submit(() -> m.invoke(target, coerced));
-          Object v = f.get(PER_TEST_MS, TimeUnit.MILLISECONDS);
-          entry.put("actual", plain(v, Collections.newSetFromMap(new IdentityHashMap<>())));
-        } catch (TimeoutException e) {
-          entry.put("error", "test timed out after " + PER_TEST_MS + " ms");
+          // Constructed inside the test's thread, so a constructor that never returns is timed too.
+          FutureTask<Object> f = new FutureTask<>(() -> m.invoke(Modifier.isStatic(m.getModifiers()) ? null : construct(c), coerced));
+          Thread th = new Thread(f, "test");
+          th.setDaemon(true);
+          th.start();
+          try {
+            Object v = f.get(PER_TEST_MS, TimeUnit.MILLISECONDS);
+            entry.put("actual", plain(v, Collections.newSetFromMap(new IdentityHashMap<>())));
+          } catch (TimeoutException e) {
+            entry.put("error", "test timed out after " + PER_TEST_MS + " ms");
+            f.cancel(true);
+            th.join(200);
+            stuck = th.isAlive();
+          }
         } catch (Throwable e) {
           entry.put("error", describe(unwrap(e)));
         }
         entry.put("ms", (System.nanoTime() - t0) / 1_000_000L);
         results.add(entry);
+        // The runner reports the tests after this one as not run.
+        if (stuck) break;
       }
     }
     String printed = buf.toString("UTF-8");
     result.put("output", printed.length() > 20000 ? printed.substring(0, 20000) : printed);
     result.put("results", results);
-    real.print("\n" + MARK + Json.write(result) + "\n");
-    real.flush();
+    Files.writeString(Path.of(RESULT_FILE), Json.write(result), StandardCharsets.UTF_8);
     System.exit(0);
   }
 

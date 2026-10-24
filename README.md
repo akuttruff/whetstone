@@ -196,8 +196,11 @@ reports the raw results. Java does this by reflection on the method
 signature, so `int[]`, `List<List<Integer>>`, `char[][]` and `ListNode` all
 work. The comparison with the expected values happens once, on the server.
 
-Every language gets a per-test and overall timeout and captured console
-output. The sandbox is a convenience, not a security boundary.
+Every language gets a per-test and overall timeout and capped console
+output; Node and Java also get a 512 MB heap (macOS will not limit Ruby's
+memory). Each run is its own process group, killed whole at the end, so
+nothing a solution starts outlives it, and at most two runs go at once.
+The sandbox is a convenience, not a security boundary.
 
 ### Reviews
 

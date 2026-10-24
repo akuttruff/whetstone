@@ -1,8 +1,9 @@
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { availability } from './langs.ts'
-import { normalise, runTests } from './runner.ts'
+import { normalise, runTests, sweepRuns } from './runner.ts'
 
 const dir = path.join(os.tmpdir(), 'whetstone-runner-test')
 const have = availability()
@@ -62,9 +63,80 @@ export function box(n: number): number { return new Box(n).get() }`
     expect(r.error).toMatch(/Timed out/)
   }, 20_000)
 
+  it('stops a synchronous loop in one test and still reports the others', async () => {
+    const code = 'export function spin(): number { for (;;) {} }\nexport function add(a: number, b: number): number { return a + b }'
+    const r = await runTests(code, [{ fn: 'spin', args: [], expected: 1 }, { fn: 'add', args: [2, 3], expected: 5 }], { dir })
+    expect(r.error).toBeUndefined()
+    expect(r.results[0]!.error).toMatch(/timed out/)
+    expect(r.results[1]).toMatchObject({ pass: true })
+  }, 20_000)
+
+  it('reports a test that runs out of heap without losing the rest', async () => {
+    const code = 'export function hog(): number { const a: number[][] = []; for (;;) a.push(new Array(1e6).fill(1)) }\nexport const one = (): number => 1'
+    const r = await runTests(code, [{ fn: 'hog', args: [], expected: 1 }, { fn: 'one', args: [], expected: 1 }], { dir })
+    expect(r.error).toBeUndefined()
+    expect(r.results[0]!.pass).toBe(false)
+    expect(r.results[1]).toMatchObject({ pass: true })
+  }, 20_000)
+
+  it('keeps the results when the solution floods stdout past the capture cap', async () => {
+    const code = 'process.stdout.write("x".repeat(3_000_000) + "\\n")\nexport const one = (): number => 1'
+    const r = await runTests(code, [{ fn: 'one', args: [], expected: 1 }], { dir })
+    expect(r.ok).toBe(true)
+  }, 20_000)
+
+  it('does not wait for, or leave behind, a process the solution started', async () => {
+    const own = fs.mkdtempSync(path.join(os.tmpdir(), 'whetstone-grandchild-'))
+    const pidFile = path.join(own, 'pid')
+    const code = (tail: string): string => `import { spawn } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
+const c = spawn('/bin/sleep', ['8'], { stdio: 'inherit' })
+writeFileSync(${JSON.stringify(pidFile)}, String(c.pid))
+${tail}`
+    const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true } catch { return false } }
+    const gone = async (pid: number): Promise<boolean> => {
+      for (let i = 0; i < 20 && alive(pid); i++) await new Promise((r) => setTimeout(r, 50))
+      return !alive(pid)
+    }
+    try {
+      // A run that finishes normally returns at once, not when the sleep ends.
+      let t0 = Date.now()
+      let r = await runTests(code('export const one = (): number => 1'), [{ fn: 'one', args: [], expected: 1 }], { dir: own, timeoutMs: 2000 })
+      expect(r.ok).toBe(true)
+      expect(Date.now() - t0).toBeLessThan(4000)
+      expect(await gone(Number(fs.readFileSync(pidFile, 'utf8')))).toBe(true)
+      // A run that times out returns at its timeout.
+      t0 = Date.now()
+      r = await runTests(code('for (;;) {}\nexport const one = (): number => 1'), [{ fn: 'one', args: [], expected: 1 }], { dir: own, timeoutMs: 2000 })
+      expect(r.error).toMatch(/Timed out/)
+      expect(Date.now() - t0).toBeLessThan(4000)
+      expect(await gone(Number(fs.readFileSync(pidFile, 'utf8')))).toBe(true)
+      expect(fs.readdirSync(own).filter((n) => n.startsWith('run-'))).toEqual([])
+    } finally {
+      fs.rmSync(own, { recursive: true, force: true })
+    }
+  }, 20_000)
+
   it('refuses TypeScript-only tests in another language', async () => {
     const r = await runTests('def f; end', [{ call: '(async () => f())()', expected: 1 }], { dir, language: 'ruby' })
     expect(r.error).toMatch(/only run against TypeScript/)
+  })
+})
+
+describe('sweepRuns', () => {
+  it('removes old run directories and nothing else', () => {
+    const own = fs.mkdtempSync(path.join(os.tmpdir(), 'whetstone-sweep-'))
+    try {
+      for (const n of ['run-old', 'run-new', 'java-harness']) fs.mkdirSync(path.join(own, n))
+      const hourAgo = new Date(Date.now() - 3_600_000)
+      fs.utimesSync(path.join(own, 'run-old'), hourAgo, hourAgo)
+      fs.utimesSync(path.join(own, 'java-harness'), hourAgo, hourAgo)
+      expect(sweepRuns(own)).toBe(1)
+      expect(fs.readdirSync(own).sort()).toEqual(['java-harness', 'run-new'])
+      expect(sweepRuns(path.join(own, 'missing'))).toBe(0)
+    } finally {
+      fs.rmSync(own, { recursive: true, force: true })
+    }
   })
 })
 
@@ -143,6 +215,12 @@ end
     expect(r.results[1]!.error).toMatch(/no method named missing/)
     expect(r.results[2]!.error).toMatch(/timed out/)
   }, 30_000)
+
+  it('caps captured output and keeps the results when stdout is flooded', async () => {
+    const r = await runTests('def noisy; 50_000.times { puts "line" }; STDOUT.write("x" * 3_000_000); 1; end', [{ fn: 'noisy', args: [], expected: 1 }], { dir, language: 'ruby' })
+    expect(r.ok).toBe(true)
+    expect(r.output.length).toBeLessThanOrEqual(20_000)
+  }, 30_000)
 })
 
 describe.skipIf(!have.java)('runTests (Java)', () => {
@@ -213,5 +291,24 @@ class Solution {
     expect(r.results[0]!.error).toBe('IllegalStateException: nope')
     expect(r.results[1]!.error).toMatch(/no method named missing/)
     expect(r.results[2]!.error).toMatch(/timed out/)
+  }, 60_000)
+
+  it('gives each test a fresh Solution and stops after a test that will not stop', async () => {
+    const code = 'class Solution { int n = 0; public int next() { return ++n; } public int spin() { while (true) {} } public int one() { return 1; } }'
+    const r = await runTests(code, [
+      { fn: 'next', args: [], expected: 1 },
+      { fn: 'next', args: [], expected: 1 },
+      { fn: 'spin', args: [], expected: 1 },
+      { fn: 'one', args: [], expected: 1 },
+    ], { dir, language: 'java', timeoutMs: 20_000 })
+    expect(r.results.slice(0, 2).map((t) => t.pass)).toEqual([true, true])
+    expect(r.results[2]!.error).toMatch(/timed out/)
+    expect(r.results[3]!.error).toBe('not run')
+  }, 60_000)
+
+  it('caps captured output', async () => {
+    const r = await runTests('class Solution { public int noisy() { for (int i = 0; i < 200_000; i++) System.out.println("line " + i); return 1; } }', [{ fn: 'noisy', args: [], expected: 1 }], { dir, language: 'java', timeoutMs: 20_000 })
+    expect(r.ok).toBe(true)
+    expect(r.output.length).toBeLessThanOrEqual(20_000)
   }, 60_000)
 })

@@ -5,28 +5,40 @@
  * content written for TypeScript (`twoSum`) finds `two_sum`. JSON arguments
  * become Ruby values; a hash shaped like a list node or a tree node becomes
  * a ListNode / TreeNode when the solution defines that class. Results go
- * back the same way. One JSON line with the raw outcome per test is printed;
+ * back the same way. The raw outcome per test goes to the result file;
  * comparison happens in runner.ts.
  */
-export const RUBY_HARNESS = (mark: string, perTestMs: number): string => String.raw`
+export const RUBY_HARNESS = (resultFile: string, perTestMs: number): string => String.raw`
 require 'json'
 require 'timeout'
 require 'stringio'
 
-MARK = '${mark}'
+RESULT_FILE = File.expand_path('${resultFile}', __dir__)
 PER_TEST_S = ${perTestMs} / 1000.0
+OUTPUT_MAX = 20_000
 TESTS = JSON.parse(File.read('tests.json'))
-REAL_STDOUT = $stdout
-BUFFER = StringIO.new
+
+# Captured output stops growing at the cap, so a solution printing in a loop
+# cannot fill memory; puts, print and << all come through write.
+class CappedIO < StringIO
+  def write(*parts)
+    parts.sum do |part|
+      s = part.to_s
+      room = OUTPUT_MAX - string.bytesize
+      super(s.byteslice(0, room)) if room > 0
+      s.bytesize
+    end
+  end
+end
+
+BUFFER = CappedIO.new
 $stdout = BUFFER
 $stderr = BUFFER
 RESULT = { 'results' => [], 'output' => '' }
 
 def finish!
-  out = BUFFER.string
-  RESULT['output'] = out.length > 20_000 ? out[0, 20_000] : out
-  REAL_STDOUT.write("\n" + MARK + JSON.generate(RESULT) + "\n")
-  REAL_STDOUT.flush
+  RESULT['output'] = BUFFER.string.scrub
+  File.write(RESULT_FILE, JSON.generate(RESULT))
   exit!(0)
 end
 
