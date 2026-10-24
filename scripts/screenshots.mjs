@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { encodeRecording, glide, startRecording } from './recording.mjs'
+import { encodeRecording, glide, startRecording, waitUntil } from './recording.mjs'
 
 const URL = process.env.WHETSTONE_URL ?? 'http://127.0.0.1:8300'
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -28,7 +28,50 @@ const DESKTOP = { width: 1280, height: 840, scale: 2, mobile: false }
  *  wait <ms>             pause (animations, the editor and visualiser load lazily)
  *  next <n>              press the visualiser's Next button n times
  *  scroll <css> <px>     scroll an element
+ *  glide <css> <px> <ms> scroll it smoothly, for a recording
+ *  code <text>           replace the editor's text, typed in a character at a time
+ *  review                press Review (the recording runs the wait for the model's first word fast)
+ *  until <js> <ms>       wait until the expression is true in the page
  */
+/** A solution typed in by the recordings, and how they know the model's review has started and finished. */
+const SOLUTION = `export function maxProfit(prices: number[]): number {
+  let lowest = Infinity;
+  let best = 0;
+  for (const price of prices) {
+    lowest = Math.min(lowest, price);
+    best = Math.max(best, price - lowest);
+  }
+  return best;
+}
+`
+const WRITING = `!!document.querySelector('.review-body')`
+const REVIEWED = `!document.querySelector('.review-status') && !!document.querySelector('.review .score')`
+/**
+ * Type into CodeMirror through its own view (what EditorView.findFromDOM finds), so the
+ * text goes in exactly as written: typing keys would set off its bracket
+ * closing and auto-indent on top of the indentation already in the text.
+ */
+const typeCode = (text) => `new Promise((resolve) => {
+  const content = document.querySelector('.editor .cm-content')
+  const view = content?.cmTile?.root?.view ?? content?.cmView?.view
+  if (!view) return resolve('missing editor')
+  view.focus()
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } })
+  const text = ${JSON.stringify(text)}
+  let i = 0
+  const next = () => {
+    if (i >= text.length) return resolve('typed')
+    // A run of indentation goes in at once, as the editor would put it.
+    let j = i + 1
+    if (text[i] === '\\n') while (text[j] === ' ') j++
+    const at = view.state.doc.length
+    view.dispatch({ changes: { from: at, insert: text.slice(i, j) }, selection: { anchor: at + j - i }, scrollIntoView: true })
+    const ch = text[i]
+    i = j
+    setTimeout(next, ch === '\\n' ? 160 : ch === ' ' ? 55 : 28 + Math.random() * 22)
+  }
+  next()
+})`
 const scenarios = [
   { name: 'list-phone', view: PHONE, steps: [] },
   { name: 'problem-phone', view: PHONE, steps: [['click', 'Sliding Window Maximum']] },
@@ -42,8 +85,9 @@ const scenarios = [
   { name: 'desktop', view: DESKTOP, steps: [['click', 'Sliding Window Maximum'], ['wait', 1500]] },
   { name: 'desktop-ruby', view: DESKTOP, steps: [['lang', 'Ruby'], ['wait', 600], ['click', 'Sliding Window Maximum'], ['wait', 1500], ['run'], ['wait', 3000]] },
   // Walkthroughs, recorded (see recording.mjs): the phone's and the desktop's.
-  { name: 'demo-phone', view: PHONE, record: true, steps: [['wait', 1000], ['click', 'Sliding Window Maximum'], ['wait', 1600], ['glide', '.pane-problem', 500, 1600], ['wait', 700], ['tab', 'Code'], ['wait', 1600], ['run'], ['wait', 4500], ['tab', 'Review'], ['wait', 1600], ['glide', '.pane-review', 500, 1600], ['wait', 800], ['tab', 'Guide'], ['wait', 2000]] },
-  { name: 'demo-desktop', view: DESKTOP, record: true, steps: [['wait', 1000], ['click', 'Sliding Window Maximum'], ['wait', 1900], ['glide', '.pane-problem', 400, 1600], ['wait', 800], ['run'], ['wait', 4500], ['glide', '.work-review', 260, 1600], ['wait', 1800]] },
+  // A solution typed in, its tests run, and the model's review of it, written as it streams.
+  { name: 'demo-phone', view: PHONE, record: true, speed: 1.3, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1500], ['tab', 'Code'], ['wait', 1600], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['wait', 300], ['tab', 'Review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-review', 99999, 1800], ['wait', 1600]] },
+  { name: 'demo-desktop', view: DESKTOP, record: true, speed: 1.3, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1700], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-work', 99999, 1800], ['wait', 1600]] },
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -89,10 +133,15 @@ async function run(scenario) {
     await send('Page.navigate', { url: URL })
     await sleep(2500)
     const recording = scenario.record ? startRecording({ send, on }) : null
+    // The wait between pressing Review and the model's first word is run fast in the recording.
+    const fast = { from: 0, to: 0, factor: 12 }
     for (const [op, a, b, c] of scenario.steps) {
       let result = ''
       if (op === 'click') result = await evaluate(clickText(a))
       else if (op === 'glide') result = await glide(evaluate, a, b, c)
+      else if (op === 'code') result = (await evaluate(typeCode(a))) ?? 'missing editor (the typing script failed)'
+      else if (op === 'review') { result = await evaluate(`(() => { const btn = [...document.querySelectorAll('.workbar button')].find((x) => x.textContent.trim() === 'Review'); if (!btn) return 'missing Review'; btn.click(); return 'clicked' })()`); fast.from = Date.now() / 1000 }
+      else if (op === 'until') { result = await waitUntil(evaluate, a, b); if (result === 'timeout') throw new Error(`${scenario.name}: gave up waiting for ${a}`); if (fast.from && !fast.to) fast.to = Date.now() / 1000 }
       else if (op === 'sel') result = await evaluate(`(() => { const el = document.querySelector(${JSON.stringify(a)}); if (!el) return 'missing ' + ${JSON.stringify(a)}; el.click(); return 'clicked' })()`)
       else if (op === 'tab') result = await evaluate(clickText(a, '[role=tab]'))
       else if (op === 'track') result = await evaluate(clickText(a, '.tracks button'))
@@ -106,7 +155,7 @@ async function run(scenario) {
     }
     if (recording) {
       const frames = await recording.stop()
-      const made = encodeRecording(frames, { out: OUT, name: scenario.name, wide: !scenario.view.mobile })
+      const made = encodeRecording(frames, { out: OUT, name: scenario.name, wide: !scenario.view.mobile, speed: scenario.speed ?? 1, maxGap: scenario.maxGap ?? 0.9, fast: fast.to ? fast : null })
       console.log(`wrote ${made.gif} and ${made.mp4} (${made.seconds} s, ${made.frames} frames)`)
       return
     }

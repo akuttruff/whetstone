@@ -13,7 +13,11 @@ the machine.
 
 <img src="docs/screenshots/demo-desktop.gif" alt="Whetstone in use on a desktop" />
 
-<sub>On a desktop: a problem beside the editor, its code run against the tests, and the review under it.</sub>
+<p>On a desktop, a solution is typed in beside the problem, run against the tests, and reviewed by the local model as it writes.</p>
+
+<p align="center"><img src="docs/screenshots/demo-phone.gif" width="300" alt="Whetstone in use on a phone" /></p>
+
+<p align="center">The same flow on a phone, with the review on its own tab.</p>
 
 <table>
   <tr>
