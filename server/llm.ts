@@ -16,7 +16,15 @@ export interface ChatInput {
   maxTokens: number
   temperature: number
   signal?: AbortSignal
+  /** Streaming only: give up when nothing arrives for this long (STREAM_IDLE_MS by default). */
+  idleMs?: number
 }
+
+/**
+ * A stream that goes quiet this long is treated as dead: a model server that
+ * hangs mid-reply would otherwise hold the request, and a stream slot, forever.
+ */
+export const STREAM_IDLE_MS = 120_000
 
 export interface JsonSchemaSpec {
   name: string
@@ -94,7 +102,8 @@ export async function chatJson<T>(settings: Settings, input: ChatInput, schema: 
 
 /**
  * Stream a completion; `onDelta` gets each visible piece of text (thinking
- * removed). Resolves with the full visible text.
+ * removed). Resolves with the full visible text. Stops on the caller's
+ * signal, or when no chunk has arrived for `idleMs`.
  */
 export async function chatStream(
   settings: Settings,
@@ -102,9 +111,38 @@ export async function chatStream(
   onDelta: (text: string) => void,
   fetchImpl: typeof fetch,
 ): Promise<{ text: string; model: string }> {
-  const res = await post(settings, { ...baseBody(settings, input), stream: true }, fetchImpl, input.signal)
+  const idleMs = input.idleMs ?? STREAM_IDLE_MS
+  const idle = new AbortController()
+  let timer: NodeJS.Timeout | undefined
+  const arm = (): void => {
+    clearTimeout(timer)
+    timer = setTimeout(() => idle.abort(), idleMs)
+  }
+  const signal = input.signal ? AbortSignal.any([input.signal, idle.signal]) : idle.signal
+  arm()
+  try {
+    return await readStream(settings, input, signal, arm, onDelta, fetchImpl)
+  } catch (err) {
+    if (idle.signal.aborted && !input.signal?.aborted) throw new LlmError(`The model server sent nothing for ${Math.round(idleMs / 1000)} s, so the reply was stopped. Try again.`)
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function readStream(
+  settings: Settings,
+  input: ChatInput,
+  signal: AbortSignal,
+  onChunk: () => void,
+  onDelta: (text: string) => void,
+  fetchImpl: typeof fetch,
+): Promise<{ text: string; model: string }> {
+  const res = await post(settings, { ...baseBody(settings, input), stream: true }, fetchImpl, signal)
   if (!res.body) throw new LlmError('The model server sent no body.')
   const reader = res.body.getReader()
+  // Not every body is tied to the fetch's signal (a test's fake one is not): cancelling ends a read that would wait forever.
+  signal.addEventListener('abort', () => { reader.cancel().catch(() => {}) }, { once: true })
   const decoder = new TextDecoder()
   let buffer = ''
   let raw = ''
@@ -121,7 +159,9 @@ export async function chatStream(
   }
   for (;;) {
     const { value, done } = await reader.read()
+    signal.throwIfAborted()
     if (done) break
+    onChunk()
     buffer += decoder.decode(value, { stream: true })
     let nl: number
     while ((nl = buffer.indexOf('\n')) >= 0) {
