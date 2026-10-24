@@ -21,6 +21,18 @@ describe('settings', () => {
     s.setSettings({ baseUrl: 'http://x:1/v1/' })
     expect(s.getSettings().baseUrl).toBe('http://x:1/v1')
   })
+
+  it('forgets the key when the server changes, unless a new one comes with it', () => {
+    const s = mem()
+    s.setSettings({ baseUrl: 'http://a:1/v1', apiKey: 'for-a' })
+    s.setSettings({ baseUrl: 'http://a:1/v1/', model: 'm' }) // the same server, written differently
+    expect(s.getSettings().apiKey).toBe('for-a')
+    s.setSettings({ baseUrl: 'http://b:1/v1' })
+    expect(s.getSettings().apiKey).toBe('')
+    expect(s.getPublicSettings().hasApiKey).toBe(false)
+    s.setSettings({ baseUrl: 'http://c:1/v1', apiKey: 'for-c' })
+    expect(s.getSettings().apiKey).toBe('for-c')
+  })
 })
 
 describe('drafts', () => {

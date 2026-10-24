@@ -77,7 +77,11 @@ export class Store {
     return { ...rest, hasApiKey: apiKey.length > 0 }
   }
 
-  /** Apply a partial update; `apiKey` is only changed when the patch includes it. */
+  /**
+   * Apply a partial update; `apiKey` is only changed when the patch includes
+   * it, except that a new `baseUrl` without a key clears the old one: a token
+   * meant for one server must not be sent to another.
+   */
   setSettings(patch: unknown): PublicSettings {
     if (!patch || typeof patch !== 'object') throw new ValidationError('settings must be an object')
     const p = patch as Record<string, unknown>
@@ -86,6 +90,7 @@ export class Store {
     if (p.baseUrl !== undefined) {
       const s = typeof p.baseUrl === 'string' ? p.baseUrl.trim().replace(/\/+$/, '') : ''
       if (!/^https?:\/\/[^\s]+$/.test(s)) throw new ValidationError('baseUrl must be an http(s) URL')
+      if (s !== current.baseUrl && p.apiKey === undefined) next.apiKey = ''
       next.baseUrl = s
     }
     if (p.model !== undefined) {
