@@ -82,12 +82,13 @@ const scenarios = [
   { name: 'primer-phone', view: PHONE, steps: [['track', 'Coding'], ['sel', '.plist-group:nth-of-type(3) .primer-btn'], ['wait', 800]] },
   { name: 'knowledge-phone', view: PHONE, steps: [['track', 'Knowledge'], ['click', 'HTTP caching'], ['wait', 600]] },
   { name: 'java-phone', view: PHONE, steps: [['lang', 'Java'], ['wait', 600], ['click', 'Two Sum'], ['tab', 'Code'], ['wait', 2500]] },
-  { name: 'desktop', view: DESKTOP, steps: [['click', 'Sliding Window Maximum'], ['wait', 1500]] },
+  // The language is a server-side setting, so scenarios that need TypeScript pick it: an earlier scenario may have left Java or Ruby on.
+  { name: 'desktop', view: DESKTOP, steps: [['lang', 'TS'], ['wait', 600], ['click', 'Sliding Window Maximum'], ['wait', 1500]] },
   { name: 'desktop-ruby', view: DESKTOP, steps: [['lang', 'Ruby'], ['wait', 600], ['click', 'Sliding Window Maximum'], ['wait', 1500], ['run'], ['wait', 3000]] },
   // Walkthroughs, recorded (see recording.mjs): the phone's and the desktop's.
   // A solution typed in, its tests run, and the model's review of it, written as it streams.
-  { name: 'demo-phone', view: PHONE, record: true, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1500], ['tab', 'Code'], ['wait', 1600], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['wait', 300], ['tab', 'Review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-review', 99999, 1800], ['wait', 1600]] },
-  { name: 'demo-desktop', view: DESKTOP, record: true, maxGap: 1.8, steps: [['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1700], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-work', 99999, 1800], ['wait', 1600]] },
+  { name: 'demo-phone', view: PHONE, record: true, maxGap: 1.8, steps: [['lang', 'TS'], ['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1500], ['tab', 'Code'], ['wait', 1600], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['wait', 300], ['tab', 'Review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-review', 99999, 1800], ['wait', 1600]] },
+  { name: 'demo-desktop', view: DESKTOP, record: true, maxGap: 1.8, steps: [['lang', 'TS'], ['wait', 900], ['click', 'Best Time to Buy and Sell Stock'], ['wait', 1700], ['code', SOLUTION], ['wait', 500], ['run'], ['wait', 2600], ['review'], ['until', WRITING, 120000], ['until', REVIEWED, 180000], ['wait', 600], ['glide', '.pane-work', 99999, 1800], ['wait', 1600]] },
 ]
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
