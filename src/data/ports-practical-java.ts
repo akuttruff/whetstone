@@ -1,4 +1,6 @@
 import type { Port } from '../types.ts'
+import { withNotes } from './notes.ts'
+import { JAVA_PRACTICAL_NOTES } from './practical-nuances-java.ts'
 
 /**
  * The practical problems in Java. Promises become CompletableFutures and
@@ -14,7 +16,7 @@ import java.util.function.*;
 
 `
 
-export const JAVA_PRACTICAL: Record<string, Port> = {
+const JAVA_PRACTICAL_CODE: Record<string, Port> = {
   'lru-cache': {
     starter: IMPORTS + `/** A fixed-capacity cache: get marks a key most recently used; set evicts the least recently used entry once over capacity. Both O(1). */
 class LRUCache<K, V> {
@@ -670,8 +672,8 @@ class Solution {
    * key sets are not equal.
    */
   public boolean deepEqual(Object a, Object b) {
-    // your code
-    return Objects.equals(a, b);
+    // your code (Objects.equals is already structural for List and Map: the point is to do it yourself, by hand)
+    return a == b;
   }
 
   /** Test driver. Leave as is. The cases JSON cannot express: NaN against NaN, two equal Dates, and a key that is present with a null value. */
@@ -1713,7 +1715,8 @@ class Timeouts {
       return future.get(ms, TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
       token.cancel();
-      try { future.get(); } catch (Exception ignored) { } // let the callee stop; its own error is not the result
+      // A bounded grace for the callee to notice the token; one that ignores it must not hang the caller, so it is interrupted.
+      try { future.get(ms, TimeUnit.MILLISECONDS); } catch (Exception ignored) { future.cancel(true); }
       throw new Exception("timeout");
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
@@ -1751,3 +1754,6 @@ class Solution {
 `,
   },
 }
+
+/** Each port with its Java statement, hints and nuances. */
+export const JAVA_PRACTICAL: Record<string, Port> = withNotes(JAVA_PRACTICAL_CODE, JAVA_PRACTICAL_NOTES)

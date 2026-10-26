@@ -2,6 +2,7 @@ import type { Problem, Track } from '../types.ts'
 import type { Language, Port } from '../types.ts'
 import { normaliseTests } from '../lib/tests.ts'
 import { PRACTICAL_DRIVERS } from './practical-drivers.ts'
+import { TS_PRACTICAL_NUANCES } from './practical-nuances-ts.ts'
 import { CODING_PROBLEMS } from './coding.ts'
 import { CODING_ARRAYS } from './coding-arrays.ts'
 import { CODING_STRUCTURES } from './coding-structures.ts'
@@ -36,7 +37,8 @@ const neutral = (ps: Problem[]): Problem[] =>
     }
     const drivers = p.track === 'practical' ? PRACTICAL_DRIVERS[p.id] : undefined
     const withDriver = drivers?.driver ? { starter: p.starter.trimEnd() + '\n\n' + drivers.driver, solution: p.solution.trimEnd() + '\n\n' + drivers.driver } : {}
-    return { ...p, ...withDriver, tests: normaliseTests(drivers?.tests ?? p.tests) }
+    const nuances = p.track === 'practical' ? TS_PRACTICAL_NUANCES[p.id] : undefined
+    return { ...p, ...withDriver, ...(nuances ? { nuances } : {}), tests: normaliseTests(drivers?.tests ?? p.tests) }
   })
 
 export type PortTable = Record<string, Port>

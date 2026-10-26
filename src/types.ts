@@ -78,10 +78,29 @@ export interface TestCase {
   unordered?: boolean
 }
 
-/** A problem's code in one language. */
+/**
+ * A problem's code in one language, with the statement retold in that
+ * language's terms where the TypeScript one leans on promises, closures or
+ * JavaScript semantics. The fields that are absent fall back to the
+ * TypeScript problem's.
+ */
 export interface Port {
   starter: string
   solution: string
+  description?: string[]
+  examples?: Example[]
+  hints?: string[]
+  /** What a strong answer gets right in this language specifically (ownership, the threading model, error handling…): shown under the statement and given to the reviewer. */
+  nuances?: string[]
+}
+
+/** The statement a code problem is shown with, for a language: the port's own where it has one, else the TypeScript one. */
+export interface Statement {
+  description: string[]
+  examples: Example[]
+  constraints?: string[]
+  hints: string[]
+  nuances: string[]
 }
 
 export interface CodeProblem extends ProblemBase {
@@ -96,6 +115,19 @@ export interface CodeProblem extends ProblemBase {
   tests: TestCase[]
   /** The same problem in other languages, hand-written for built-ins and model-written (then verified against `tests`) for generated ones. */
   ports?: Partial<Record<Exclude<Language, 'typescript'>, Port>>
+  /** What a strong TypeScript answer gets right that the statement does not spell out (the event loop, closures, AbortSignal…). */
+  nuances?: string[]
+}
+
+export function statementFor(p: CodeProblem, language: Language): Statement {
+  const port = language === 'typescript' ? null : p.ports?.[language as Exclude<Language, 'typescript'>]
+  return {
+    description: port?.description ?? p.description,
+    examples: port?.examples ?? p.examples,
+    ...(p.constraints ? { constraints: p.constraints } : {}),
+    hints: port?.hints ?? p.hints,
+    nuances: (port ? port.nuances : p.nuances) ?? [],
+  }
 }
 
 /** The language a problem is worked in: the setting for code problems, TypeScript (irrelevant) for prose ones. */

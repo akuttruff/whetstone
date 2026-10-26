@@ -173,6 +173,13 @@ and AbortSignal becomes a small cancel token. In Rust the practical track's
 dynamic test data (scripts of mixed values, nested objects) arrives as the
 harness's `whetstone::Json` enum.
 
+Practical problems are told in each language, not translated: a port
+carries its own statement, hints and a "what matters in this language"
+list (`src/data/practical-nuances-*.ts`), so the Rust telling of an LRU
+cache is about ownership and `&mut self`, the Java one about visibility
+and `LinkedHashMap`, the Ruby one about the GVL and `Mutex`. The screen
+shows that telling and the reviewer judges against it.
+
 Your work is kept per language. Switching from TypeScript to Ruby on a
 problem shows a fresh Ruby draft, with its own reviews, hints and threads.
 The review, tutor and hint prompts all speak the selected language.

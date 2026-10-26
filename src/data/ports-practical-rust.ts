@@ -1,5 +1,7 @@
 import type { Port } from '../types.ts'
 import { RUST_PRACTICAL_MORE } from './ports-practical-rust-more.ts'
+import { withNotes } from './notes.ts'
+import { RUST_PRACTICAL_NOTES } from './practical-nuances-rust.ts'
 
 /**
  * The practical problems in Rust. Promises become threads (std only: spawn,
@@ -1006,4 +1008,5 @@ pub fn deep_equal_checks() -> Vec<bool> {
 }
 
 /** The practical problems in Rust (see ports-practical-rust-more.ts for the second half). */
-export const RUST_PRACTICAL: Record<string, Port> = { ...RUST_PRACTICAL_BASE, ...RUST_PRACTICAL_MORE }
+/** Each port with its Rust statement, hints and nuances. */
+export const RUST_PRACTICAL: Record<string, Port> = withNotes({ ...RUST_PRACTICAL_BASE, ...RUST_PRACTICAL_MORE }, RUST_PRACTICAL_NOTES)

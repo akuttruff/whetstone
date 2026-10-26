@@ -240,7 +240,9 @@ impl TaskQueue {
         let shared = Arc::clone(&self.shared);
         let concurrency = self.concurrency;
         let job = Box::new(move || {
-            let _ = tx.send(task());
+            // The bookkeeping below must run even if the task panics, or on_idle waits forever.
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(task));
+            let _ = tx.send(outcome.unwrap_or_else(|_| Err("task panicked".to_string())));
             let (lock, idle) = &*shared;
             let mut st = lock.lock().unwrap();
             st.active -= 1;
@@ -801,8 +803,8 @@ use whetstone::Json;
 
 /// An LFU cache: get returns the value or -1; set inserts or updates; when
 /// over capacity, evict the least frequently used key, breaking ties by least
-/// recently used. Both O(1) with a linked hash set per frequency (here a
-/// BTreeSet ordered by recency stands in, O(log n)).
+/// recently used. O(log n) here: a BTreeSet ordered by recency per frequency
+/// stands in for the linked hash set that would make both operations O(1).
 pub struct LfuCache {
     capacity: usize,
     // your fields
@@ -848,8 +850,8 @@ use whetstone::Json;
 
 /// An LFU cache: get returns the value or -1; set inserts or updates; when
 /// over capacity, evict the least frequently used key, breaking ties by least
-/// recently used. Both O(1) with a linked hash set per frequency (here a
-/// BTreeSet ordered by recency stands in, O(log n)).
+/// recently used. O(log n) here: a BTreeSet ordered by recency per frequency
+/// stands in for the linked hash set that would make both operations O(1).
 pub struct LfuCache {
     capacity: usize,
     entries: HashMap<i32, Slot>,

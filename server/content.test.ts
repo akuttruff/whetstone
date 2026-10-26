@@ -103,6 +103,29 @@ portSuite('ruby')
 portSuite('java')
 portSuite('rust')
 
+describe('practical problems are told in each language', () => {
+  const practical = code.filter((p) => p.track === 'practical')
+  // Words that belong to the TypeScript telling and have no place in another language's statement.
+  const tsOnly = /\bPromise\b|AbortSignal|setTimeout|\bawait\b|\bundefined\b/
+  it('each has TypeScript nuances and, per port, its own statement, hints and nuances', () => {
+    const problems: string[] = []
+    for (const p of practical) {
+      if ((p.nuances?.length ?? 0) < 3) problems.push(`${p.id}: typescript nuances`)
+      for (const language of ['ruby', 'java', 'rust'] as const) {
+        const port = p.ports?.[language]
+        if (!port) continue
+        if ((port.description?.length ?? 0) < 1) problems.push(`${p.id}: ${language} description`)
+        if ((port.hints?.length ?? 0) < 2) problems.push(`${p.id}: ${language} hints`)
+        if ((port.nuances?.length ?? 0) < 3) problems.push(`${p.id}: ${language} nuances`)
+        const text = [...(port.description ?? []), ...(port.hints ?? []), ...(port.nuances ?? []), ...(port.examples ?? []).map((e) => `${e.input} ${e.output} ${e.note ?? ''}`)].join(' ')
+        const leak = tsOnly.exec(text)
+        if (leak) problems.push(`${p.id}: ${language} statement says "${leak[0]}"`)
+      }
+    }
+    expect(problems).toEqual([])
+  })
+})
+
 import { PRIMERS, primerFor } from '../src/data/primers.ts'
 import { PRIMER_TEMPLATES } from '../src/data/primer-templates.ts'
 

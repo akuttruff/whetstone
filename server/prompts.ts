@@ -1,4 +1,4 @@
-import { DIFFICULTIES, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, isDesign, isPrompt, portFor } from '../src/types.ts'
+import { DIFFICULTIES, LANGUAGES, LANGUAGE_LABEL, TRACKS, isCode, isDesign, isPrompt, portFor, statementFor } from '../src/types.ts'
 import type { CodeProblem, DesignProblem, Difficulty, Direction, Example, GuideStep, Language, Port, Primer, Problem, PromptProblem, RunResult, TestCase } from '../src/types.ts'
 import { normaliseTest, testLabel } from '../src/lib/tests.ts'
 import type { JsonSchemaSpec } from './llm.ts'
@@ -32,6 +32,24 @@ function fmtRun(run: RunResult | null | undefined): string {
   return `Automated tests: ${run.passed}/${run.total} passed.\n${lines.join('\n')}${run.output ? `\nConsole output:\n${run.output.slice(0, 1500)}` : ''}`
 }
 
+/**
+ * A code problem as the model should read it: the statement in the language
+ * being worked in (a port may retell it), its examples and constraints, and
+ * what a strong answer in that language gets right.
+ */
+function fmtProblem(problem: CodeProblem, language: Language, hints: 'none' | 'hints' | 'author' = 'none'): string {
+  const st = statementFor(problem, language)
+  const bullets = (xs: string[]): string => xs.map((x) => `- ${x}`).join('\n')
+  return (
+    `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${st.description.join('\n\n')}\n\n` +
+    `Examples:\n${fmtExamples(st.examples) || '(none)'}\n\n` +
+    (st.constraints?.length ? `Constraints:\n${bullets(st.constraints)}\n\n` : '') +
+    (st.nuances.length ? `What a strong ${label(language)} answer gets right (judge against these too):\n${bullets(st.nuances)}\n\n` : '') +
+    (hints === 'hints' ? `Hints the problem comes with:\n${bullets(st.hints) || '(none)'}\n\n` : '') +
+    (hints === 'author' ? `Author's hints, for your reference (do not just repeat them):\n${bullets(st.hints) || '(none)'}\n\n` : '')
+  )
+}
+
 /** The fenced-code tag for a language. */
 const fence = (l: Language): string => l
 const label = (l: Language): string => LANGUAGE_LABEL[l]
@@ -57,9 +75,7 @@ export function reviewPrompt(problem: Problem, answer: string, run?: RunResult |
         'Use the automated test results when present but also reason about cases they do not cover. Do not rewrite their solution. ' +
         STYLE + VERDICT_RULE,
       user:
-        `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${problem.description.join('\n\n')}\n\n` +
-        `Examples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
-        (problem.constraints?.length ? `Constraints:\n${problem.constraints.map((c) => `- ${c}`).join('\n')}\n\n` : '') +
+        fmtProblem(problem, language) +
         `${fmtRun(run)}\n\n` +
         `Candidate's code:\n\`\`\`${fence(language)}\n${answer}\n\`\`\``,
     }
@@ -360,7 +376,7 @@ export function chatPrompt(problem: Problem, answer: string, run: RunResult | nu
   if (isCode(problem)) {
     return (
       base +
-      `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples)}\n\n` +
+      `\n\n${fmtProblem(problem, language)}` +
       `${fmtRun(run)}\n\nCandidate's current code:\n\`\`\`${fence(language)}\n${answer}\n\`\`\`\n\n` +
       `Your latest review:\n${lastReview ?? '(no review yet)'}`
     )
@@ -391,9 +407,7 @@ export function aboutPrompt(problem: Problem, language: Language = 'typescript')
   if (isCode(problem)) {
     return (
       base +
-      `\n\nProblem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n${problem.description.join('\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
-      `Constraints:\n${(problem.constraints ?? []).map((c) => `- ${c}`).join('\n') || '(none stated)'}\n\n` +
-      `Hints the problem comes with:\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
+      `\n\n${fmtProblem(problem, language, 'hints')}` +
       `Reference solution, for you to explain from and build on:\n${referenceSolution(problem, language)}`
     )
   }
@@ -471,10 +485,7 @@ export function guidePrompt(problem: Problem, answer: string, run?: RunResult | 
       schema: GUIDE_SCHEMA,
       system: common + 'For code, name the pattern by its third step and the data structure by its fourth.',
       user:
-        `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${problem.description.join('\n\n')}\n\n` +
-        `Examples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +
-        (problem.constraints?.length ? `Constraints:\n${problem.constraints.map((c) => `- ${c}`).join('\n')}\n\n` : '') +
-        `Author's hints, for your reference (do not just repeat them):\n${problem.hints.map((h) => `- ${h}`).join('\n') || '(none)'}\n\n` +
+        fmtProblem(problem, language, 'author') +
         `Reference solution, for your reference only (never show it):\n${referenceSolution(problem, language)}\n\n` +
         `${fmtRun(run)}\n\n` +
         `Current attempt:\n\`\`\`${fence(language)}\n${answer}\n\`\`\``,

@@ -5,7 +5,7 @@ import DocLinks from './DocLinks.tsx'
 import { PROBLEM_DOCS } from '../data/docs.ts'
 import { BookOpen, Play } from 'lucide-react'
 import { primerFor } from '../data/primers.ts'
-import { LANGUAGE_LABEL, isCode, isDesign, langFor, portFor } from '../types.ts'
+import { LANGUAGE_LABEL, isCode, isDesign, langFor, portFor, statementFor } from '../types.ts'
 import type { Language, Problem } from '../types.ts'
 import type { TechniqueDoc } from '../data/techniques.ts'
 
@@ -49,13 +49,14 @@ function ProblemBody({ problem, onPrimer, techniques = [], onTechnique, language
     </>
   )
   if (isCode(problem)) {
+    const st = statementFor(problem, lang)
     return (
       <div className="pbody md">
         {primerLink}
-        {problem.description.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
+        {st.description.map((d, i) => <Markdown key={i}>{d}</Markdown>)}
         {techniqueRow}
         <h3>Examples</h3>
-        {problem.examples.map((ex, i) => (
+        {st.examples.map((ex, i) => (
           <div key={i} className="example">
             <div><span className="io">Input</span><pre>{ex.input}</pre></div>
             <div><span className="io">Output</span><pre>{ex.output}</pre></div>
@@ -68,10 +69,16 @@ function ProblemBody({ problem, onPrimer, techniques = [], onTechnique, language
             <ul>{problem.constraints.map((c, i) => <li key={i}>{c}</li>)}</ul>
           </>
         )}
-        {problem.hints.length > 0 && (
+        {st.nuances.length > 0 && (
+          <>
+            <h3>What matters in {LANGUAGE_LABEL[lang]}</h3>
+            <ul>{st.nuances.map((n, i) => <li key={i}><Markdown>{n}</Markdown></li>)}</ul>
+          </>
+        )}
+        {st.hints.length > 0 && (
           <details className="spoiler">
-            <summary>Hints ({problem.hints.length})</summary>
-            <ol>{problem.hints.map((h, i) => <li key={i}>{h}</li>)}</ol>
+            <summary>Hints ({st.hints.length})</summary>
+            <ol>{st.hints.map((h, i) => <li key={i}>{h}</li>)}</ol>
           </details>
         )}
         <details className="spoiler" open={solutionOpen} onToggle={(e) => setSolutionOpen((e.target as HTMLDetailsElement).open)}>

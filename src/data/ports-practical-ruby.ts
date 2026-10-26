@@ -1,4 +1,6 @@
 import type { Port } from '../types.ts'
+import { withNotes } from './notes.ts'
+import { RUBY_PRACTICAL_NOTES } from './practical-nuances-ruby.ts'
 
 /**
  * The practical problems in Ruby. Promises become threads, AbortSignal
@@ -7,7 +9,7 @@ import type { Port } from '../types.ts'
  * run here. Function names are the snake_case form of the TypeScript names.
  */
 
-export const RUBY_PRACTICAL: Record<string, Port> = {
+const RUBY_PRACTICAL_CODE: Record<string, Port> = {
   'lru-cache': {
     starter: `# A fixed-capacity cache: get marks a key most recently used; set evicts the
 # least recently used entry once over capacity. Both O(1).
@@ -49,7 +51,7 @@ end
   def set(key, value)
     @items.delete(key)
     @items[key] = value
-    @items.delete(@items.keys.first) if @items.size > @capacity
+    @items.shift if @items.size > @capacity # the oldest entry, in O(1); keys.first would build every key
   end
 end
 
@@ -638,11 +640,12 @@ end
   end
 
   def call(*args)
+    fire = false
     @mutex.synchronize do
       t = @now.call
       if t - @last >= @interval_ms && @timer.nil?
         @last = t
-        @fn.call(*args)
+        fire = true
       else
         @pending = args
         @timer ||= Thread.new do
@@ -651,6 +654,8 @@ end
         end
       end
     end
+    # Outside the lock, like flush: a handler that calls back into the throttle would otherwise deadlock (Mutex is not reentrant).
+    @fn.call(*args) if fire
   end
 
   private
@@ -1057,7 +1062,7 @@ end
     end
     if @entries.size >= @capacity
       bucket = @buckets[@min_freq]
-      victim = bucket.keys.first
+      victim = bucket.each_key.first # the oldest in the bucket, without building every key
       bucket.delete(victim)
       @buckets.delete(@min_freq) if bucket.empty?
       @entries.delete(victim)
@@ -1495,7 +1500,8 @@ def with_timeout(ms, &run)
   if thread.join(ms / 1000.0).nil?
     token.cancel
     begin
-      thread.join # the callee should stop promptly once cancelled
+      # The callee should stop promptly once cancelled; one that ignores the token must not hang the caller forever.
+      thread.join(ms / 1000.0) || thread.kill
     rescue StandardError
       # its own error is not the result; the timeout is
     end
@@ -1530,3 +1536,6 @@ end
 `,
   },
 }
+
+/** Each port with its Ruby statement, hints and nuances. */
+export const RUBY_PRACTICAL: Record<string, Port> = withNotes(RUBY_PRACTICAL_CODE, RUBY_PRACTICAL_NOTES)
