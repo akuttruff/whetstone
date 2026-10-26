@@ -1,17 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { JAVA_HARNESS } from './harness-java.ts'
 import { RUBY_HARNESS } from './harness-ruby.ts'
 import { TS_HARNESS } from './harness-ts.ts'
-import { javaBins, missingMessage, rubyBin } from './langs.ts'
+import { RUST_HARNESS, definesMain, rustMain } from './harness-rust.ts'
+import { javaBins, missingMessage, rubyBin, rustBin } from './langs.ts'
 import { languageNeutral, normaliseTests, testLabel } from '../src/lib/tests.ts'
 import type { Language, RunResult, TestCase, TestResult } from '../src/types.ts'
 
 /**
  * Runs a draft against its problem's tests in a separate process: Node with
- * its own TypeScript support, Ruby, or a javac + java pair. Each language has
+ * its own TypeScript support, Ruby, a javac + java pair, or rustc and the
+ * binary it produces. Each language has
  * a harness that calls the tested function with the JSON arguments and
  * writes its raw outcomes to a result file; the comparison with the
  * expected values is done here, once, the same way for every language. This
@@ -22,7 +24,7 @@ import type { Language, RunResult, TestCase, TestResult } from '../src/types.ts'
 
 export const RUN_TIMEOUT_MS = 15_000
 export const PER_TEST_TIMEOUT_MS = 3_000
-/** Compiling Java is slow to start; it gets its own budget before the run. */
+/** Compiling (javac, rustc) is slow to start; it gets its own budget before the run. */
 export const COMPILE_TIMEOUT_MS = 30_000
 export const CODE_MAX = 200_000
 /**
@@ -150,6 +152,40 @@ function compiledHarness(javac: string, root: string): Promise<string> {
   return harnessClasses
 }
 
+/**
+ * The Rust harness library, likewise compiled once per server (an rlib the
+ * solution links against) and rebuilt when it has gone, when its source has
+ * changed, or when rustc has changed under it (see the version check in runOnce).
+ */
+let rustHarness: Promise<string> | null = null
+let rustHarnessDone = false
+const RUSTC_FLAGS = ['--edition', '2021', '-A', 'warnings', '--color', 'never']
+function compiledRustHarness(rustc: string, root: string): Promise<string> {
+  const dir = path.join(root, 'rust-harness')
+  // Named after the harness source, so an edited harness is never served from an old rlib.
+  const source = RUST_HARNESS(RESULT_FILE, PER_TEST_TIMEOUT_MS)
+  const rlib = path.join(dir, `libwhetstone-${createHash('sha256').update(source).digest('hex').slice(0, 12)}.rlib`)
+  if (rustHarness && (!rustHarnessDone || fs.existsSync(rlib))) return rustHarness
+  rustHarnessDone = false
+  rustHarness = (async () => {
+    // Built under a private name and renamed into place: another process
+    // sharing the directory (the content test, the check-ports script) must
+    // never link against a half-written rlib.
+    fs.mkdirSync(dir, { recursive: true })
+    const src = path.join(dir, `whetstone-${process.pid}.rs`)
+    const tmp = path.join(dir, `libwhetstone-${process.pid}.rlib`)
+    fs.writeFileSync(src, source)
+    const r = await run(rustc, [...RUSTC_FLAGS, '--crate-type', 'lib', '--crate-name', 'whetstone', '-O', '-o', tmp, src], dir, COMPILE_TIMEOUT_MS)
+    fs.rmSync(src, { force: true })
+    if (r.code !== 0) throw new Error('the Rust harness did not compile: ' + tidy(r.stderr))
+    fs.renameSync(tmp, rlib)
+    rustHarnessDone = true
+    return rlib
+  })()
+  rustHarness.catch(() => { rustHarness = null })
+  return rustHarness
+}
+
 /** A small queue in front of the runs: at most MAX_CONCURRENT_RUNS at a time, the rest in arrival order. */
 let active = 0
 const waiting: (() => void)[] = []
@@ -228,6 +264,31 @@ async function runOnce(code: string, input: TestCase[], opts: RunOptions): Promi
       if (compiled.timedOut) return failed(tests, 'Compiling took too long.', Date.now() - started)
       if (compiled.code !== 0) return failed(tests, 'Your code could not be compiled:\n' + tidyJavac(compiled.stderr || compiled.stdout), Date.now() - started)
       proc = await run(bins.java, [`-Xmx${HEAP_MB}m`, '-Xss64m', '-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-cp', `out${path.delimiter}${harnessDir}`, 'Harness'], dir, timeoutMs)
+    } else if (language === 'rust') {
+      const rustc = rustBin()
+      if (!rustc) return failed(tests, missingMessage('rust'), 0)
+      if (definesMain(code)) return failed(tests, 'Leave out fn main: the test harness supplies the entry point and calls your functions directly.', 0)
+      // The candidate's code first, so rustc's line numbers match the editor; the generated glue below it.
+      fs.writeFileSync(path.join(dir, 'main.rs'), rustMain(code, tests.map((t) => t.fn!)))
+      let compiled: Spawned | null = null
+      // Twice at most: a harness rlib left by an older rustc is rebuilt and the solution compiled again.
+      for (let attempt = 0; attempt < 2 && !compiled; attempt++) {
+        let rlib: string
+        try {
+          rlib = await compiledRustHarness(rustc, opts.dir)
+        } catch (e) {
+          return failed(tests, (e as Error).message, Date.now() - started)
+        }
+        compiled = await run(rustc, [...RUSTC_FLAGS, '--crate-type', 'bin', '--crate-name', 'solution', '-C', 'debuginfo=0', '--extern', `whetstone=${rlib}`, '-o', 'run', 'main.rs'], dir, COMPILE_TIMEOUT_MS)
+        if (compiled.code !== 0 && attempt === 0 && /incompatible version of rustc/.test(compiled.stderr)) {
+          rustHarness = null
+          compiled = null
+        }
+      }
+      if (compiled!.timedOut) return failed(tests, 'Compiling took too long.', Date.now() - started)
+      if (compiled!.code !== 0) return failed(tests, 'Your code could not be compiled:\n' + tidyRustc(compiled!.stderr || compiled!.stdout), Date.now() - started)
+      // No heap limit, as for Ruby: macOS has no usable address-space limit, so a runaway allocation is bounded by the run timeout.
+      proc = await run(path.join(dir, 'run'), [], dir, timeoutMs)
     } else {
       fs.writeFileSync(path.join(dir, 'solution.ts'), code)
       fs.writeFileSync(path.join(dir, 'harness.mjs'), TS_HARNESS(RESULT_FILE, PER_TEST_TIMEOUT_MS, HEAP_MB))
@@ -240,7 +301,11 @@ async function runOnce(code: string, input: TestCase[], opts: RunOptions): Promi
     } catch {
       /* no result file, or a partial one: fall through to the generic error */
     }
-    if (raw && Array.isArray(raw.results)) return compare(tests, raw, language, ms)
+    if (raw && Array.isArray(raw.results)) {
+      // The Rust harness cannot capture output in-process; what the solution printed is the child's own stdout and stderr.
+      if (language === 'rust' && !raw.output) raw.output = (proc.stdout + (proc.stderr ? '\n' + proc.stderr : '')).trim()
+      return compare(tests, raw, language, ms)
+    }
     const error = proc.timedOut
       ? `Timed out after ${Math.round(timeoutMs / 1000)} s (an infinite loop?)`
       : `The run failed (exit ${proc.code}): ${tidy(proc.stderr) || tidy(proc.stdout) || 'no output'}`
@@ -265,6 +330,17 @@ function tidyJavac(s: string): string {
     .split('\n')
     .filter((l) => !/^\d+ errors?$/.test(l.trim()) && !l.startsWith('Note:'))
     .map((l) => l.replace(/^.*[\\/]Solution\.java:/, 'Solution.java:'))
+    .join('\n')
+    .trim()
+    .slice(0, 4000)
+}
+
+/** rustc's errors with the editor's line numbers, without the footer lines about explain codes and error counts. */
+function tidyRustc(s: string): string {
+  return s
+    .split('\n')
+    .filter((l) => !/^(error: aborting due to|For more information about this error|Some errors have detailed explanations|warning: .*warnings? emitted)/.test(l.trim()))
+    .map((l) => l.replace(/^(\s*-->\s*)(?:.*[\\/])?main\.rs:/, '$1line '))
     .join('\n')
     .trim()
     .slice(0, 4000)

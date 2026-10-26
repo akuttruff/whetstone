@@ -42,8 +42,8 @@ npm run screenshots                # another; needs Google Chrome
 - **Knowledge** asks questions you answer in prose, with key points to hit.
 - **Behavioral** takes STAR-format stories, reviewed for structure and specifics.
 
-Coding and Practical come in TypeScript, Ruby and Java. The toggle next to
-the title picks the language.
+Coding and Practical come in TypeScript, Ruby, Java and Rust. The toggle
+next to the title picks the language.
 
 ## Before you start
 
@@ -55,7 +55,7 @@ your phone or desktop browser
         ▼
 Whetstone ── one Node process on one computer ── .data/ (SQLite)
         │
-        ├──▶ a sandbox on that computer            (runs your code: node, ruby, javac/java)
+        ├──▶ a sandbox on that computer            (runs your code: node, ruby, javac/java, rustc)
         └──▶ a model server on the same computer   (reviews, hints, tutoring, new problems)
 ```
 
@@ -70,16 +70,17 @@ talks only to Whetstone.
 | For | You need |
 |---|---|
 | Browsing problems, primers and techniques; writing and running TypeScript | Node 24 or newer |
-| Running Ruby or Java solutions | `ruby`, or a JDK (`javac` and `java`), on the same computer |
+| Running Ruby, Java or Rust solutions | `ruby`, a JDK (`javac` and `java`), or `rustc`, on the same computer |
 | Reviews, hint ladders, tutor threads and new problems | A model server that speaks the OpenAI chat API (below) |
 | Opening it on your phone | [Tailscale](https://tailscale.com) on both devices, with Tailscale Serve in front of Whetstone (see *Keeping it running*) |
 
 Node 24 is the floor because drafts and reviews are stored with
 `node:sqlite`, which arrived in that version. Check with `node --version`.
 
-Ruby and Java problems need their toolchains: `brew install ruby openjdk`
-on a Mac. Settings shows which languages the computer can run; `server/langs.ts` lists where it
-looks, and `WHETSTONE_RUBY` and `WHETSTONE_JAVA_HOME` override that.
+Ruby, Java and Rust problems need their toolchains: `brew install ruby
+openjdk rust` on a Mac (or rustup for Rust). Settings shows which languages
+the computer can run; `server/langs.ts` lists where it looks, and
+`WHETSTONE_RUBY`, `WHETSTONE_JAVA_HOME` and `WHETSTONE_RUSTC` override that.
 Without a toolchain the problems can still be written, just not run.
 
 ### A model server
@@ -165,34 +166,42 @@ sandbox, so the content cannot drift.
 
 ### Languages
 
-Every coding and practical problem has a hand-written Ruby and Java version
-in `src/data/ports-*.ts`: a starter and a reference solution each. The ports
-mirror the TypeScript ones; promises become threads or executors, and
-AbortSignal becomes a small cancel token.
+Every coding and practical problem has a hand-written Ruby, Java and Rust
+version in `src/data/ports-*.ts`: a starter and a reference solution each.
+The ports mirror the TypeScript ones; promises become threads or executors,
+and AbortSignal becomes a small cancel token. In Rust the practical track's
+dynamic test data (scripts of mixed values, nested objects) arrives as the
+harness's `whetstone::Json` enum.
 
 Your work is kept per language. Switching from TypeScript to Ruby on a
 problem shows a fresh Ruby draft, with its own reviews, hints and threads.
 The review, tutor and hint prompts all speak the selected language.
 
 The Knowledge track has one language topic per language (TypeScript &
-JavaScript, Ruby, Java). You see the one for the selected language; the
-other topics are shared.
+JavaScript, Ruby, Java, Rust). You see the one for the selected language;
+the other topics are shared.
 
 ### Running code
 
 Run writes your draft to a scratch directory and executes it under a
-harness for that language: a child Node process for TypeScript, `ruby`, or
-`javac` and `java`.
+harness for that language: a child Node process for TypeScript, `ruby`,
+`javac` and `java`, or `rustc` and the binary it produces.
 
 The harness finds the function by name (`twoSum` and `two_sum` both
 resolve), converts the JSON arguments into that language's values, and
 reports the raw results. Java does this by reflection on the method
 signature, so `int[]`, `List<List<Integer>>`, `char[][]` and `ListNode` all
-work. The comparison with the expected values happens once, on the server.
+work. Rust has no reflection, so the runner appends a generated module to
+your file that calls each tested function; the conversions are chosen by
+type inference from the function's own signature, which is why Rust
+parameters take owned values (`Vec<i32>`, `String`, `Option<Box<ListNode>>`)
+rather than references. Compile errors and panics come back with the
+editor's line numbers. The comparison with the expected values happens
+once, on the server.
 
 Every language gets a per-test and overall timeout and capped console
 output; Node and Java also get a 512 MB heap (macOS will not limit Ruby's
-memory). Each run is its own process group, killed whole at the end, so
+or Rust's memory). Each run is its own process group, killed whole at the end, so
 nothing a solution starts outlives it, and at most two runs go at once.
 The sandbox is a convenience, not a security boundary.
 
@@ -265,10 +274,10 @@ solution passes the same tests.
 
 ### Loading
 
-The list screen ships without the editor. CodeMirror, the Ruby and Java
-grammars, the visualiser and the ports are separate chunks fetched on first
-use, and hashed assets are served as immutable. The Java harness is
-compiled once per server and reused.
+The list screen ships without the editor. CodeMirror, the Ruby, Java and
+Rust grammars, the visualiser and the ports are separate chunks fetched on
+first use, and hashed assets are served as immutable. The Java and Rust
+harnesses are compiled once per server and reused.
 
 ## Stack and layout
 
@@ -278,9 +287,10 @@ Vite 8 + React 19 + TypeScript, a Vite plugin server with SQLite
 ```
 server/   api.ts (routes), store.ts (SQLite), llm.ts (chat client),
           prompts.ts (review, variant and port prompts), runner.ts (sandbox)
-          with harness-ts/ruby/java.ts and langs.ts
+          with harness-ts/ruby/java/rust.ts and langs.ts
 src/      App.tsx, components/, hooks/, lib/api.ts, data/ (content), viz/
 public/   sw.js, the app shell cache
-scripts/  deploy.sh, com.amie.whetstone.plist, seed-demo.ts, screenshots.mjs
+scripts/  deploy.sh, com.amie.whetstone.plist, seed-demo.ts, screenshots.mjs,
+          check-ports.ts (run one language's ports through the sandbox)
 docs/     screenshots/ for this README
 ```

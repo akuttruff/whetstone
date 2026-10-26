@@ -33,14 +33,14 @@ describe('built-in content', () => {
 
   it('gives each language its own knowledge topic, tagged so only that language lists it', () => {
     const knowledge = BUILTIN_PROBLEMS.filter(isPrompt).filter((p) => p.track === 'knowledge')
-    for (const [language, topic] of [['typescript', 'TypeScript & JavaScript'], ['ruby', 'Ruby'], ['java', 'Java']] as const) {
+    for (const [language, topic] of [['typescript', 'TypeScript & JavaScript'], ['ruby', 'Ruby'], ['java', 'Java'], ['rust', 'Rust']] as const) {
       const own = knowledge.filter((p) => p.language === language)
       expect(own.length, language).toBeGreaterThanOrEqual(10)
       expect(new Set(own.map((p) => p.topic)), language).toEqual(new Set([topic]))
     }
     // The shared topics name no language in their questions.
     const shared = knowledge.filter((p) => !p.language)
-    expect(shared.filter((p) => /typescript|\bnode\b|ruby|\bjava\b/i.test(p.question.join(' '))).map((p) => p.id)).toEqual([])
+    expect(shared.filter((p) => /typescript|\bnode\b|ruby|\bjava\b|\brust\b/i.test(p.question.join(' '))).map((p) => p.id)).toEqual([])
   })
 
   it('every code problem has language-neutral tests (function name plus JSON arguments)', () => {
@@ -93,13 +93,15 @@ const portSuite = (language: Exclude<Language, 'typescript'>): void => {
           if (s.error) failures.push(`${p.id} starter: ${s.error}`)
         }
       }
-      await Promise.all(Array.from({ length: language === 'java' ? 4 : 6 }, worker))
+      // Java and Rust compile each run, so fewer at once.
+      await Promise.all(Array.from({ length: language === 'ruby' ? 6 : 4 }, worker))
       expect(failures).toEqual([])
     }, 900_000)
   })
 }
 portSuite('ruby')
 portSuite('java')
+portSuite('rust')
 
 import { PRIMERS, primerFor } from '../src/data/primers.ts'
 import { PRIMER_TEMPLATES } from '../src/data/primer-templates.ts'
@@ -112,7 +114,7 @@ describe('primers', () => {
     const orphans = PRIMERS.filter((p) => !topics.has(`${p.track}::${p.topic}`)).map((p) => `${p.track}::${p.topic}`)
     expect(orphans).toEqual([])
   })
-  it('have every coding and practical template in Ruby and Java, and no orphan templates', () => {
+  it('have every coding and practical template in Ruby, Java and Rust, and no orphan templates', () => {
     const coding = PRIMERS.filter((p) => p.track === 'coding' || p.track === 'practical')
     const keys = new Set(coding.flatMap((p) => p.techniques.filter((t) => t.template).map((t) => `${p.topic}::${t.name}`)))
     expect([...keys].filter((k) => !PRIMER_TEMPLATES[k])).toEqual([])
@@ -120,6 +122,7 @@ describe('primers', () => {
     for (const p of coding) for (const t of p.techniques) if (t.template) {
       expect(t.templates?.ruby?.trim().length, `${t.name} ruby`).toBeGreaterThan(0)
       expect(t.templates?.java?.trim().length, `${t.name} java`).toBeGreaterThan(0)
+      expect(t.templates?.rust?.trim().length, `${t.name} rust`).toBeGreaterThan(0)
     }
   })
   it('are substantive', () => {

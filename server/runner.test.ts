@@ -312,3 +312,94 @@ class Solution {
     expect(r.output.length).toBeLessThanOrEqual(20_000)
   }, 60_000)
 })
+
+describe.skipIf(!have.rust)('runTests (Rust)', () => {
+  it('builds arguments from the parameter types and converts results and nodes', async () => {
+    const code = `
+use std::collections::HashMap;
+
+pub struct ListNode { pub val: i32, pub next: Option<Box<ListNode>> }
+
+pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
+    let mut seen: HashMap<i32, i32> = HashMap::new();
+    for (i, &n) in nums.iter().enumerate() {
+        if let Some(&j) = seen.get(&(target - n)) { return vec![j, i as i32]; }
+        seen.insert(n, i as i32);
+    }
+    vec![]
+}
+
+pub fn reverse_list(head: Option<Box<ListNode>>) -> Option<Box<ListNode>> {
+    let mut prev = None;
+    let mut cur = head;
+    while let Some(mut node) = cur {
+        cur = node.next.take();
+        node.next = prev;
+        prev = Some(node);
+    }
+    prev
+}
+
+pub fn groups(xs: Vec<Vec<i32>>, grid: Vec<Vec<char>>, s: String) -> Vec<Vec<i32>> {
+    println!("grid {}{}", grid[0][1], s);
+    xs
+}
+
+pub fn check(adj: HashMap<i32, Vec<i32>>) -> HashMap<String, bool> {
+    HashMap::from([("equal".to_string(), adj[&1][0] == 2)])
+}
+
+pub fn half(n: i64) -> f64 { n as f64 / 2.0 }
+
+pub fn pair(a: Option<String>, b: (i32, bool)) -> (Option<String>, i32, bool) { (a, b.0, b.1) }
+`
+    const r = await runTests(code, [
+      { fn: 'twoSum', args: [[2, 7, 11, 15], 9], expected: [0, 1] },
+      { fn: 'reverseList', args: [LIST], expected: REVERSED },
+      { fn: 'groups', args: [[[1, 2], [3]], [['a', 'b']], 'x'], expected: [[1, 2], [3]] },
+      { fn: 'check', args: [{ 1: [2, 4] }], expected: { equal: true } },
+      { fn: 'half', args: [5], expected: 2.5 },
+      { fn: 'pair', args: [null, [3, true]], expected: [null, 3, true] },
+    ], { dir, language: 'rust', timeoutMs: 30_000 })
+    expect(r.error).toBeUndefined()
+    expect(r.results.map((t) => [t.name, t.pass, t.actual])).toEqual([
+      ['two_sum([2,7,11,15], 9)', true, '[0,1]'],
+      ['reverse_list({"val":1,"next":{"val":2,"next":{"val":3,"next":null}}})', true, '{"next":{"next":{"next":null,"val":1},"val":2},"val":3}'],
+      ['groups([[1,2],[3]], [["a","b"]], "x")', true, '[[1,2],[3]]'],
+      ['check({"1":[2,4]})', true, '{"equal":true}'],
+      ['half(5)', true, '2.5'],
+      ['pair(null, [3,true])', true, '[null,3,true]'],
+    ])
+    expect(r.output).toBe('grid bx')
+  }, 60_000)
+
+  it('reports compile errors with the editor line, panics, missing functions, bad arguments and timeouts', async () => {
+    let r = await runTests('pub fn f() -> i32 {\n    "x"\n}', [{ fn: 'f', args: [], expected: 1 }], { dir, language: 'rust', timeoutMs: 30_000 })
+    expect(r.error).toMatch(/could not be compiled/)
+    expect(r.error).toMatch(/--> line 2:5/)
+    expect(r.error).not.toMatch(/rustc --explain/)
+    r = await runTests('pub fn boom(i: usize) -> i32 { let v = vec![1]; v[i] }\npub fn spin() -> i32 { loop {} }\npub fn one() -> i32 { 1 }', [
+      { fn: 'boom', args: [3], expected: 1 },
+      { fn: 'missing', args: [], expected: 1 },
+      { fn: 'one', args: ['x'], expected: 1 },
+      { fn: 'spin', args: [], expected: 1 },
+      { fn: 'one', args: [], expected: 1 },
+    ], { dir, language: 'rust', timeoutMs: 30_000 })
+    expect(r.results[0]!.error).toBe('panicked at line 1: index out of bounds: the len is 1 but the index is 3')
+    expect(r.results[1]!.error).toMatch(/no function named missing/)
+    expect(r.results[2]!.error).toMatch(/takes 0 argument/)
+    expect(r.results[3]!.error).toMatch(/timed out/)
+    expect(r.results[4]!.error).toBe('not run')
+  }, 60_000)
+
+  it('refuses a file with its own main', async () => {
+    const r = await runTests('fn main() {}\npub fn one() -> i32 { 1 }', [{ fn: 'one', args: [], expected: 1 }], { dir, language: 'rust' })
+    expect(r.error).toMatch(/fn main/)
+  })
+
+  it('caps captured output', async () => {
+    const r = await runTests('pub fn noisy() -> i32 { for i in 0..200_000 { println!("line {}", i); } 1 }', [{ fn: 'noisy', args: [], expected: 1 }], { dir, language: 'rust', timeoutMs: 30_000 })
+    expect(r.ok).toBe(true)
+    expect(r.output.length).toBeLessThanOrEqual(20_000)
+  }, 60_000)
+})

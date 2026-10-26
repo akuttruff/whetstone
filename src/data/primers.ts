@@ -3,7 +3,7 @@ import { PRIMERS_CODING } from './primers-coding.ts'
 import { PRIMERS_OTHER } from './primers-other.ts'
 import { PRIMER_TEMPLATES } from './primer-templates.ts'
 
-/** Coding and practical templates pick up their Ruby and Java versions from primer-templates.ts. */
+/** Coding and practical templates pick up their Ruby, Java and Rust versions from primer-templates.ts. */
 const withTemplates = (p: Primer): Primer => ({
   ...p,
   techniques: p.techniques.map((t) => {

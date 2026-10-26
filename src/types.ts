@@ -15,13 +15,14 @@ export const TRACKS: { id: Track; label: string; blurb: string }[] = [
 ]
 
 /** The languages a code problem (coding or practical) can be attempted in. */
-export type Language = 'typescript' | 'ruby' | 'java'
+export type Language = 'typescript' | 'ruby' | 'java' | 'rust'
 export const LANGUAGES: { id: Language; label: string; short: string }[] = [
   { id: 'typescript', label: 'TypeScript', short: 'TS' },
   { id: 'ruby', label: 'Ruby', short: 'Ruby' },
   { id: 'java', label: 'Java', short: 'Java' },
+  { id: 'rust', label: 'Rust', short: 'Rust' },
 ]
-export const LANGUAGE_LABEL: Record<Language, string> = { typescript: 'TypeScript', ruby: 'Ruby', java: 'Java' }
+export const LANGUAGE_LABEL: Record<Language, string> = { typescript: 'TypeScript', ruby: 'Ruby', java: 'Java', rust: 'Rust' }
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']

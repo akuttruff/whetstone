@@ -499,6 +499,13 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 }
 .lang-toggle button.active { background: var(--raised-2); color: var(--ink); }
 .lang-toggle button:active { color: var(--ink); }
+/* four languages have to share a 375px header with the title and the settings button */
+@media (max-width: 420px) {
+  .top { padding-left: 12px; gap: 6px; }
+  .brand { font-size: 18px; }
+  .lang-toggle { flex: 0 1 auto; min-width: 0; }
+  .lang-toggle button { padding: 5px 6px; font-size: 11px; }
+}
 
 /* a generated problem with no version in the chosen language yet */
 .noport { flex: 1 1 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }

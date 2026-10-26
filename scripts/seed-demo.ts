@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Store } from '../server/store.ts'
 import { RUBY_PORTS } from '../src/data/ports-ruby.ts'
+import { RUST_PORTS } from '../src/data/ports-rust.ts'
 
 /**
  * Fills the development database (.data-dev, the one `npm run dev` uses)
@@ -50,6 +51,7 @@ store.setDraft('sliding-window-maximum', `export function maxSlidingWindow(nums:
 `)
 // The same problem solved in Ruby (attempts are kept per language).
 store.setDraft('sliding-window-maximum@ruby', RUBY_PORTS['sliding-window-maximum']!.solution)
+store.setDraft('sliding-window-maximum@rust', RUST_PORTS['sliding-window-maximum']!.solution)
 store.addChat('sliding-window-maximum', 'user', 'Why does the front need evicting if I only ever push larger values?')
 store.addChat(
   'sliding-window-maximum',

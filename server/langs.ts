@@ -3,10 +3,10 @@ import path from 'node:path'
 import type { Language } from '../src/types.ts'
 
 /**
- * Where the Ruby and Java toolchains live on this machine. Node is the one
- * running the server; the other two are looked up at request time (so an
+ * Where the Ruby, Java and Rust toolchains live on this machine. Node is the
+ * one running the server; the others are looked up at request time (so an
  * install needs no restart), from an environment override first, then the
- * usual Homebrew and system locations, then PATH.
+ * usual rustup, Homebrew and system locations, then PATH.
  */
 
 const isFile = (p: string): boolean => {
@@ -67,19 +67,34 @@ export function javaBins(): { java: string; javac: string } | null {
   return null
 }
 
+/** The Rust compiler: a rustup install first (its proxy picks the default toolchain), then Homebrew's rust formula, then PATH. */
+export function rustBin(): string | null {
+  const candidates = [
+    process.env.WHETSTONE_RUSTC,
+    path.join(home, '.cargo/bin/rustc'),
+    '/opt/homebrew/opt/rust/bin/rustc',
+    '/opt/homebrew/bin/rustc',
+    '/usr/local/bin/rustc',
+    onPath('rustc'),
+  ]
+  return candidates.find((c): c is string => Boolean(c) && isFile(c!)) ?? null
+}
+
 export interface Availability {
   typescript: true
   ruby: boolean
   java: boolean
+  rust: boolean
 }
 
 /** Which languages can run on this machine right now. */
 export function availability(): Availability {
-  return { typescript: true, ruby: rubyBin() !== null, java: javaBins() !== null }
+  return { typescript: true, ruby: rubyBin() !== null, java: javaBins() !== null, rust: rustBin() !== null }
 }
 
 export function missingMessage(language: Language): string {
   if (language === 'ruby') return 'Ruby is not installed on the machine running Whetstone (looked in Homebrew, asdf, chruby, PATH and /usr/bin). Install it with "brew install ruby", or point WHETSTONE_RUBY at a ruby binary.'
   if (language === 'java') return 'A JDK is not installed on the machine running Whetstone (looked in Homebrew, /Library/Java, asdf, sdkman and PATH). Install one with "brew install openjdk", or point WHETSTONE_JAVA_HOME at a JDK.'
+  if (language === 'rust') return 'Rust is not installed on the machine running Whetstone (looked in ~/.cargo/bin, Homebrew and PATH). Install it with "brew install rust" or from rustup.rs, or point WHETSTONE_RUSTC at a rustc binary.'
   return 'TypeScript runs on the server itself.'
 }

@@ -12,12 +12,18 @@ const cache: Partial<Record<Language, Extension[]>> = { typescript: TS }
 /** The language mode, fetched as its own chunk the first time that language is used. */
 async function modeFor(language: Language): Promise<Extension[]> {
   if (cache[language]) return cache[language]!
-  const mode = language === 'java'
-    ? [(await import('@codemirror/lang-java')).java()]
-    : [(await import('@codemirror/language')).StreamLanguage.define((await import('@codemirror/legacy-modes/mode/ruby')).ruby)]
+  let mode: Extension[]
+  if (language === 'java') mode = [(await import('@codemirror/lang-java')).java()]
+  else {
+    const { StreamLanguage } = await import('@codemirror/language')
+    mode = [StreamLanguage.define(language === 'rust' ? (await import('@codemirror/legacy-modes/mode/rust')).rust : (await import('@codemirror/legacy-modes/mode/ruby')).ruby)]
+  }
   cache[language] = mode
   return mode
 }
+
+/** Stream tokenizers, not parsers: they never produce the error nodes the syntax check reads. */
+const STREAM_MODE: Partial<Record<Language, true>> = { ruby: true, rust: true }
 
 interface Props {
   value: string
@@ -36,9 +42,9 @@ export default function CodeEditorInner({ value, onChange, readOnly = false, hei
   }, [language])
   // Live syntax feedback only where the candidate is typing; shown solutions
   // and templates are already known-good and the extra strip would be noise.
-  // It reads the parse tree's error nodes, which the Ruby mode (a stream
-  // tokenizer, not a parser) never produces, so it stays off there.
-  const checked = !readOnly && language !== 'ruby'
+  // It reads the parse tree's error nodes, which the Ruby and Rust modes
+  // (stream tokenizers, not parsers) never produce, so it stays off there.
+  const checked = !readOnly && !STREAM_MODE[language]
   return (
     <CodeMirror
       value={value}

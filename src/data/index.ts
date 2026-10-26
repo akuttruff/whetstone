@@ -14,6 +14,7 @@ import { KNOWLEDGE_PROBLEMS } from './knowledge.ts'
 import { KNOWLEDGE_MORE } from './knowledge-more.ts'
 import { KNOWLEDGE_RUBY } from './knowledge-ruby.ts'
 import { KNOWLEDGE_JAVA } from './knowledge-java.ts'
+import { KNOWLEDGE_RUST } from './knowledge-rust.ts'
 import { BEHAVIORAL_PROBLEMS } from './behavioral.ts'
 import { BEHAVIORAL_MORE } from './behavioral-more.ts'
 
@@ -21,11 +22,11 @@ import { BEHAVIORAL_MORE } from './behavioral-more.ts'
  * Test calls written as TypeScript expressions become function + JSON
  * arguments, so every language can run them. Practical problems get their
  * test driver appended to the starter and the solution, and the tests that
- * call it. The Ruby and Java ports are not attached here: the browser loads
- * them on demand (see ports.ts, `withPorts`) and the server uses full.ts.
+ * call it. The Ruby, Java and Rust ports are not attached here: the browser
+ * loads them on demand (see ports.ts, `withPorts`) and the server uses full.ts.
  */
 /** Knowledge topics that belong to one language: listed only when that language is selected. */
-export const LANGUAGE_TOPICS: Record<string, Language> = { 'TypeScript & JavaScript': 'typescript', Ruby: 'ruby', Java: 'java' }
+export const LANGUAGE_TOPICS: Record<string, Language> = { 'TypeScript & JavaScript': 'typescript', Ruby: 'ruby', Java: 'java', Rust: 'rust' }
 
 const neutral = (ps: Problem[]): Problem[] =>
   ps.map((p) => {
@@ -69,6 +70,7 @@ export const BUILTIN_PROBLEMS: Problem[] = neutral([
   ...KNOWLEDGE_MORE,
   ...KNOWLEDGE_RUBY,
   ...KNOWLEDGE_JAVA,
+  ...KNOWLEDGE_RUST,
   ...BEHAVIORAL_PROBLEMS,
   ...BEHAVIORAL_MORE,
 ])

@@ -8,7 +8,7 @@ import type { Language, TestCase } from '../types.ts'
  * (closures, awaits: the practical track) stays a TypeScript-only `call`.
  */
 
-/** `twoSum` → `two_sum`, `isValidBST` → `is_valid_bst`. Mirrored in the Ruby harness. */
+/** `twoSum` → `two_sum`, `isValidBST` → `is_valid_bst`. Mirrored in the Ruby and Rust harnesses. */
 export const snakeCase = (name: string): string =>
   name.replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2').replace(/([a-z\d])([A-Z])/g, '$1_$2').toLowerCase()
 
@@ -16,7 +16,7 @@ export const snakeCase = (name: string): string =>
 export const camelCase = (name: string): string => name.replace(/_+([a-zA-Z0-9])/g, (_, c: string) => c.toUpperCase())
 
 /** The name a test's function has in a language's convention. */
-export const fnNameFor = (fn: string, language: Language): string => (language === 'ruby' ? snakeCase(fn) : camelCase(fn))
+export const fnNameFor = (fn: string, language: Language): string => (language === 'ruby' || language === 'rust' ? snakeCase(fn) : camelCase(fn))
 
 class Parser {
   private i = 0
@@ -172,7 +172,7 @@ export const normaliseTests = (tests: TestCase[]): TestCase[] => tests.map(norma
 /** True when every test can run in any language (none is a TypeScript-only expression). */
 export const languageNeutral = (tests: TestCase[]): boolean => tests.every((t) => typeof t.fn === 'string' && Array.isArray(t.args))
 
-/** How a test is shown: `two_sum([2, 7], 9)` in Ruby, `twoSum([2, 7], 9)` elsewhere, or the raw call. */
+/** How a test is shown: `two_sum([2, 7], 9)` in Ruby and Rust, `twoSum([2, 7], 9)` elsewhere, or the raw call. */
 export function testLabel(t: TestCase, language: Language = 'typescript'): string {
   if (t.name) return t.name
   if (typeof t.fn === 'string' && Array.isArray(t.args)) {

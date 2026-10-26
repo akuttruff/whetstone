@@ -97,6 +97,7 @@ export function createApi(options: ApiOptions = {}) {
       model: () => listModels(store.getSettings(), fetchImpl),
       ruby: async () => { if (!availability().ruby) throw new Error('not installed') },
       java: async () => { if (!availability().java) throw new Error('not installed') },
+      rust: async () => { if (!availability().rust) throw new Error('not installed') },
     },
   })
 

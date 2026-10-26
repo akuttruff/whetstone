@@ -19,6 +19,11 @@ const rb = (label: string, path: string): DocLink => ({ label, url: `https://doc
 const rails = (label: string, path: string): DocLink => ({ label, url: `https://guides.rubyonrails.org/${path}` })
 const jdk = (label: string, path: string): DocLink => ({ label, url: `https://docs.oracle.com/en/java/javase/21/${path}` })
 const devjava = (label: string, path: string): DocLink => ({ label, url: `https://dev.java/learn/${path}` })
+const rust = (label: string, path: string): DocLink => ({ label, url: `https://doc.rust-lang.org/${path}` })
+const rustbook = (label: string, path: string): DocLink => rust(label, `book/${path}`)
+const rststd = (label: string, path: string): DocLink => rust(label, `std/${path}`)
+const docsrs = (label: string, path: string): DocLink => ({ label, url: `https://docs.rs/${path}` })
+const tokio = (label: string, path: string): DocLink => ({ label, url: `https://tokio.rs/tokio/${path}` })
 const link = (label: string, url: string): DocLink => ({ label, url })
 
 /** Where a whole topic's reading starts, shown at the foot of its primer. */
@@ -38,6 +43,13 @@ export const TOPIC_DOCS: Record<string, DocLink[]> = {
     jdk('Java SE 21 documentation', 'index.html'),
     devjava('Learn Java (dev.java)', ''),
     link('OpenJDK', 'https://openjdk.org/'),
+  ],
+  'Rust': [
+    rustbook('The Rust Programming Language', ''),
+    rust('The Rust Reference', 'reference/'),
+    rststd('Standard library documentation', ''),
+    rust('Rust by Example', 'rust-by-example/'),
+    rust('The Cargo Book', 'cargo/'),
   ],
   'Web & HTTP': [
     mdn('HTTP', 'Web/HTTP'),
@@ -85,6 +97,34 @@ export const PROBLEM_DOCS: Record<string, DocLink[]> = {
   'java-serialization-json': [link('Jackson', 'https://github.com/FasterXML/jackson'), jdk('java.time', 'docs/api/java.base/java/time/package-summary.html'), jdk('ObjectInputFilter', 'docs/api/java.base/java/io/ObjectInputFilter.html')],
   'java-reactive-backpressure': [link('Reactive Streams specification', 'https://www.reactive-streams.org/'), jdk('java.util.concurrent.Flow', 'docs/api/java.base/java/util/concurrent/Flow.html'), link('Project Reactor reference', 'https://projectreactor.io/docs/core/release/reference/')],
   'java-memory-leaks': [jdk('jcmd', 'docs/specs/man/jcmd.html'), link('Eclipse Memory Analyzer', 'https://eclipse.dev/mat/'), link('Caffeine', 'https://github.com/ben-manes/caffeine')],
+  // ── Rust ────────────────────────────────────────────────────────────
+  'rust-ownership-moves': [rustbook('What is ownership?', 'ch04-01-what-is-ownership.html'), rustbook('References and borrowing', 'ch04-02-references-and-borrowing.html'), rust('Rust by Example: ownership and moves', 'rust-by-example/scope/move.html')],
+  'rust-borrow-checker-errors': [rust('E0502: mutable borrow while borrowed', 'error_codes/E0502.html'), rust('E0499: two mutable borrows', 'error_codes/E0499.html'), rust('Rustonomicon: splitting borrows', 'nomicon/borrow-splitting.html')],
+  'rust-lifetimes-variance': [rustbook('Validating references with lifetimes', 'ch10-03-lifetime-syntax.html'), rust('Reference: lifetime elision', 'reference/lifetime-elision.html'), rust('Rustonomicon: subtyping and variance', 'nomicon/subtyping.html')],
+  'rust-traits-generics-dyn': [rustbook('Traits: defining shared behavior', 'ch10-02-traits.html'), rustbook('Using trait objects', 'ch18-02-trait-objects.html'), rust('Reference: traits and dyn compatibility', 'reference/items/traits.html')],
+  'rust-associated-types-coherence': [rustbook('Advanced traits', 'ch20-02-advanced-traits.html'), rust('Reference: implementations and the orphan rules', 'reference/items/implementations.html'), rststd('Iterator::Item', 'iter/trait.Iterator.html')],
+  'rust-enums-option-result-matching': [rustbook('Enums and pattern matching', 'ch06-00-enums.html'), rststd('Option', 'option/enum.Option.html'), rust('Reference: patterns', 'reference/patterns.html')],
+  'rust-error-handling-design': [rustbook('Recoverable errors with Result', 'ch09-02-recoverable-errors-with-result.html'), rststd('std::error::Error', 'error/trait.Error.html'), docsrs('thiserror', 'thiserror')],
+  'rust-smart-pointers-interior-mutability': [rustbook('Smart pointers', 'ch15-00-smart-pointers.html'), rststd('std::cell', 'cell/index.html'), rststd('Mutex', 'sync/struct.Mutex.html')],
+  'rust-send-sync': [rust('Rustonomicon: Send and Sync', 'nomicon/send-and-sync.html'), rststd('Send', 'marker/trait.Send.html'), rststd('Sync', 'marker/trait.Sync.html')],
+  'rust-threads-channels-atomics': [rustbook('Using threads', 'ch16-01-threads.html'), rststd('std::sync::atomic', 'sync/atomic/index.html'), link('Rust Atomics and Locks (Mara Bos)', 'https://marabos.nl/atomics/')],
+  'rust-async-model': [rustbook('Async and await', 'ch17-00-async-await.html'), rststd('Future', 'future/trait.Future.html'), rststd('std::pin', 'pin/index.html')],
+  'rust-async-in-practice': [tokio('Tokio tutorial: shared state', 'tutorial/shared-state'), tokio('Tokio tutorial: select', 'tutorial/select'), docsrs('tokio::task::spawn_blocking', 'tokio/latest/tokio/task/fn.spawn_blocking.html')],
+  'rust-iterators-closures': [rustbook('Closures', 'ch13-01-closures.html'), rustbook('Iterators', 'ch13-02-iterators.html'), rststd('Iterator', 'iter/trait.Iterator.html')],
+  'rust-strings-utf8': [rustbook('Storing UTF-8 text with strings', 'ch08-02-strings.html'), rststd('String', 'string/struct.String.html'), rststd('str', 'primitive.str.html')],
+  'rust-collections': [rststd('std::collections', 'collections/index.html'), rststd('HashMap', 'collections/struct.HashMap.html'), rststd('hash_map::Entry', 'collections/hash_map/enum.Entry.html')],
+  'rust-unsafe-ffi-soundness': [rustbook('Unsafe Rust', 'ch20-01-unsafe-rust.html'), rust('Reference: behavior considered undefined', 'reference/behavior-considered-undefined.html'), rust('Rustonomicon: FFI', 'nomicon/ffi.html')],
+  'rust-memory-layout-drop': [rust('Reference: type layout', 'reference/type-layout.html'), rststd('Drop', 'ops/trait.Drop.html'), rststd('Copy', 'marker/trait.Copy.html')],
+  'rust-modules-cargo-semver': [rustbook('Packages, crates and modules', 'ch07-00-managing-growing-projects-with-packages-crates-and-modules.html'), rust('Cargo: features', 'cargo/reference/features.html'), rust('Cargo: semver compatibility', 'cargo/reference/semver.html')],
+  'rust-macros': [rustbook('Macros', 'ch20-05-macros.html'), rust('Reference: macros by example', 'reference/macros-by-example.html'), rust('Reference: procedural macros', 'reference/procedural-macros.html')],
+  'rust-testing-benchmarking': [rustbook('Writing automated tests', 'ch11-00-testing.html'), link('proptest book', 'https://proptest-rs.github.io/proptest/'), link('criterion.rs user guide', 'https://bheisler.github.io/criterion.rs/book/')],
+  'rust-performance-profiling': [rust('Cargo: profiles', 'cargo/reference/profiles.html'), link('The Rust Performance Book', 'https://nnethercote.github.io/perf-book/'), rust('rustc: profile-guided optimization', 'rustc/profile-guided-optimization.html')],
+  'rust-api-design-idioms': [link('Rust API Guidelines', 'https://rust-lang.github.io/api-guidelines/'), rststd('From', 'convert/trait.From.html'), link('Rust design patterns: newtype', 'https://rust-unofficial.github.io/patterns/patterns/behavioural/newtype.html')],
+  'rust-serde': [link('Serde', 'https://serde.rs/'), link('Serde: attributes', 'https://serde.rs/attributes.html'), link('Serde: data model', 'https://serde.rs/data-model.html')],
+  'rust-axum-request-lifecycle': [docsrs('axum', 'axum/latest/axum/'), docsrs('tower::Service', 'tower/latest/tower/trait.Service.html'), docsrs('tower-http', 'tower-http')],
+  'rust-editions-2024': [rust('Edition Guide: Rust 2024', 'edition-guide/rust-2024/index.html'), rust('Edition Guide: what are editions?', 'edition-guide/editions/index.html'), link('Announcing Rust 1.85.0 and Rust 2024', 'https://blog.rust-lang.org/2025/02/20/Rust-1.85.0/')],
+  'rust-when-wrong-tool-interop': [link('PyO3 user guide', 'https://pyo3.rs/'), link('wasm-bindgen guide', 'https://rustwasm.github.io/docs/wasm-bindgen/'), link('cxx: safe interop between Rust and C++', 'https://cxx.rs/')],
+  'rust-compile-times-dev-workflow': [link('Rust Performance Book: compile times', 'https://nnethercote.github.io/perf-book/compile-times.html'), rust('cargo check', 'cargo/commands/cargo-check.html'), link('sccache', 'https://github.com/mozilla/sccache')],
   // ── TypeScript & JavaScript ──────────────────────────────────────────
   'ts-event-loop': [
     mdn('JavaScript execution model', 'Web/JavaScript/Reference/Execution_model'),

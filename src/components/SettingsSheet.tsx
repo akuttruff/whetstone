@@ -5,6 +5,9 @@ import { api } from '../lib/api.ts'
 import { LANGUAGES } from '../types.ts'
 import type { Language, ModelOption, PublicSettings, Settings } from '../types.ts'
 
+/** How to get each language's toolchain onto a Mac. */
+const INSTALL: Record<Language, string> = { typescript: 'comes with Node', ruby: 'brew install ruby', java: 'brew install openjdk', rust: 'brew install rust' }
+
 interface Props {
   open: boolean
   settings: PublicSettings
@@ -103,7 +106,7 @@ export default function SettingsSheet({ open, settings, onClose, onSave }: Props
               <span>Languages on this machine</span>
               <small className="field-hint">
                 {languages
-                  ? LANGUAGES.map((l) => `${l.label}: ${languages[l.id] ? 'ready' : l.id === 'ruby' ? 'not installed (brew install ruby)' : 'not installed (brew install openjdk)'}`).join(' · ')
+                  ? LANGUAGES.map((l) => `${l.label}: ${languages[l.id] ? 'ready' : `not installed (${INSTALL[l.id]})`}`).join(' · ')
                   : 'Checking…'}
                 {' '}The toggle next to the title picks the language; code in a missing one can be written and reviewed but not run.
               </small>

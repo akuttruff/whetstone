@@ -43,7 +43,7 @@ const label = (l: Language): string => LANGUAGE_LABEL[l]
 function referenceSolution(problem: CodeProblem, language: Language): string {
   const port = portFor(problem, language)
   if (port) return `\`\`\`${fence(language)}\n${port.solution}\n\`\`\``
-  const any = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([, p]) => p)
+  const any = LANGUAGES.map((l) => [l.id, portFor(problem, l.id)] as const).find(([, p]) => p)
   if (!any) return '(none)'
   return `(in ${label(any[0])}; the candidate works in ${label(language)}, so translate as you explain)\n\`\`\`${fence(any[0])}\n${any[1]!.solution}\n\`\`\``
 }
@@ -269,6 +269,13 @@ export function codeRules(language: Language): string {
       'Parameter types must match the test arguments: int[] for integer arrays, int[][] or char[][] for grids, String, List<List<Integer>> for jagged lists, ListNode or TreeNode for lists and trees; return primitives, String, arrays, Lists or a Map. ' +
       'A linked list is `class ListNode { int val; ListNode next; ListNode() {} ListNode(int val) { this.val = val; } }` and a tree is `class TreeNode { int val; TreeNode left, right; TreeNode() {} TreeNode(int val) { this.val = val; } }`, declared as top-level classes in the file when used. '
   }
+  if (language === 'rust') {
+    return 'Rules for Rust: "starter" defines exactly one free `pub fn` in snake_case (or a struct with its impl plus a pub driver fn for a data-structure problem), with a doc comment on the inputs and the return value and a body of `// your code` that returns a placeholder; ' +
+      '"solution" is the same file completed, correct and idiomatic Rust 2021, standard library only, no `fn main`, no external crates, nothing printed. ' +
+      'Parameters take owned values (i32, i64, f64, bool, char, String, Vec<i32>, Vec<Vec<char>> for a grid, Vec<String>, Option<Box<ListNode>>, HashMap<String, Vec<i32>>), never references or generics, because the test harness builds them from JSON by the parameter types; return a plain value (integer, bool, f64, String, Vec, Option, tuple or HashMap). ' +
+      'Dynamic test data (a script of mixed values, a nested object) is the harness crate\'s `whetstone::Json` enum (`use whetstone::Json;` with variants Null, Bool, Int(i64), Float(f64), Str(String), Array(Vec<Json>), Object(Vec<(String, Json)>)). ' +
+      'A linked list is `pub struct ListNode { pub val: i32, pub next: Option<Box<ListNode>> }` and a tree is `pub struct TreeNode { pub val: i32, pub left: Option<Box<TreeNode>>, pub right: Option<Box<TreeNode>> }`, declared at the top of the file when used, with exactly those fields. '
+  }
   return 'Rules for TypeScript: "starter" exports exactly one function (or a class plus an exported driver function) with full type annotations and a TODO body; ' +
     '"solution" is the same file completed, correct and idiomatic, with no external imports. ' +
     'A linked list is `class ListNode { val: number; next: ListNode | null; constructor(val = 0, next: ListNode | null = null) { this.val = val; this.next = next } }` and a tree is `interface TreeNode { val: number; left: TreeNode | null; right: TreeNode | null }`, declared in the file when used. '
@@ -283,7 +290,7 @@ const TESTS_RULE =
 function originalCode(problem: CodeProblem, language: Language): string {
   const port = portFor(problem, language)
   if (port) return `Original starter:\n${port.starter}\n\nOriginal solution (for the pattern; do not copy):\n${port.solution}`
-  const any = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([, p]) => p)
+  const any = LANGUAGES.map((l) => [l.id, portFor(problem, l.id)] as const).find(([, p]) => p)
   if (!any) return ''
   return `Original starter (in ${label(any[0])}; write the new problem in ${label(language)}):\n${any[1]!.starter}\n\nOriginal solution (for the pattern; do not copy):\n${any[1]!.solution}`
 }
@@ -700,7 +707,7 @@ const PORT_SCHEMA: JsonSchemaSpec = {
  * another. Built-in problems are ported by hand instead.
  */
 export function portPrompt(problem: CodeProblem, language: Language): { system: string; user: string; schema: JsonSchemaSpec } {
-  const from = (['typescript', 'ruby', 'java'] as Language[]).map((l) => [l, portFor(problem, l)] as const).find(([l, p]) => l !== language && p)
+  const from = LANGUAGES.map((l) => [l.id, portFor(problem, l.id)] as const).find(([l, p]) => l !== language && p)
   if (!from) throw new ValidationError('the problem has no code to port from')
   const [fromLang, port] = from
   const calls = problem.tests.map((t) => `- ${testLabel({ ...t, name: undefined }, language)} => ${JSON.stringify(t.expected)}${t.unordered ? ' (any order)' : ''}`).join('\n')
@@ -709,7 +716,7 @@ export function portPrompt(problem: CodeProblem, language: Language): { system: 
     system:
       `You translate interview practice problems between programming languages for a candidate who practises the same problem in several. Write the ${label(language)} version of the problem below as JSON with "starter" and "solution". ` +
       codeRules(language) +
-      `Keep the function name in ${label(language)}'s naming convention (twoSum in TypeScript and Java is two_sum in Ruby), the same parameter order and the same return shape, because the automated tests below call it exactly that way and compare the JSON of the result. ` +
+      `Keep the function name in ${label(language)}'s naming convention (twoSum in TypeScript and Java is two_sum in Ruby and Rust), the same parameter order and the same return shape, because the automated tests below call it exactly that way and compare the JSON of the result. ` +
       'The starter mirrors the original starter: the same explanatory comment, the same TODO shape, the same helper classes. The solution must pass every test. Do not use markdown.',
     user:
       `Problem: ${problem.title} (${problem.difficulty}; pattern: ${problem.pattern})\n\n${problem.description.join('\n\n')}\n\nExamples:\n${fmtExamples(problem.examples) || '(none)'}\n\n` +

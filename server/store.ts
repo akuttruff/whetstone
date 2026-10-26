@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { DEFAULT_SETTINGS, DIFFICULTIES, LANGUAGES, TRACKS } from '../src/types.ts'
 import { normaliseTests } from '../src/lib/tests.ts'
-import type { ChatMessage, Guide, GuideStep, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
+import type { ChatMessage, Guide, GuideStep, Language, PatternStat, Problem, Progress, PublicSettings, Review, Settings, Track } from '../src/types.ts'
 
 /**
  * Everything the app remembers lives here, on the machine running the
@@ -238,7 +238,7 @@ export class Store {
   }
 
   /** Save a port of a generated problem to another language, verified by the caller. */
-  setPort(id: string, language: 'ruby' | 'java', port: { starter: string; solution: string }): Problem {
+  setPort(id: string, language: Exclude<Language, 'typescript'>, port: { starter: string; solution: string }): Problem {
     const row = this.db.prepare('SELECT json FROM problems WHERE id = ?').get(id) as { json: string } | undefined
     if (!row) throw new ValidationError('no such generated problem')
     const p = JSON.parse(row.json) as Problem
