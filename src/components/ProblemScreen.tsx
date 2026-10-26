@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Lightbulb, MessageCircleQuestionMark, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react'
+import { ArrowLeft, Lightbulb, MessageCircleQuestionMark, Play, RotateCcw, Sparkles, Trash2, WandSparkles } from 'lucide-react'
 import GenerateSheet from './GenerateSheet.tsx'
 import { toast } from 'sonner'
 import CodeEditor from './CodeEditor.tsx'
@@ -42,9 +42,11 @@ interface Props {
   onPorted: (p: Problem) => void
   onReviewed: () => void
   onPrimer: (topic: string) => void
+  /** Generated problems can be deleted from their header. */
+  onDelete?: () => void
 }
 
-export default function ProblemScreen({ problem, settings, wide, onBack, onAutoChange, onVariant, onPorted, onReviewed, onPrimer }: Props) {
+export default function ProblemScreen({ problem, settings, wide, onBack, onAutoChange, onVariant, onPorted, onReviewed, onPrimer, onDelete }: Props) {
   const code = isCode(problem)
   // Code problems (coding and practical) follow the toggle; prose ones have no language.
   const language = langFor(problem, settings.language)
@@ -260,6 +262,11 @@ export default function ProblemScreen({ problem, settings, wide, onBack, onAutoC
           <button className="btn small" disabled={variantBusy !== null} onClick={() => setGenerateOpen(true)} title="Generate a new problem on this pattern: easier, similar or harder, with your own steer">
             <WandSparkles size={14} /> <span>New problem</span>
           </button>
+          {problem.source === 'generated' && onDelete && (
+            <button className="icon-btn" aria-label={`Delete ${problem.title}`} title="Delete this generated problem" onClick={onDelete}>
+              <Trash2 size={17} />
+            </button>
+          )}
         </div>
       </div>
       <GenerateSheet key={problem.id} open={generateOpen} problem={problem} busy={variantBusy} onClose={() => setGenerateOpen(false)} onGenerate={(d, r) => void makeVariant(d, r)} />

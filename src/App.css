@@ -71,24 +71,20 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 .icon-btn.small { width: 32px; height: 32px; }
 .icon-btn:active { background: var(--raised); }
 
+/* five equal tabs, an icon over a label: all five fit a phone and the sidebar, nothing to scroll */
 .tracks {
   flex: 0 0 auto;
-  display: flex; gap: 6px;
-  padding: 6px 16px 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px;
+  padding: 2px 8px 6px;
   border-bottom: 1px solid var(--line);
 }
-.tracks::-webkit-scrollbar { display: none; }
 .track {
-  flex: 0 0 auto;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line);
-  background: transparent; color: var(--dim); font-size: 13px; font-weight: 600; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-width: 0; padding: 6px 0 5px; border-radius: 10px; border: none;
+  background: transparent; color: var(--dim); font-size: 10.5px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap;
 }
-.track.active { background: var(--raised-2); color: var(--ink); border-color: var(--raised-2); }
-.track-count { font-size: 11px; color: var(--faint); font-weight: 500; }
-.track.active .track-count { color: var(--dim); }
+.track.active { background: var(--raised-2); color: var(--ink); }
+.track:active { color: var(--ink); }
 
 .scroll {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -117,7 +113,19 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
   border-radius: 10px; padding: 0 4px 0 0;
 }
 .prow.selected { background: var(--raised); }
+/* generated variants: folded under their parent, one line each */
 .prow.variant { margin-left: 14px; border-left: 2px solid var(--line); border-radius: 0 10px 10px 0; }
+.prow.variant .prow-main { padding: 7px 8px; }
+.prow.variant .prow-title { font-size: 14px; font-weight: 400; gap: 8px; min-width: 0; }
+.prow-vtitle { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vtoggle {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 2px;
+  height: 26px; padding: 0 6px 0 8px; border-radius: 999px; border: 1px solid var(--line);
+  background: transparent; color: var(--dim); font-size: 12px; font-weight: 600;
+}
+.vtoggle svg { transition: transform 0.15s; }
+.vtoggle.open svg { transform: rotate(180deg); }
+.vtoggle.open { background: var(--raised-2); color: var(--ink); border-color: var(--raised-2); }
 .prow-main {
   flex: 1 1 auto; min-width: 0; text-align: left; background: none; border: none; padding: 9px 8px;
   display: flex; flex-direction: column; gap: 2px;
