@@ -115,9 +115,6 @@ export default function App() {
       <header className="top">
         <h1 className="brand">Whetstone</h1>
         <LanguageToggle value={language} onChange={onLanguage} />
-        <button className="icon-btn" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
-          <SettingsIcon size={20} />
-        </button>
       </header>
       <TrackTabs value={track} onChange={(t) => { setTrack(t); setPrimerOpen(null); if (!wide) setSelectedId(null) }} />
       <div className="scroll">
@@ -125,6 +122,13 @@ export default function App() {
         <ProgressCard progress={progress} track={track} />
         <ProblemList problems={inTrack} selectedId={primerOpen ? null : selectedId} progress={progress} onSelect={select} onPrimer={(topic) => openPrimer(track, topic)} primerTopic={primerOpen?.topic ?? null} language={language} />
       </div>
+      <footer className="list-foot">
+        <button className="foot-btn" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
+          <SettingsIcon size={16} />
+          <span>Settings</span>
+          <span className="foot-model" title={settings.model}>{settings.model}</span>
+        </button>
+      </footer>
     </div>
   )
 

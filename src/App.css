@@ -91,6 +91,14 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
   padding: 10px 16px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .blurb { margin: 2px 0 10px; color: var(--dim); font-size: 13px; line-height: 1.4; }
+/* settings live at the foot of the list, with the active model as a reminder of what is reviewing */
+.list-foot { flex: 0 0 auto; border-top: 1px solid var(--line); padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); }
+.foot-btn {
+  width: 100%; display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 8px 10px; border-radius: 10px; border: none; background: transparent; color: var(--dim); font-size: 13px; font-weight: 600;
+}
+.foot-btn:active { background: var(--raised); }
+.foot-model { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; color: var(--faint); font-size: 12px; }
 .empty { color: var(--faint); text-align: center; padding: 40px 0; }
 
 .progress {
