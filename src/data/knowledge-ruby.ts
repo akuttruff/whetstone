@@ -20,7 +20,7 @@ function q(
 /**
  * The Ruby counterpart of the TypeScript & JavaScript topic: how the
  * language runs, how its object model and blocks work, memory and
- * performance, tooling and testing. Listed only when Ruby is selected.
+ * performance, tooling and testing. Tagged as Ruby's topic.
  */
 export const KNOWLEDGE_RUBY: PromptProblem[] = [
   q('rb-gvl-concurrency', 'Runtime model', 'medium', 'The GVL, threads, fibers and Ractors',

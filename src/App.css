@@ -91,6 +91,9 @@ h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
   padding: 10px 16px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .blurb { margin: 2px 0 10px; color: var(--dim); font-size: 13px; line-height: 1.4; }
+/* the language toggle heads the two code tracks, the only ones it changes */
+.lang-row { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; }
+.lang-row-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); }
 /* settings live at the foot of the list, with the active model as a reminder of what is reviewing */
 .list-foot { flex: 0 0 auto; border-top: 1px solid var(--line); padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); }
 .foot-btn {

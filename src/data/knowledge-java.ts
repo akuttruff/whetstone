@@ -20,7 +20,7 @@ function q(
 /**
  * The Java counterpart of the TypeScript & JavaScript topic: the JVM, the
  * memory model and concurrency, generics, the collections and streams
- * libraries, tooling and testing. Listed only when Java is selected.
+ * libraries, tooling and testing. Tagged as Java's topic.
  */
 export const KNOWLEDGE_JAVA: PromptProblem[] = [
   q('java-jvm-memory-gc', 'Runtime model', 'medium', 'JVM memory and garbage collection',

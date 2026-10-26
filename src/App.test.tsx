@@ -40,16 +40,20 @@ describe('App', () => {
     expect(await screen.findByPlaceholderText(/Requirements/)).toBeInTheDocument()
   })
 
-  it('lists the knowledge topic of the selected language only', async () => {
+  it('lists every language topic under Knowledge whatever the toggle says, and shows the toggle only on code tracks', async () => {
     stubServer('ruby')
     const user = userEvent.setup()
     render(<App />)
     expect(await screen.findByRole('heading', { name: 'Whetstone' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Language' })).toBeInTheDocument() // the Coding track
     await user.click(screen.getByRole('tab', { name: /Knowledge/ }))
+    expect(screen.queryByRole('radiogroup', { name: 'Language' })).not.toBeInTheDocument()
     expect(await screen.findByText('The GVL, threads, fibers and Ractors')).toBeInTheDocument()
-    expect(screen.queryByText('The event loop')).not.toBeInTheDocument()
-    expect(screen.queryByText('JVM memory and garbage collection')).not.toBeInTheDocument()
-    expect(screen.getByText('HTTP caching')).toBeInTheDocument() // shared topics stay
+    expect(screen.getByText('JVM memory and garbage collection')).toBeInTheDocument()
+    expect(screen.getByText('Ownership, moves and borrowing')).toBeInTheDocument()
+    expect(screen.getByText('HTTP caching')).toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /Practical/ }))
+    expect(screen.getByRole('radiogroup', { name: 'Language' })).toBeInTheDocument()
   })
 
   it('opens a topic primer from the list and from a problem, and starts practising from it', async () => {

@@ -177,9 +177,10 @@ Your work is kept per language. Switching from TypeScript to Ruby on a
 problem shows a fresh Ruby draft, with its own reviews, hints and threads.
 The review, tutor and hint prompts all speak the selected language.
 
-The Knowledge track has one language topic per language (TypeScript &
-JavaScript, Ruby, Java, Rust). You see the one for the selected language;
-the other topics are shared.
+The Knowledge track has one topic per language (TypeScript & JavaScript,
+Ruby, Java, Rust) alongside the shared topics; all of them are always
+listed. The language toggle sits at the top of the Coding and Practical
+lists, the two tracks it changes.
 
 ### Running code
 

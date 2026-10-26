@@ -22,7 +22,7 @@ function q(
  * the borrow checker, the trait system, error handling, smart pointers and
  * interior mutability, threads and async, unsafe and FFI, memory layout,
  * cargo and the ecosystem, testing, performance, API design, serde, web
- * services and editions. Listed only when Rust is selected.
+ * services and editions. Tagged as Rust's topic.
  */
 export const KNOWLEDGE_RUST: PromptProblem[] = [
   q('rust-ownership-moves', 'Ownership and borrowing', 'easy', 'Ownership, moves and borrowing',

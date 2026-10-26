@@ -25,7 +25,7 @@ import { BEHAVIORAL_MORE } from './behavioral-more.ts'
  * call it. The Ruby, Java and Rust ports are not attached here: the browser
  * loads them on demand (see ports.ts, `withPorts`) and the server uses full.ts.
  */
-/** Knowledge topics that belong to one language: listed only when that language is selected. */
+/** Knowledge topics that belong to one language; their questions are tagged with it. */
 export const LANGUAGE_TOPICS: Record<string, Language> = { 'TypeScript & JavaScript': 'typescript', Ruby: 'ruby', Java: 'java', Rust: 'rust' }
 
 const neutral = (ps: Problem[]): Problem[] =>

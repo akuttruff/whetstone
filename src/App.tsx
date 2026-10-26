@@ -64,9 +64,11 @@ export default function App() {
   const ready = settingsLoaded && problems.ready
 
   const selected = selectedId ? problems.byId.get(selectedId) ?? null : null
-  /** Problems for the current language: language-specific knowledge topics show only for their language. */
-  const forLanguage = useMemo(() => problems.all.filter((p) => !p.language || p.language === settings.language), [problems.all, settings.language])
+  // Every track lists everything: the language topics of the Knowledge track are ordinary groups, whatever the toggle says.
+  const forLanguage = problems.all
   const inTrack = useMemo(() => forLanguage.filter((p) => p.track === track), [forLanguage, track])
+  /** The language toggle belongs to the tracks it changes: code problems are attempted in it; prose tracks ignore it. */
+  const codeTrack = track === 'coding' || track === 'practical'
   useEffect(() => remember(TRACK_KEY, track), [track])
   useEffect(() => remember(SELECTED_KEY, selectedId), [selectedId])
 
@@ -114,11 +116,15 @@ export default function App() {
     <div className="list-screen">
       <header className="top">
         <h1 className="brand">Whetstone</h1>
-        <LanguageToggle value={language} onChange={onLanguage} />
       </header>
       <TrackTabs value={track} onChange={(t) => { setTrack(t); setPrimerOpen(null); if (!wide) setSelectedId(null) }} />
       <div className="scroll">
-        <p className="blurb">{TRACKS.find((t) => t.id === track)?.blurb}</p>
+        {codeTrack && (
+          <div className="lang-row">
+            <span className="lang-row-label">Language</span>
+            <LanguageToggle value={language} onChange={onLanguage} />
+          </div>
+        )}
         <ProgressCard progress={progress} track={track} />
         <ProblemList problems={inTrack} selectedId={primerOpen ? null : selectedId} progress={progress} onSelect={select} onPrimer={(topic) => openPrimer(track, topic)} primerTopic={primerOpen?.topic ?? null} language={language} />
       </div>
