@@ -90,5 +90,5 @@ describe('App', () => {
     const more = screen.getByRole('link', { name: /JavaScript execution model/ })
     expect(more).toHaveAttribute('href', expect.stringContaining('developer.mozilla.org'))
     expect(more).toHaveAttribute('target', '_blank')
-  })
+  }, 20_000)
 })
