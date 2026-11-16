@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#15171C"/>
-  <path d="M14 44 L30 16 L36 26 L46 12 L52 44 Z" fill="#8FB3D9" opacity="0.9"/>
-  <path d="M10 48 H54" stroke="#E9B86A" stroke-width="4" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Full-bleed opaque ground: iOS masks to its own squircle. -->
+  <rect width="512" height="512" fill="#444444"/>
+  <!-- Two peaks and the blue line of a whetstone's edge beneath them. -->
+  <path d="M112 368 L240 144 L288 224 L368 112 L416 368 Z" fill="#FFFFFF"/>
+  <line x1="88" y1="404" x2="424" y2="404" stroke="#3D92C9" stroke-width="32" stroke-linecap="round"/>
 </svg>
